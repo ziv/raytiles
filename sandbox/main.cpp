@@ -1,8 +1,4 @@
-#include <cstdlib>
-#include <format>
-#include <stdexcept>
 #include <string>
-#include <string_view>
 
 #include "../raytiles.h"
 #include "rlgl.h"
@@ -37,13 +33,6 @@ void InitStorage() {
 }
 #endif
 
-static std::string required_env(const char *name, std::string_view label) {
-    if (const char *value = std::getenv(name); value && *value) {
-        return value;
-    }
-    throw std::runtime_error(std::format("missing {} token in options or environment variables", label));
-}
-
 int main() {
     SetTraceLogLevel(LOG_DEBUG);
     InitWindow(800, 600, "raytiles");
@@ -55,12 +44,12 @@ int main() {
 
     // streamer configuration, set the anchor tiles (currently around greece)
     raytiles::config conf;
-    conf.anchor_x_tile = 1179.0f;
+    conf.anchor_x_tile = 1179.0f; // somewhere at greece
     conf.anchor_z_tile = 797.0f;
 
     // pool configuration, set your mapbox token
     raytiles::pool_config pool_conf;
-    pool_conf.download_threads = 2;
+    pool_conf.download_threads = 2; // good enough
 
 #ifdef __EMSCRIPTEN__
     pool_conf.texture_cache_path = "/assets/t/{}/{}/{}.png";
@@ -110,7 +99,9 @@ int main() {
                     else console.log("IDBFS Sync successful!");
 
 
+
                 });
+
 
 
             });
