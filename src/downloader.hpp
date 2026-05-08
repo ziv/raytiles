@@ -19,6 +19,7 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/fetch.h>
+#include <emscripten.h>
 #else
 #if defined(_WIN32)
 #define NOGDI
@@ -179,13 +180,6 @@ namespace raytiles {
             if (ec) {
                 throw std::runtime_error("rename failed: " + path);
             }
-#ifdef __EMSCRIPTEN__
-            EM_ASM(
-                FS.syncfs(false, function(err) {
-                if (err) console.error("Failed to save to disk", err);
-            });
-            );
-#endif
         }
 
     public:

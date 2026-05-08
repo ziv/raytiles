@@ -7,7 +7,7 @@
 #include "../raytiles.h"
 #include "rlgl.h"
 #ifdef __EMSCRIPTEN__
-    #include <emscripten/emscripten.h>
+#include <emscripten/emscripten.h>
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -23,13 +23,17 @@ extern "C" EMSCRIPTEN_KEEPALIVE void MarkStorageReady() {
 void InitStorage() {
     EM_ASM(
         FS.mkdir('/assets');
-        FS.mount(IDBFS, {}, '/assets');
+    FS.mount(IDBFS, {}, '/assets');
 
-        FS.syncfs(true, function(err) {
-            if (err) console.error("Syncfs error:", err);
-            _MarkStorageReady();
-        });
-    );
+    FS.syncfs(true, function(err)
+    {
+        if (err) console.error("Syncfs error:", err);
+        _MarkStorageReady();
+    }
+    )
+    ;
+    )
+    ;
 }
 #endif
 
@@ -46,6 +50,7 @@ int main() {
 #ifdef __EMSCRIPTEN__
     InitStorage();
 #endif
+    double last_sync_time = GetTime();
 
 
     // streamer configuration, set the anchor tiles (currently around greece)
@@ -57,6 +62,11 @@ int main() {
     raytiles::pool_config pool_conf;
     pool_conf.download_threads = 2;
     pool_conf.token = required_env("MAPBOX_TOKEN", "mapbox token");
+
+#ifdef __EMSCRIPTEN__
+    pool_conf.texture_cache_path = "/assets/t/{}/{}/{}.png";
+    pool_conf.heightmap_cache_path = "/assets/h/{}/{}/{}.png";
+#endif
 
     // create the streamer with both configurations
     const raytiles::streamer streamer(conf, pool_conf);
@@ -89,6 +99,24 @@ int main() {
         if (IsKeyDown(KEY_S)) camera.position.z += 1500.0f * dt;
         if (IsKeyDown(KEY_A)) camera.position.x -= 1500.0f * dt;
         if (IsKeyDown(KEY_D)) camera.position.x += 1500.0f * dt;
+
+        // sync every 10 seconds
+        if (GetTime() - last_sync_time > 10.0) {
+            last_sync_time = GetTime();
+#ifdef __EMSCRIPTEN__
+            MAIN_THREAD_EM_ASM({
+                console.log("Syncing to IndexedDB...");
+                FS.syncfs(false, function(err) {
+                    if (err) console.error("IDBFS Sync error:", err);
+                    else console.log("IDBFS Sync successful!");
+
+
+                });
+
+
+            });
+#endif
+        }
     };
 
 #ifdef __EMSCRIPTEN__
