@@ -18,16 +18,6 @@ if (NOT TARGET raylib)
     FetchContent_MakeAvailable(raylib)
 endif ()
 
-if (NOT TARGET httplib)
-    FetchContent_Declare(
-            httplib
-            GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
-            GIT_TAG v0.18.5
-            GIT_SHALLOW TRUE
-    )
-    FetchContent_MakeAvailable(httplib)
-endif ()
-
 add_library(${PROJECT_NAME}
         raytiles.h
         craytiles.h
@@ -38,19 +28,50 @@ add_library(${PROJECT_NAME}
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
 target_link_libraries(${PROJECT_NAME} PUBLIC raylib)
-target_link_libraries(${PROJECT_NAME} PRIVATE httplib)
 
-if (APPLE)
-    find_library(SECURITY_FRAMEWORK Security)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${SECURITY_FRAMEWORK})
+if (EMSCRIPTEN)
+    set(CMAKE_CXX_FLAGS_RELEASE "-Oz")
+    target_compile_options(${PROJECT_NAME} PUBLIC "-pthread" "-fexceptions")
+    target_link_options(${PROJECT_NAME} PUBLIC
+            "-sUSE_GLFW=3"
+            "-sFETCH=1"
+            "-sALLOW_MEMORY_GROWTH=1"
+            "-pthread"
+            "-sPTHREAD_POOL_SIZE=4"
+            "--llvm-lto 1"
+            "-fexceptions"
+            "-sMIN_WEBGL_VERSION=2"
+            "-sMAX_WEBGL_VERSION=2"
+            "-sGL_ASSERTIONS=0"
+    )
+else ()
+    if (NOT TARGET httplib)
+        FetchContent_Declare(
+                httplib
+                GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+                GIT_TAG v0.18.5
+                GIT_SHALLOW TRUE
+        )
+        FetchContent_MakeAvailable(httplib)
+    endif ()
+
+    target_link_libraries(${PROJECT_NAME} PRIVATE httplib)
+
+    if (APPLE)
+        find_library(SECURITY_FRAMEWORK Security)
+        target_link_libraries(${PROJECT_NAME} PRIVATE ${SECURITY_FRAMEWORK})
+    endif ()
+
+    find_package(OpenSSL REQUIRED)
+    target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
 endif ()
-
-find_package(OpenSSL REQUIRED)
-target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
-target_compile_definitions(${PROJECT_NAME} PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
 
 # sandbox example application
 add_executable(Sandbox sandbox/main.cpp)
 target_link_libraries(Sandbox PRIVATE ${PROJECT_NAME})
+
+if (EMSCRIPTEN)
+    set_target_properties(Sandbox PROPERTIES SUFFIX ".html")
+endif ()

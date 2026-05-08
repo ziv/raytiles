@@ -61,9 +61,13 @@ namespace raytiles {
             return 7;
         }
 
-        constexpr auto vertex_shader = R"(
-#version 330
+#ifdef __EMSCRIPTEN__
+#define GLSL_VERSION_HEADER "#version 300 es\nprecision mediump float;\n"
+#else
+#define GLSL_VERSION_HEADER "#version 330\n"
+#endif
 
+        constexpr auto vertex_shader = GLSL_VERSION_HEADER R"(
 in vec3 vertexPosition;
 in vec2 vertexTexCoord;
 
@@ -108,9 +112,7 @@ void main()
 }
 )";
 
-        constexpr auto fragment_shader = R"(
-#version 330
-
+        constexpr auto fragment_shader = GLSL_VERSION_HEADER R"(
 in vec2 fragTexCoord;
 in float fragCamDist;
 
@@ -425,7 +427,7 @@ void main()
 
             // take ownership of the decoded images via RAII; they unload automatically
             // on every exit path below.
-            raii::image tex_img{LoadImageFromMemory(".jpg", reinterpret_cast<const unsigned char *>(tx_bytes.data()), static_cast<int>(tx_bytes.size()))};
+            raii::image tex_img{LoadImageFromMemory(".png", reinterpret_cast<const unsigned char *>(tx_bytes.data()), static_cast<int>(tx_bytes.size()))};
             raii::image height_img{LoadImageFromMemory(".png", reinterpret_cast<const unsigned char *>(hm_bytes.data()), static_cast<int>(hm_bytes.size()))};
 
             if (!IsImageValid(*tex_img) || !IsImageValid(*height_img)) {
