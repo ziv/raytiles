@@ -18,10 +18,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Install LLVM and Ninja
+      - name: Install LLVM (and Ninja)
         run: |
           brew update
-          brew install llvm ninja
+          brew install llvm
 
       - name: Configure CMake
         run: |
