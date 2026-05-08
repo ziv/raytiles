@@ -81,12 +81,6 @@ See `sandbox/main.cpp` for a full runnable example with input handling.
 
 ## TODOs
 
-- [x] support raylib 6.0
-- [ ] add clear method to flush the cache and reset the streamer
-- [x] support windows builds (MSVC + MinGW)
-- [x] support Linux builds (GCC + Clang)
-- [ ] support web builds (emscripten)
-- [x] support more providers (TomTom, OpenStreetMap, etc.)
 - [ ] support more than level 15 zoom
 - [ ] add sky module (atmosphere + sun + moon + stars)
 
