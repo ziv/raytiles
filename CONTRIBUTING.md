@@ -15,6 +15,13 @@ I'm really glad you're reading this, because we need volunteer developers to hel
 - Open a new GitHub pull request with the patch.
 - Ensure the PR description clearly describes the problem and solution. Include the relevant issue number if applicable.
 
+### Do you have a new idea? A feature request?
+
+Create a new issue and describe the feature you would like to see implemented. Be sure to include a clear description of
+the
+problem you're trying to solve, and how your proposed feature would solve it. If you have any relevant code samples or
+mockups, please include them as well.
+
 ### Development Environment
 
 To set up the development environment, you will need to have C++ compiler supporting C++23, and CMake installed.
