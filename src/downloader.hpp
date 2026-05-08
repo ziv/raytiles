@@ -1,5 +1,6 @@
 #pragma once
 #include <condition_variable>
+#include <iostream>
 #include <cstdio>
 #include <exception>
 #include <filesystem>
@@ -8,7 +9,6 @@
 #include <future>
 #include <map>
 #include <mutex>
-#include <optional>
 #include <queue>
 #include <stdexcept>
 #include <stop_token>
@@ -17,7 +17,15 @@
 #include <thread>
 #include <vector>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/fetch.h>
+#else
+#if defined(_WIN32)
+#define NOGDI
+#define NOUSER
+#endif
 #include "httplib.h"
+#endif
 
 namespace raytiles {
     // pool of background workers. each job downloads a tile (or reads it from the
@@ -30,7 +38,8 @@ namespace raytiles {
         // todo allow logging from threads using config
         // tiny thread-safe logger: serializes writes to stderr behind a single mutex
         // so log lines never interleave. used in workers in place of TraceLog.
-        static void log_line(const std::string_view level, const std::string_view msg) {
+        void log_line(const std::string_view level, const std::string_view msg) const {
+            if (!config.use_logger) return;
             static std::mutex log_mtx;
             std::lock_guard lock(log_mtx);
             std::fprintf(stderr, "[%.*s] %.*s\n", static_cast<int>(level.size()), level.data(), static_cast<int>(msg.size()), msg.data());
@@ -55,7 +64,9 @@ namespace raytiles {
         std::condition_variable_any cv;
 
         void worker_loop(const std::stop_token &st) {
-            bool use_logger = config.use_logger;
+#ifdef __EMSCRIPTEN__
+#else
+
             // one persistent http client per worker. mapbox endpoints all live under a
             // single host, so we can keep the TLS connection alive across many tiles
             // instead of paying handshake cost per fetch. the client is owned by the
@@ -66,6 +77,7 @@ namespace raytiles {
             cli.set_read_timeout(5);
             cli.set_keep_alive(true);
             cli.enable_server_certificate_verification(!config.allow_insecure_tls);
+#endif
 
             while (true) {
                 ImageJob img_job;
@@ -78,13 +90,21 @@ namespace raytiles {
 
                 try {
                     std::string bytes;
-                    if (auto body = fetch(cli, img_job.path, img_job.url); body) {
-                        if (use_logger) log_line("DEBUG", std::format("tile downloaded: {} ", img_job.path));
-                        write_atomic(img_job.path, *body);
-                        bytes = std::move(*body);
-                    } else {
+
+                    if (std::filesystem::exists(img_job.path)) {
                         bytes = read_file(img_job.path);
-                        if (use_logger) log_line("DEBUG", std::format("tile loaded from cache: {}", img_job.path));
+                        log_line("DEBUG", std::format("tile loaded from cache: {}", img_job.path));
+                    } else {
+#ifdef __EMSCRIPTEN__
+                        auto body = fetch(config.host + img_job.url);
+#else
+                        auto body = fetch(cli, img_job.url);
+#endif
+
+                        log_line("DEBUG", std::format("tile downloaded: {} ", img_job.path));
+                        write_atomic(img_job.path, body);
+                        log_line("DEBUG", std::format("tile cached: {} ", img_job.path));
+                        bytes = std::move(body);
                     }
                     img_job.promise.set_value(std::move(bytes));
                 } catch (...) {
@@ -110,17 +130,40 @@ namespace raytiles {
             return out;
         }
 
-        static std::optional<std::string> fetch(httplib::Client &cli, const std::string &path, const std::string &url) {
-            if (std::filesystem::exists(path)) return std::nullopt;
+#ifdef __EMSCRIPTEN__
+        static std::string fetch(const std::string &url) {
+            std::string result = "";
+            emscripten_fetch_attr_t attr;
+            emscripten_fetch_attr_init(&attr);
+            strcpy(attr.requestMethod, "GET");
 
+            attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY | EMSCRIPTEN_FETCH_SYNCHRONOUS;
+            emscripten_fetch_t *fetch = emscripten_fetch(&attr, url.c_str());
+
+            if (fetch != nullptr) {
+                if (fetch->status == 200) {
+                    result = std::string(fetch->data, fetch->numBytes);
+                } else {
+                    std::cerr << "Web Download Error: HTTP " << fetch->status << " for URL: " << url << std::endl;
+                }
+                emscripten_fetch_close(fetch);
+            } else {
+                std::cerr << "Emscripten fetch initialization failed for URL: " << url << std::endl;
+            }
+            return result;
+        }
+#else
+
+        static std::string fetch(httplib::Client &cli, const std::string &url) {
             auto res = cli.Get(url);
             if (!res || res->status != 200) {
                 const int status = res ? res->status : -1;
                 const std::string err = res ? std::string{} : httplib::to_string(res.error());
-                throw std::runtime_error(std::format("download failed: {} status={} err={}", path, status, err));
+                throw std::runtime_error(std::format("download failed: {} status={} err={}", url, status, err));
             }
             return std::move(res->body);
         }
+#endif
 
         static void write_atomic(const std::string &path, const std::string &bytes) {
             std::filesystem::create_directories(std::filesystem::path(path).parent_path());

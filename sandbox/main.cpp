@@ -6,6 +6,9 @@
 
 #include "../raytiles.h"
 #include "rlgl.h"
+#ifdef __EMSCRIPTEN__
+    #include <emscripten/emscripten.h>
+#endif
 
 static std::string required_env(const char *name, std::string_view label) {
     if (const char *value = std::getenv(name); value && *value) {
@@ -16,7 +19,6 @@ static std::string required_env(const char *name, std::string_view label) {
 
 int main() {
     SetTraceLogLevel(LOG_DEBUG);
-
     InitWindow(800, 600, "raytiles");
 
     // streamer configuration, set the anchor tiles (currently around greece)
@@ -26,6 +28,7 @@ int main() {
 
     // pool configuration, set your mapbox token
     raytiles::pool_config pool_conf;
+    pool_conf.download_threads = 2;
     pool_conf.token = required_env("MAPBOX_TOKEN", "mapbox token");
 
     // create the streamer with both configurations
@@ -42,10 +45,8 @@ int main() {
 
     streamer.set_fog_color(SKYBLUE);
 
-    while (!WindowShouldClose()) {
-        // update the streamer with camera
+    auto update = [&]() {
         streamer.update(camera);
-
         BeginDrawing();
         ClearBackground(SKYBLUE);
 
@@ -61,7 +62,22 @@ int main() {
         if (IsKeyDown(KEY_S)) camera.position.z += 1500.0f * dt;
         if (IsKeyDown(KEY_A)) camera.position.x -= 1500.0f * dt;
         if (IsKeyDown(KEY_D)) camera.position.x += 1500.0f * dt;
+    };
+
+#ifdef __EMSCRIPTEN__
+
+    auto caller = [](void *arg) {
+        auto *updateFunc = static_cast<decltype(update) *>(arg);
+        (*updateFunc)();
+    };
+    emscripten_set_main_loop_arg(caller, &update, 0, 1);
+#else
+
+    while (!WindowShouldClose()) {
+        update();
     }
+#endif
+
 
     CloseWindow();
     return 0;

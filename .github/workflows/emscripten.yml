@@ -1,0 +1,51 @@
+name: Emscripten Build
+
+on:
+  workflow_dispatch:
+#  push:
+#    branches: [ "main" ]
+#  pull_request:
+#    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build \
+            libasound2-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxi-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            libxcursor-dev \
+            libxinerama-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            libssl-dev
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 'latest'
+
+      - name: Configure CMake
+        run: emcmake cmake -B build-web-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPLATFORM=Web
+
+      - name: Build
+        run: cmake --build build-web-release
+
+#      - name: Deploy to GitHub Pages
+#          if: github.ref == 'refs/heads/main'
+#          uses: peaceiris/actions-gh-pages@v3
+#          with:
+#            github_token: ${{ secrets.GITHUB_TOKEN }}
+#            publish_dir: ./build-web-release
