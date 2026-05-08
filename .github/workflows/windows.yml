@@ -10,19 +10,31 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-
+    env:
+      VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+      VCPKG_FORCE_SYSTEM_BINARIES: 1
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Export GitHub Actions Cache Environment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Install Ninja
+        run: choco install ninja
 
       - name: Install OpenSSL
         run: vcpkg install openssl:x64-windows
 
       - name: Configure CMake
         run: >
-          cmake -B build 
+          cmake -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release 
-          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake"
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
 
       - name: Build Project
-        run: cmake --build build --config Release
+        run: cmake --build build
