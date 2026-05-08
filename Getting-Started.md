@@ -274,12 +274,15 @@ Returns `std::nullopt` when no loaded tile covers the queried point; fall back t
 
 ## Tile Cache
 
-Downloaded tiles are persisted to disk and reused on subsequent runs. The default layout is:
+Downloaded tiles are persisted to disk and reused on subsequent runs. The default cache paths are:
 
-```
-assets/tiles/texture/{zoom}/{x}/{z}.png
-assets/tiles/heightmap/{zoom}/{x}/{z}.png
-```
+| Tile type | Default path |
+|---|---|
+| Texture | `assets/tiles/texture/{zoom}/{y}/{x}.png` |
+| Heightmap | `assets/tiles/heightmap/{zoom}/{x}/{y}.png` |
+
+The positional placeholders in the path template are filled with `(zoom, y, x)` for textures and `(zoom, x, y)` for
+heightmaps (matching the `std::vformat` call order in the library).
 
 Override the paths via `pool_config::texture_cache_path` and `pool_config::heightmap_cache_path`. Parent
 directories are created automatically.
