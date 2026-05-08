@@ -41,6 +41,13 @@ namespace raytiles {
         }
     }
 
+    static std::string get_url(std::string url, const int zoom, const int x, const int y) {
+        replace_all(url, "{zoom}", std::to_string(zoom));
+        replace_all(url, "{x}", std::to_string(x));
+        replace_all(url, "{y}", std::to_string(y));
+        return url;
+    }
+
     // pool of background workers. each job downloads a tile (or reads it from the
     // on-disk cache) and resolves a future with the raw file bytes. raylib is not
     // thread-safe (image decoders, TextFormat/TextToLower static buffers, internal
@@ -48,7 +55,6 @@ namespace raytiles {
     // raylib API. all decoding is deferred to the main thread once the future
     // resolves.
     class pool {
-        // todo allow logging from threads using config
         // tiny thread-safe logger: serializes writes to stderr behind a single mutex
         // so log lines never interleave. used in workers in place of TraceLog.
         void log_line(const std::string_view level, const std::string_view msg) const {
@@ -61,11 +67,12 @@ namespace raytiles {
 
         enum request_type {
             TEXTURE,
-            HEIGHTMAP
+            HEIGHTMAP,
+            NORMALS
         };
 
         struct ImageJob {
-            request_type type;
+            request_type type = TEXTURE;
             std::string path;
             std::string url;
             std::promise<std::string> promise;
@@ -82,28 +89,29 @@ namespace raytiles {
         // - workers would never wake up on shutdown and ~pool would hang forever.
         std::condition_variable_any cv;
 
+        [[nodiscard]] httplib::Client create_client(const std::string &host) const {
+            httplib::Client cli(host);
+            cli.set_follow_location(true);
+            cli.set_connection_timeout(10);
+            cli.set_read_timeout(5);
+            cli.set_keep_alive(true);
+            cli.enable_server_certificate_verification(!config.allow_insecure_tls);
+            return cli;
+        }
+
+        [[nodiscard]] std::string get_host(const request_type type) const {
+            return type == TEXTURE ? config.texture_host : type == HEIGHTMAP ? config.heightmap_host : config.normals_host;
+        }
+
         void worker_loop(const std::stop_token &st) {
 #ifdef __EMSCRIPTEN__
 #else
 
-            // 2 persistent http clients per worker. endpoints all live under a
+            // persistent http clients per host. endpoints all live under a
             // single host, so we can keep the TLS connection alive across many tiles
-            // instead of paying handshake cost per fetch. the clients is owned by the
+            // instead of paying handshake cost per fetch. the clients are owned by the
             // worker thread so no synchronization is needed.
-            httplib::Client cli_tex(config.texture_host.c_str());
-            cli_tex.set_follow_location(true);
-            cli_tex.set_connection_timeout(10);
-            cli_tex.set_read_timeout(5);
-            cli_tex.set_keep_alive(true);
-            cli_tex.enable_server_certificate_verification(!config.allow_insecure_tls);
-
-            httplib::Client cli_hm(config.heightmap_host.c_str());
-            cli_hm.set_follow_location(true);
-            cli_hm.set_connection_timeout(10);
-            cli_hm.set_read_timeout(5);
-            cli_hm.set_keep_alive(true);
-            cli_hm.enable_server_certificate_verification(!config.allow_insecure_tls);
-
+            std::unordered_map<std::string, httplib::Client> clients;
 
 #endif
 
@@ -123,10 +131,13 @@ namespace raytiles {
                         bytes = read_file(img_job.path);
                         log_line("DEBUG", std::format("tile loaded from cache: {}", img_job.path));
                     } else {
+                        auto host = get_host(img_job.type);
 #ifdef __EMSCRIPTEN__
-                        auto body = fetch((img_job.type == TEXTURE ? config.texture_host : config.heightmap_host) + img_job.url);
+                        auto body = fetch(host + img_job.url);
 #else
-                        auto body = fetch(img_job.type == TEXTURE ? cli_tex : cli_hm, img_job.url);
+                        // todo do we need to destroy the hosts when done?
+                        if (!clients.contains(host)) clients.insert({host, create_client(host)});
+                        auto body = fetch(clients.at(host), img_job.url);
 #endif
 
                         log_line("DEBUG", std::format("tile downloaded: {} ", img_job.path));
@@ -244,20 +255,17 @@ namespace raytiles {
 
         std::shared_future<std::string> enqueue_texture(int zoom, int x, int y) {
             const auto path = std::vformat(config.texture_cache_path, std::make_format_args(zoom, y, x));
-            auto url = config.texture_url_path;
-            replace_all(url, "{zoom}", std::to_string(zoom));
-            replace_all(url, "{x}", std::to_string(x));
-            replace_all(url, "{y}", std::to_string(y));
-            return enqueue_and_load(path, url, TEXTURE);
+            return enqueue_and_load(path, get_url(config.texture_url_path, zoom, x, y), TEXTURE);
         }
 
         std::shared_future<std::string> enqueue_heightmap(int zoom, int x, int y) {
             const auto path = std::vformat(config.heightmap_cache_path, std::make_format_args(zoom, x, y));
-            auto url = config.heightmap_url_path;
-            replace_all(url, "{zoom}", std::to_string(zoom));
-            replace_all(url, "{x}", std::to_string(x));
-            replace_all(url, "{y}", std::to_string(y));
-            return enqueue_and_load(path, url, HEIGHTMAP);
+            return enqueue_and_load(path, get_url(config.heightmap_url_path, zoom, x, y), HEIGHTMAP);
+        }
+
+        std::shared_future<std::string> enqueue_normals(int zoom, int x, int y) {
+            const auto path = std::vformat(config.normals_cache_path, std::make_format_args(zoom, x, y));
+            return enqueue_and_load(path, get_url(config.normals_url_path, zoom, x, y), NORMALS);
         }
     };
 } // namespace raytiles

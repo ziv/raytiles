@@ -107,6 +107,7 @@ namespace raytiles {
         /// `std::vformat`. Parent directories are created on demand.
         std::string texture_cache_path = "assets/tiles/texture/{}/{}/{}.png";
         std::string heightmap_cache_path = "assets/tiles/heightmap/{}/{}/{}.png";
+        std::string normals_cache_path = "assets/tiles/normals/{}/{}/{}.png";
 
         /// Providers URLs template items
         /// URL always constructed from Zoom/X/Z and optional token
@@ -114,8 +115,12 @@ namespace raytiles {
         /// and provide RGB heightmaps.
         std::string texture_host = "https://server.arcgisonline.com";
         std::string texture_url_path = "/ArcGIS/rest/services/World_Imagery/MapServer/tile/{zoom}/{y}/{x}";
+
         std::string heightmap_host = "https://s3.amazonaws.com";
         std::string heightmap_url_path = "/elevation-tiles-prod/terrarium/{zoom}/{x}/{y}.png";
+
+        std::string normals_host = "https://s3.amazonaws.com";
+        std::string normals_url_path = "/elevation-tiles-prod/normal/{zoom}/{x}/{y}.png";
     };
 
     class manager;
