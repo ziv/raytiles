@@ -10,6 +10,29 @@
     #include <emscripten/emscripten.h>
 #endif
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+bool g_storage_ready = false;
+
+extern "C" EMSCRIPTEN_KEEPALIVE void MarkStorageReady() {
+    g_storage_ready = true;
+    TraceLog(LOG_INFO, "STORAGE: Cached tiles loaded from IndexedDB!");
+}
+
+void InitStorage() {
+    EM_ASM(
+        FS.mkdir('/assets');
+        FS.mount(IDBFS, {}, '/assets');
+
+        FS.syncfs(true, function(err) {
+            if (err) console.error("Syncfs error:", err);
+            _MarkStorageReady();
+        });
+    );
+}
+#endif
+
 static std::string required_env(const char *name, std::string_view label) {
     if (const char *value = std::getenv(name); value && *value) {
         return value;
@@ -20,6 +43,10 @@ static std::string required_env(const char *name, std::string_view label) {
 int main() {
     SetTraceLogLevel(LOG_DEBUG);
     InitWindow(800, 600, "raytiles");
+#ifdef __EMSCRIPTEN__
+    InitStorage();
+#endif
+
 
     // streamer configuration, set the anchor tiles (currently around greece)
     raytiles::config conf;

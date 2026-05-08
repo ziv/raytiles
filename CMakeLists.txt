@@ -44,6 +44,7 @@ if (EMSCRIPTEN)
             "-sMIN_WEBGL_VERSION=2"
             "-sMAX_WEBGL_VERSION=2"
             "-sGL_ASSERTIONS=0"
+            "SHELL:-lidbfs.js"
     )
 else ()
     if (NOT TARGET httplib)
