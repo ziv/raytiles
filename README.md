@@ -55,12 +55,10 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(raytiles)
 ```
 
-`MAPBOX_TOKEN` environment variable must be set to a valid Mapbox API token before running the example below.
-
-To work with Mapbox maps, you will need to create an account on Mapbox and obtain an access token. You can sign up for a
-free account at [Mapbox](https://www.mapbox.com/).
+The following example shows how to use the C++ API to stream and render the world in a raylib application:
 
 ```cpp
+#include "raylib.h"
 #include "raytiles.h"
 
 int main() {
@@ -69,9 +67,8 @@ int main() {
   // streamer confuguration with default values, tweak as needed
   raytiles::config conf;
   
-  // pool configuration with your Mapbox token, tweak as needed
+  // pool configuration with default values, tweak as needed
   raytiles::pool_config pool_conf;
-  pool_conf.token = std::string(std::getenv("MAPBOX_TOKEN"));
 
   // streamer instance
   raytiles::streamer streamer(conf, pool_conf);

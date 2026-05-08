@@ -61,7 +61,6 @@ int main() {
     // pool configuration, set your mapbox token
     raytiles::pool_config pool_conf;
     pool_conf.download_threads = 2;
-    pool_conf.token = required_env("MAPBOX_TOKEN", "mapbox token");
 
 #ifdef __EMSCRIPTEN__
     pool_conf.texture_cache_path = "/assets/t/{}/{}/{}.png";
@@ -72,7 +71,7 @@ int main() {
     const raytiles::streamer streamer(conf, pool_conf);
 
     Camera3D camera;
-    camera.position = Vector3{5000.0f, 3000.0f, 5000.0f};
+    camera.position = Vector3{3000.0f, 5000.0f, 3000.0f};
     camera.target = Vector3{0.0f, 0.0f, 0.0f};
     camera.up = Vector3{0.0f, 1.0f, 0.0f};
     camera.fovy = 45.0f;
@@ -91,7 +90,7 @@ int main() {
         // draw the world around the camera
         streamer.draw(camera);
         EndMode3D();
-        // streamer.debug(camera);
+        streamer.debug(camera);
         EndDrawing();
 
         const auto dt = GetFrameTime();

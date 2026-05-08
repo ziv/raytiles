@@ -57,10 +57,10 @@ RaytilesPoolConfig RaytilesPoolConfigDefault(void) {
     out.use_logger           = d.use_logger;
     out.texture_cache_path   = d.texture_cache_path.c_str();
     out.heightmap_cache_path = d.heightmap_cache_path.c_str();
-    out.host                 = d.host.c_str();
+    out.texture_host         = d.texture_host.c_str();
     out.texture_url_path     = d.texture_url_path.c_str();
+    out.heightmap_host       = d.heightmap_host.c_str();
     out.heightmap_url_path   = d.heightmap_url_path.c_str();
-    out.token                = d.token.c_str();
     return out;
 }
 
@@ -95,10 +95,10 @@ RaytilesStreamer *RaytilesStreamerCreate(const RaytilesConfig     *conf,
     p.use_logger           = pool_conf->use_logger;
     p.texture_cache_path   = to_string_or_empty(pool_conf->texture_cache_path);
     p.heightmap_cache_path = to_string_or_empty(pool_conf->heightmap_cache_path);
-    p.host                 = to_string_or_empty(pool_conf->host);
+    p.texture_host         = to_string_or_empty(pool_conf->texture_host);
     p.texture_url_path     = to_string_or_empty(pool_conf->texture_url_path);
+    p.heightmap_host       = to_string_or_empty(pool_conf->heightmap_host);
     p.heightmap_url_path   = to_string_or_empty(pool_conf->heightmap_url_path);
-    p.token                = to_string_or_empty(pool_conf->token);
 
     try {
         return new RaytilesStreamer(std::move(c), std::move(p));

@@ -87,7 +87,9 @@ void main()
 
     vec3 color = texture(heightMap, vertexTexCoord).rgb;
     vec3 c = color * 255.0;
-    float heightValue = -10000.0 + ((c.r * 65536.0 + c.g * 256.0 + c.b) * 0.1);
+
+    // Terrarium heightmap calculations
+    float heightValue = (c.r * 256.0 + c.g + c.b / 256.0) - 32768.0;
 
     vec3 displacedPosition = vertexPosition;
     displacedPosition.y += heightValue * heightScale;

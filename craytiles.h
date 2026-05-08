@@ -57,7 +57,9 @@ typedef struct RaytilesPoolConfig {
     const char *heightmap_cache_path;
     const char *host;
     const char *texture_url_path;
+    const char *texture_host;
     const char *heightmap_url_path;
+    const char *heightmap_host;
     const char *token;
 } RaytilesPoolConfig;
 

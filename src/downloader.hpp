@@ -29,6 +29,18 @@
 #endif
 
 namespace raytiles {
+    // todo we don't need replace all
+    // todo performance
+    static void replace_all(std::string &str, const std::string &from, const std::string &to) {
+        if (from.empty()) return;
+        size_t start_pos = 0;
+
+        while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+            str.replace(start_pos, from.length(), to);
+            start_pos += to.length();
+        }
+    }
+
     // pool of background workers. each job downloads a tile (or reads it from the
     // on-disk cache) and resolves a future with the raw file bytes. raylib is not
     // thread-safe (image decoders, TextFormat/TextToLower static buffers, internal
@@ -47,7 +59,13 @@ namespace raytiles {
             std::fflush(stderr);
         }
 
+        enum request_type {
+            TEXTURE,
+            HEIGHTMAP
+        };
+
         struct ImageJob {
+            request_type type;
             std::string path;
             std::string url;
             std::promise<std::string> promise;
@@ -68,16 +86,25 @@ namespace raytiles {
 #ifdef __EMSCRIPTEN__
 #else
 
-            // one persistent http client per worker. mapbox endpoints all live under a
+            // 2 persistent http clients per worker. endpoints all live under a
             // single host, so we can keep the TLS connection alive across many tiles
-            // instead of paying handshake cost per fetch. the client is owned by the
+            // instead of paying handshake cost per fetch. the clients is owned by the
             // worker thread so no synchronization is needed.
-            httplib::Client cli(config.host.c_str());
-            cli.set_follow_location(true);
-            cli.set_connection_timeout(10);
-            cli.set_read_timeout(5);
-            cli.set_keep_alive(true);
-            cli.enable_server_certificate_verification(!config.allow_insecure_tls);
+            httplib::Client cli_tex(config.texture_host.c_str());
+            cli_tex.set_follow_location(true);
+            cli_tex.set_connection_timeout(10);
+            cli_tex.set_read_timeout(5);
+            cli_tex.set_keep_alive(true);
+            cli_tex.enable_server_certificate_verification(!config.allow_insecure_tls);
+
+            httplib::Client cli_hm(config.heightmap_host.c_str());
+            cli_hm.set_follow_location(true);
+            cli_hm.set_connection_timeout(10);
+            cli_hm.set_read_timeout(5);
+            cli_hm.set_keep_alive(true);
+            cli_hm.enable_server_certificate_verification(!config.allow_insecure_tls);
+
+
 #endif
 
             while (true) {
@@ -97,9 +124,9 @@ namespace raytiles {
                         log_line("DEBUG", std::format("tile loaded from cache: {}", img_job.path));
                     } else {
 #ifdef __EMSCRIPTEN__
-                        auto body = fetch(config.host + img_job.url);
+                        auto body = fetch((img_job.type == TEXTURE ? config.texture_host : config.heightmap_host) + img_job.url);
 #else
-                        auto body = fetch(cli, img_job.url);
+                        auto body = fetch(img_job.type == TEXTURE ? cli_tex : cli_hm, img_job.url);
 #endif
 
                         log_line("DEBUG", std::format("tile downloaded: {} ", img_job.path));
@@ -203,28 +230,34 @@ namespace raytiles {
         // that window, it receives a future that is already satisfied - which is
         // exactly the desired behavior (the bytes are immediately available, no
         // duplicate download is queued).
-        std::shared_future<std::string> enqueue_and_load(const std::string &path, const std::string &url) {
+        std::shared_future<std::string> enqueue_and_load(const std::string &path, const std::string &url, const request_type type = TEXTURE) {
             std::lock_guard lock(mtx);
             if (const auto it = in_flight_bytes.find(path); it != in_flight_bytes.end()) return it->second;
 
             std::promise<std::string> promise;
             std::shared_future<std::string> future = promise.get_future().share();
             in_flight_bytes.emplace(path, future);
-            image_queue.push({path, url, std::move(promise)});
+            image_queue.push({type, path, url, std::move(promise)});
             cv.notify_one();
             return future;
         }
 
         std::shared_future<std::string> enqueue_texture(int zoom, int x, int y) {
-            const auto path = std::vformat(config.texture_cache_path, std::make_format_args(zoom, x, y));
-            const auto url = std::vformat(config.texture_url_path, std::make_format_args(zoom, x, y, config.token));
-            return enqueue_and_load(path, url);
+            const auto path = std::vformat(config.texture_cache_path, std::make_format_args(zoom, y, x));
+            auto url = config.texture_url_path;
+            replace_all(url, "{zoom}", std::to_string(zoom));
+            replace_all(url, "{x}", std::to_string(x));
+            replace_all(url, "{y}", std::to_string(y));
+            return enqueue_and_load(path, url, TEXTURE);
         }
 
         std::shared_future<std::string> enqueue_heightmap(int zoom, int x, int y) {
             const auto path = std::vformat(config.heightmap_cache_path, std::make_format_args(zoom, x, y));
-            const auto url = std::vformat(config.heightmap_url_path, std::make_format_args(zoom, x, y, config.token));
-            return enqueue_and_load(path, url);
+            auto url = config.heightmap_url_path;
+            replace_all(url, "{zoom}", std::to_string(zoom));
+            replace_all(url, "{x}", std::to_string(x));
+            replace_all(url, "{y}", std::to_string(y));
+            return enqueue_and_load(path, url, HEIGHTMAP);
         }
     };
 } // namespace raytiles

@@ -1,5 +1,46 @@
 # Raytiles
 
+## Providers APIs
+
+Currently, default is **Terrarium** and **Esri**, but the design allows for any provider that serves heightmaps and
+textures
+via a URL template. The URL template should have three placeholders for zoom, x, and y (or z) in any order.
+
+### Mapbox (z/x/y)
+
+Require token. Provide both textures and heightmaps.
+
+```c++
+std::string texture_url_path = "/v4/mapbox.satellite/{}/{}/{}.png?access_token=***";
+std::string heightmap_url_path = "/v4/mapbox.terrain-rgb/{}/{}/{}.pngraw?access_token=***";
+```
+
+Mapbox encoding:
+
+```c++
+float heightValue = -10000.0 + ((c.r * 65536.0 + c.g * 256.0 + c.b) * 0.1);
+```
+
+## Heightmap Terrarium (z/x/y)
+
+```c++
+std::string heightmap_host = "https://s3.amazonaws.com";
+std::string heightmap_url_path = "/elevation-tiles-prod/terrarium/{}/{}/{}.png";
+```
+
+Terrarium encoding:
+
+```c++
+float heightValue = ((c.r * 256.0 + c.g + c.b / 256.0) - 32768.0) * 0.1;
+```
+
+## Textures Esri (z/y/x)
+
+```c++
+std::string texture_host = "https://server.arcgisonline.com";
+std::string texture_url_path = "/ArcGIS/rest/services/World_Imagery/MapServer/tile/{}/{}/{}";
+```
+
 ## The zoom 15 limit
 
 The Mapbox heightmap API only provides data up to zoom level 15, which means that the maximum LOD is 15.

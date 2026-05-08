@@ -92,9 +92,9 @@ namespace raytiles {
 
     struct pool_config {
         /// Number of background download workers. Downloads are I/O-bound so it's
-        /// safe to use more threads than CPU cores; 4 is a reasonable default for
+        /// safe to use more threads than CPU cores; 2 is a reasonable default for
         /// HTTP keep-alive against a single host.
-        int download_threads = 4;
+        int download_threads = 2;
 
         /// Skip TLS certificate verification for tile downloads. Only useful for
         /// local proxies; never enable against a real server.
@@ -112,10 +112,10 @@ namespace raytiles {
         /// URL always constructed from Zoom/X/Z and optional token
         /// Can be replaced with any provider following the XYZ (Slippy map) format
         /// and provide RGB heightmaps.
-        std::string host = "https://api.mapbox.com";
-        std::string texture_url_path = "/v4/mapbox.satellite/{}/{}/{}.png?access_token={}";
-        std::string heightmap_url_path = "/v4/mapbox.terrain-rgb/{}/{}/{}.pngraw?access_token={}";
-        std::string token = "";
+        std::string texture_host = "https://server.arcgisonline.com";
+        std::string texture_url_path = "/ArcGIS/rest/services/World_Imagery/MapServer/tile/{zoom}/{y}/{x}";
+        std::string heightmap_host = "https://s3.amazonaws.com";
+        std::string heightmap_url_path = "/elevation-tiles-prod/terrarium/{zoom}/{x}/{y}.png";
     };
 
     class manager;
@@ -141,8 +141,8 @@ namespace raytiles {
     /// Movable but not copyable.
     class streamer {
     public:
-        /// @param conf            Tunable parameters; copied into the streamer.
-        /// @param maps_provider   URL builder; copied into the streamer.
+        /// @param conf            Tunable parameters; moved into the streamer.
+        /// @param pool_conf       Tunable parameters for the tile downloader pool. moved into the pool.
         /// @note A raylib window must already be initialized (`InitWindow`) before
         ///       constructing a streamer because shader / texture creation requires
         ///       a live GL context.
