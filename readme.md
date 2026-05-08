@@ -2,7 +2,8 @@
 
 <img src="res/raytiles.png" alt="logo" width="256" align="right"/>
 
-3D world streaming engine 🌎 for [raylib](https://www.raylib.com/). Get a bird's-eye view of the world around you, rendered
+3D world streaming engine 🌎 for [raylib](https://www.raylib.com/). Get a bird's-eye view of the world around you,
+rendered
 in real-time from satellite imagery and elevation data.
 
 Originally developed for a flight simulator project, and extracted into a standalone library to allow embedding in any
@@ -14,6 +15,7 @@ location on Earth at zoom level up to 15.
 [![macOS Build](https://github.com/ziv/raytiles/actions/workflows/macos.yml/badge.svg)](https://github.com/ziv/raytiles/actions/workflows/macos.yml)
 [![Linux Build](https://github.com/ziv/raytiles/actions/workflows/linux.yml/badge.svg)](https://github.com/ziv/raytiles/actions/workflows/linux.yml)
 [![Windows Build](https://github.com/ziv/raytiles/actions/workflows/windows.yml/badge.svg)](https://github.com/ziv/raytiles/actions/workflows/windows.yml)
+[![Emscripten Build](https://github.com/ziv/raytiles/actions/workflows/emscripten.yml/badge.svg)](https://github.com/ziv/raytiles/actions/workflows/emscripten.yml)
 
 The following example video is part of the islands of Greece, rendered with Mapbox tiles at zoom level 11 to 14:
 
@@ -78,7 +80,6 @@ See `sandbox/main.cpp` for a full runnable example with input handling.
 
 ---
 
-
 ## TODOs
 
 - [ ] support more than level 15 zoom
@@ -88,4 +89,5 @@ See `sandbox/main.cpp` for a full runnable example with input handling.
 
 <img src="res/raylove.png" align="left">
 
-Made with ❤️ to the raylib community. If you find this library useful, please consider starring the repo and sharing it with your friends! Contributions and feedback are always welcome. Happy coding!
+Made with ❤️ to the raylib community. If you find this library useful, please consider starring the repo and sharing it
+with your friends! Contributions and feedback are always welcome. Happy coding!
