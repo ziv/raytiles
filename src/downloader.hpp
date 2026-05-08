@@ -89,6 +89,7 @@ namespace raytiles {
         // - workers would never wake up on shutdown and ~pool would hang forever.
         std::condition_variable_any cv;
 
+#ifndef __EMSCRIPTEN__
         [[nodiscard]] httplib::Client create_client(const std::string &host) const {
             httplib::Client cli(host);
             cli.set_follow_location(true);
@@ -98,6 +99,7 @@ namespace raytiles {
             cli.enable_server_certificate_verification(!config.allow_insecure_tls);
             return cli;
         }
+#endif
 
         [[nodiscard]] std::string get_host(const request_type type) const {
             return type == TEXTURE ? config.texture_host : type == HEIGHTMAP ? config.heightmap_host : config.normals_host;
