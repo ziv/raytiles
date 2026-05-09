@@ -6,7 +6,7 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <raylib.h>
+#include "raylib.h"
 
 #ifndef RAYTILES_TEXTURE_HOST
 #define RAYTILES_TEXTURE_HOST "https://server.arcgisonline.com"
@@ -178,7 +178,7 @@ namespace raytiles {
         /// @note A raylib window must already be initialized (`InitWindow`) before
         ///       constructing a streamer because shader / texture creation requires
         ///       a live GL context.
-        explicit streamer(config conf, pool_config pool_conf);
+        explicit streamer(const config &conf, const pool_config &pool_conf);
 
         ~streamer();
 

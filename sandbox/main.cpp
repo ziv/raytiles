@@ -75,6 +75,7 @@ int main() {
     rlSetClipPlanes(1, 100000);
 
     streamer.set_fog_color(SKYBLUE);
+    streamer.set_ambient_light({200, 200, 200, 255});
     float sun = 1.0f;
 
     auto update = [&]() {
@@ -129,7 +130,13 @@ int main() {
 
 
 
+
+
+
                 });
+
+
+
 
 
 

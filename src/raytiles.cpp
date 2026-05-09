@@ -3,9 +3,9 @@
 #define NOGDI
 #define NOUSER
 #endif
-#include <raylib.h>
-#include <raymath.h>
-#include <rlgl.h>
+#include "raylib.h"
+#include "raymath.h"
+#include "rlgl.h"
 #include <algorithm>
 #include <chrono>
 #include <format>
@@ -131,8 +131,8 @@ void main()
     normal = normalize(normal);
 
     // sun light factor should be a uniform
-    float sunLight = max(dot(normal, sunDir), 0.0);
-    vec4 sunColor = vec4(sunLight * 4.0);
+    float sunLight = max(dot(normal, normalize(sunDir)), 0.0);
+    vec4 sunColor = vec4(sunLight * sunScale);
 
     vec4 totalLighting = ambientLight + sunColor;
     totalLighting = clamp(totalLighting, 0.0, 1.0);
@@ -240,14 +240,13 @@ void main()
     }
 
     void manager::draw(const Camera3D &camera) {
-        BeginShaderMode(*displacement_shader);
         // set the camera location (for distance -> fog)
         SetShaderValue(*displacement_shader, cam_pos_loc, &camera.position, SHADER_UNIFORM_VEC3);
 
         // horizontal forward direction (xz plane). tiles are flat on y=0 so testing
         // against the horizontal projection of the camera forward is enough to decide
         // "is the tile in front of (or beside) the camera?". if the camera is looking
-        // straight up/down, fwd_len ~ 0 and we disable culling for this frame.
+        // straight up/down, fwd_len ~ 0, and we disable culling for this frame.
         const float fwd_x = camera.target.x - camera.position.x;
         const float fwd_z = camera.target.z - camera.position.z;
         const float fwd_len = std::sqrt(fwd_x * fwd_x + fwd_z * fwd_z);
@@ -265,8 +264,7 @@ void main()
             if (cull_enabled) {
                 const float dx = tile.tx - camera.position.x;
                 const float dz = tile.tz - camera.position.z;
-                const float along_forward = dx * fwd_nx + dz * fwd_nz;
-                if (along_forward < -size) continue;
+                if (const float along_forward = dx * fwd_nx + dz * fwd_nz; along_forward < -size) continue;
             }
 
             const auto &model = models[key.zoom - conf.base_zoom];
@@ -276,7 +274,6 @@ void main()
 
             DrawModel(*model, {tile.tx, 0.0f, tile.tz}, 1.0f, WHITE);
         }
-        EndShaderMode();
     }
 
     void manager::debug_3d(const Camera3D &camera) {
@@ -316,7 +313,7 @@ void main()
         std::erase_if(rendering_tiles, [&](const auto &item) {
             if (desired_keys.contains(item.first)) return false;
             if (!is_tile_covered(item.first)) return false;
-            if (is_tile_out_of_area(item.first)) return false;
+            if (!is_tile_out_of_area(item.first)) return false;
             return true;
         });
         // also drop loading-tile bookkeeping for tiles we no longer want. the
@@ -506,6 +503,7 @@ void main()
             raii::image height_img{LoadImageFromMemory(".png", reinterpret_cast<const unsigned char *>(hm_bytes.data()), static_cast<int>(hm_bytes.size()))};
             raii::image normals_img{LoadImageFromMemory(".png", reinterpret_cast<const unsigned char *>(nm_bytes.data()), static_cast<int>(nm_bytes.size()))};
 
+            // todo if normal failed, use flat normal and don't fail the tile rendering
             if (!IsImageValid(*tex_img) || !IsImageValid(*height_img) || !IsImageValid(*normals_img)) {
                 TraceLog(LOG_WARNING, "failed to load tile %d/%d/%d - dropping", key.zoom, key.x, key.z);
                 it = loading_tiles.erase(it);
@@ -586,6 +584,7 @@ void main()
         return t;
     }
 
+    // todo check this function
     bool manager::is_tile_out_of_area(const TileKey &key) const {
         const auto tile_size = tile_sizes[key.zoom - conf.base_zoom];
         const auto rendering_radius = static_cast<float>(conf.rendering_radius) * tile_size;
@@ -619,8 +618,8 @@ void main()
 
     // streamer (pImpl forwarding)
 
-    streamer::streamer(config conf, pool_config pool_conf) : impl(
-        std::make_unique<manager>(conf, std::move(pool_conf))) {
+    streamer::streamer(const config &conf, const pool_config &pool_conf) : impl(
+        std::make_unique<manager>(conf, pool_conf)) {
     }
 
     streamer::~streamer() = default;

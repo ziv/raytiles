@@ -138,7 +138,7 @@ namespace raytiles {
                         auto body = fetch(host + img_job.url);
 #else
                         // todo do we need to destroy the hosts when done?
-                        if (!clients.contains(host)) clients.insert({host, create_client(host)});
+                        if (!clients.contains(host)) clients.try_emplace(host, create_client(host));
                         auto body = fetch(clients.at(host), img_job.url);
 #endif
 
@@ -256,7 +256,7 @@ namespace raytiles {
         }
 
         std::shared_future<std::string> enqueue_texture(int zoom, int x, int y) {
-            const auto path = std::vformat(config.texture_cache_path, std::make_format_args(zoom, y, x));
+            const auto path = std::vformat(config.texture_cache_path, std::make_format_args(zoom, x, y));
             return enqueue_and_load(path, get_url(config.texture_url_path, zoom, x, y), TEXTURE);
         }
 

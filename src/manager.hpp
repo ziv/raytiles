@@ -93,7 +93,7 @@ namespace raytiles {
         int fog_start_loc = -1;
         int fog_end_loc = -1;
 
-        float ambient_light[4] = {0.6f, 0.6f, 0.6f, 1.0f};
+        float ambient_light[4] = {1.0f, 1.0f, 1.0f, 1.0f};
         float fog_color[4] = {0.0f, 0.0f, 1.0f, 1.0f};
         float sun_direction[3] = {0.1f, 1.0f, 0.1f};
         float fog_start = 1.0f;
