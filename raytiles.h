@@ -6,9 +6,32 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <raylib.h>
 
-#include "raylib.h"
-#include "raymath.h"
+#ifndef RAYTILES_TEXTURE_HOST
+#define RAYTILES_TEXTURE_HOST "https://server.arcgisonline.com"
+#endif
+
+#ifndef RAYTILES_TEXTURE_URL_PATH
+#define RAYTILES_TEXTURE_URL_PATH "/ArcGIS/rest/services/World_Imagery/MapServer/tile/{zoom}/{y}/{x}"
+#endif
+
+#ifndef RAYTILES_HEIGHTMAP_HOST
+#define RAYTILES_HEIGHTMAP_HOST "https://s3.amazonaws.com"
+#endif
+
+#ifndef RAYTILES_HEIGHTMAP_URL_PATH
+#define RAYTILES_HEIGHTMAP_URL_PATH "/elevation-tiles-prod/terrarium/{zoom}/{x}/{y}.png"
+#endif
+
+#ifndef RAYTILES_NORMALS_HOST
+#define RAYTILES_NORMALS_HOST "https://s3.amazonaws.com"
+#endif
+
+#ifndef RAYTILES_NORMALS_URL_PATH
+#define RAYTILES_NORMALS_URL_PATH "/elevation-tiles-prod/normals/{zoom}/{x}/{y}.png"
+#endif
+
 
 namespace raytiles {
     /// Tunable parameters for a `streamer` instance. Everything has a sensible
@@ -40,6 +63,10 @@ namespace raytiles {
         /// Scaling the heightmap by this factor to increase or reduce the real height
         /// into desired (drama factor)
         float height_scale = 1.0f;
+
+        /// Scaling the normals by this factor to increase or reduce the lighting contrast.
+        /// Higher values make the terrain look bumpier, but can cause lighting artifacts if the normals are too steep.
+        float normals_scale = 1.0f;
 
         /// Squared XZ distance the camera must travel before the desired-tile set
         /// is recomputed. Keep this large enough that small movements don't churn
@@ -105,22 +132,22 @@ namespace raytiles {
 
         /// On-disk cache path templates, formatted with `{zoom}/{x}/{z}` via
         /// `std::vformat`. Parent directories are created on demand.
-        std::string texture_cache_path = "assets/tiles/texture/{}/{}/{}.png";
-        std::string heightmap_cache_path = "assets/tiles/heightmap/{}/{}/{}.png";
-        std::string normals_cache_path = "assets/tiles/normals/{}/{}/{}.png";
+        std::string texture_cache_path = "assets/texture/{}/{}/{}.png";
+        std::string heightmap_cache_path = "assets/heightmap/{}/{}/{}.png";
+        std::string normals_cache_path = "assets/normals/{}/{}/{}.png";
 
         /// Providers URLs template items
         /// URL always constructed from Zoom/X/Z and optional token
         /// Can be replaced with any provider following the XYZ (Slippy map) format
         /// and provide RGB heightmaps.
-        std::string texture_host = "https://server.arcgisonline.com";
-        std::string texture_url_path = "/ArcGIS/rest/services/World_Imagery/MapServer/tile/{zoom}/{y}/{x}";
+        std::string texture_host = RAYTILES_TEXTURE_HOST;
+        std::string texture_url_path = RAYTILES_TEXTURE_URL_PATH;
 
-        std::string heightmap_host = "https://s3.amazonaws.com";
-        std::string heightmap_url_path = "/elevation-tiles-prod/terrarium/{zoom}/{x}/{y}.png";
+        std::string heightmap_host = RAYTILES_HEIGHTMAP_HOST;
+        std::string heightmap_url_path = RAYTILES_HEIGHTMAP_URL_PATH;
 
-        std::string normals_host = "https://s3.amazonaws.com";
-        std::string normals_url_path = "/elevation-tiles-prod/normal/{zoom}/{x}/{y}.png";
+        std::string normals_host = RAYTILES_NORMALS_HOST;
+        std::string normals_url_path = RAYTILES_NORMALS_URL_PATH;
     };
 
     class manager;
@@ -188,6 +215,30 @@ namespace raytiles {
         /// Sets the fog color for distance attenuation. Match this to your sky
         /// color for a seamless horizon.
         void set_fog_color(Color color) const;
+
+        /// Set the fog start distance, the distance from the camera
+        /// colors start to blend with fog
+        void set_fog_start(float distance) const;
+
+        /// Set the fog end distance, the distance from the camera
+        /// colors are fully blended with fog color
+        void set_fog_end(float distance) const;
+
+        /// Set the heightmap scale factor, to increase or reduce
+        /// the real height into desired (drama factor)
+        void set_height_scale(float scale) const;
+
+        /// Set the normals scale factor, to increase or reduce
+        /// the lighting contrast.
+        void set_normals_scale(float scale) const;
+
+        /// Sets the sun direction vector for the displacement
+        /// shader's lighting calculations.
+        void set_sun_direction(Vector3 direction) const;
+
+        /// Set the intensity of the sun lighting, to increase
+        /// or reduce the contrast between lit and shaded areas.
+        void set_sun_scale(float scale) const;
 
         /// Returns the terrain altitude (Y world-coordinate) under `position`,
         /// sampled from the heightmap pixel at the equivalent UV.

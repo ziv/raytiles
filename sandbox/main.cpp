@@ -1,7 +1,9 @@
+#include <algorithm>
 #include <string>
 
 #include "../raytiles.h"
-#include "rlgl.h"
+#include <rlgl.h>
+#include <raymath.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 #endif
@@ -46,6 +48,9 @@ int main() {
     raytiles::config conf;
     conf.anchor_x_tile = 1179.0f; // somewhere at greece
     conf.anchor_z_tile = 797.0f;
+    conf.max_zoom = 15;
+    conf.height_scale = 3.0f;
+    conf.skirt_size = 50;
 
     // pool configuration, set your mapbox token
     raytiles::pool_config pool_conf;
@@ -58,6 +63,7 @@ int main() {
 
     // create the streamer with both configurations
     const raytiles::streamer streamer(conf, pool_conf);
+    streamer.set_normals_scale(5.0f);
 
     Camera3D camera;
     camera.position = Vector3{3000.0f, 5000.0f, 3000.0f};
@@ -69,6 +75,7 @@ int main() {
     rlSetClipPlanes(1, 100000);
 
     streamer.set_fog_color(SKYBLUE);
+    float sun = 1.0f;
 
     auto update = [&]() {
         streamer.update(camera);
@@ -78,15 +85,31 @@ int main() {
         BeginMode3D(camera);
         // draw the world around the camera
         streamer.draw(camera);
+        streamer.debug_3d(camera);
         EndMode3D();
         streamer.debug(camera);
         EndDrawing();
 
         const auto dt = GetFrameTime();
+
+        const auto last_pos = camera.position;
+
         if (IsKeyDown(KEY_W)) camera.position.z -= 1500.0f * dt;
         if (IsKeyDown(KEY_S)) camera.position.z += 1500.0f * dt;
         if (IsKeyDown(KEY_A)) camera.position.x -= 1500.0f * dt;
         if (IsKeyDown(KEY_D)) camera.position.x += 1500.0f * dt;
+        if (IsKeyDown(KEY_DOWN)) camera.position.y -= 1500.0f * dt;
+        if (IsKeyDown(KEY_UP)) camera.position.y += 1500.0f * dt;
+
+        if (IsKeyDown(KEY_LEFT)) sun -= dt * 0.5f;
+        if (IsKeyDown(KEY_RIGHT)) sun += dt * 0.5f;
+        sun = std::clamp(sun, -1.0f, 1.0f);
+
+        streamer.set_sun_direction(Vector3{sun, 0.1f, 0.0f});
+
+        const auto move = camera.position - last_pos;
+        // camera.target += move;
+
 
         // sync every 10 seconds
         if (GetTime() - last_sync_time > 10.0) {
@@ -100,7 +123,19 @@ int main() {
 
 
 
+
+
+
+
+
+
                 });
+
+
+
+
+
+
 
 
 
