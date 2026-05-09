@@ -1,4 +1,5 @@
 {
+  "changelog-sections": ["feat", "fix", "perf", "revert", "docs", "style", "chore", "refactor", "test", "build", "ci"],
   "packages": {
     ".": {
       "release-type": "simple",
