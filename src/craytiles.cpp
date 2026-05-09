@@ -18,8 +18,8 @@ namespace {
 struct RaytilesStreamer {
     raytiles::streamer impl;
 
-    RaytilesStreamer(raytiles::config c, raytiles::pool_config p)
-        : impl(std::move(c), std::move(p)) {}
+    RaytilesStreamer(const raytiles::config &c, const raytiles::pool_config &p)
+        : impl(c, p) {}
 };
 
 extern "C" {
@@ -33,6 +33,7 @@ RaytilesConfig RaytilesConfigDefault(void) {
     out.rendering_radius      = d.rendering_radius;
     out.skirt_size            = d.skirt_size;
     out.height_scale          = d.height_scale;
+    out.normals_scale         = d.normals_scale;
     out.update_distance       = d.update_distance;
     out.update_height         = d.update_height;
     out.upload_budget_sec     = d.upload_budget_sec;
@@ -57,10 +58,13 @@ RaytilesPoolConfig RaytilesPoolConfigDefault(void) {
     out.use_logger           = d.use_logger;
     out.texture_cache_path   = d.texture_cache_path.c_str();
     out.heightmap_cache_path = d.heightmap_cache_path.c_str();
+    out.normals_cache_path   = d.normals_cache_path.c_str();
     out.texture_host         = d.texture_host.c_str();
     out.texture_url_path     = d.texture_url_path.c_str();
     out.heightmap_host       = d.heightmap_host.c_str();
     out.heightmap_url_path   = d.heightmap_url_path.c_str();
+    out.normals_host         = d.normals_host.c_str();
+    out.normals_url_path     = d.normals_url_path.c_str();
     return out;
 }
 
@@ -75,6 +79,7 @@ RaytilesStreamer *RaytilesStreamerCreate(const RaytilesConfig     *conf,
     c.rendering_radius      = conf->rendering_radius;
     c.skirt_size            = conf->skirt_size;
     c.height_scale          = conf->height_scale;
+    c.normals_scale         = conf->normals_scale;
     c.update_distance       = conf->update_distance;
     c.update_height         = conf->update_height;
     c.upload_budget_sec     = conf->upload_budget_sec;
@@ -95,53 +100,86 @@ RaytilesStreamer *RaytilesStreamerCreate(const RaytilesConfig     *conf,
     p.use_logger           = pool_conf->use_logger;
     p.texture_cache_path   = to_string_or_empty(pool_conf->texture_cache_path);
     p.heightmap_cache_path = to_string_or_empty(pool_conf->heightmap_cache_path);
+    p.normals_cache_path   = to_string_or_empty(pool_conf->normals_cache_path);
     p.texture_host         = to_string_or_empty(pool_conf->texture_host);
     p.texture_url_path     = to_string_or_empty(pool_conf->texture_url_path);
     p.heightmap_host       = to_string_or_empty(pool_conf->heightmap_host);
     p.heightmap_url_path   = to_string_or_empty(pool_conf->heightmap_url_path);
+    p.normals_host         = to_string_or_empty(pool_conf->normals_host);
+    p.normals_url_path     = to_string_or_empty(pool_conf->normals_url_path);
 
     try {
-        return new RaytilesStreamer(std::move(c), std::move(p));
+        return new RaytilesStreamer(c, p);
     } catch (...) {
         return nullptr;
     }
 }
 
-void RaytilesStreamerDestroy(const RaytilesStreamer *streamer) {
+void RaytilesStreamerDestroy(RaytilesStreamer *streamer) {
     delete streamer;
 }
 
-void RaytilesStreamerUpdate(const RaytilesStreamer *streamer, const Camera3D &camera) {
+void RaytilesStreamerUpdate(RaytilesStreamer *streamer, const Camera3D camera) {
     if (!streamer) return;
     streamer->impl.update(camera);
 }
 
-void RaytilesStreamerDraw(const RaytilesStreamer *streamer, const Camera3D &camera) {
+void RaytilesStreamerDraw(RaytilesStreamer *streamer, const Camera3D camera) {
     if (!streamer) return;
     streamer->impl.draw(camera);
 }
 
-void RaytilesStreamerDebug(const RaytilesStreamer *streamer, const Camera3D &camera) {
+void RaytilesStreamerDebug(RaytilesStreamer *streamer, const Camera3D camera) {
     if (!streamer) return;
     streamer->impl.debug(camera);
 }
 
-void RaytilesStreamerDebug3D(const RaytilesStreamer *streamer, const Camera3D &camera) {
+void RaytilesStreamerDebug3D(RaytilesStreamer *streamer, const Camera3D camera) {
     if (!streamer) return;
     streamer->impl.debug_3d(camera);
 }
 
-void RaytilesStreamerSetAmbientLight(const RaytilesStreamer *streamer, const Color color) {
+void RaytilesStreamerSetAmbientLight(RaytilesStreamer *streamer, const Color color) {
     if (!streamer) return;
     streamer->impl.set_ambient_light(color);
 }
 
-void RaytilesStreamerSetFogColor(const RaytilesStreamer *streamer, const Color color) {
+void RaytilesStreamerSetFogColor(RaytilesStreamer *streamer, const Color color) {
     if (!streamer) return;
     streamer->impl.set_fog_color(color);
 }
 
-bool RaytilesStreamerGroundHeight(const RaytilesStreamer *streamer,
+void RaytilesStreamerSetFogStart(RaytilesStreamer *streamer, const float distance) {
+    if (!streamer) return;
+    streamer->impl.set_fog_start(distance);
+}
+
+void RaytilesStreamerSetFogEnd(RaytilesStreamer *streamer, const float distance) {
+    if (!streamer) return;
+    streamer->impl.set_fog_end(distance);
+}
+
+void RaytilesStreamerSetHeightScale(RaytilesStreamer *streamer, const float scale) {
+    if (!streamer) return;
+    streamer->impl.set_height_scale(scale);
+}
+
+void RaytilesStreamerSetNormalsScale(RaytilesStreamer *streamer, const float scale) {
+    if (!streamer) return;
+    streamer->impl.set_normals_scale(scale);
+}
+
+void RaytilesStreamerSetSunDirection(RaytilesStreamer *streamer, const Vector3 direction) {
+    if (!streamer) return;
+    streamer->impl.set_sun_direction(direction);
+}
+
+void RaytilesStreamerSetSunScale(RaytilesStreamer *streamer, const float scale) {
+    if (!streamer) return;
+    streamer->impl.set_sun_scale(scale);
+}
+
+bool RaytilesStreamerGroundHeight(RaytilesStreamer *streamer,
                                   const Vector3 position,
                                   float  *out_height) {
     if (!streamer) return false;
