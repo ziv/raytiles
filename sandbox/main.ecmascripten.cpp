@@ -1,14 +1,12 @@
+#ifdef __EMSCRIPTEN__
 #include <algorithm>
 #include <string>
 
 #include "../raytiles.h"
 #include <rlgl.h>
 #include <raymath.h>
-#ifdef __EMSCRIPTEN__
-#include <emscripten/emscripten.h>
-#endif
 
-#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
 #include <emscripten.h>
 
 bool g_storage_ready = false;
@@ -30,14 +28,12 @@ void InitStorage() {
         });
     );
 }
-#endif
+
 
 int main() {
     SetTraceLogLevel(LOG_DEBUG);
     InitWindow(800, 600, "raytiles");
-#ifdef __EMSCRIPTEN__
     InitStorage();
-#endif
     double last_sync_time = GetTime();
 
 
@@ -53,10 +49,8 @@ int main() {
     raytiles::pool_config pool_conf;
     pool_conf.download_threads = 2; // good enough
 
-#ifdef __EMSCRIPTEN__
     pool_conf.texture_cache_path = "/assets/t/{}/{}/{}.png";
     pool_conf.heightmap_cache_path = "/assets/h/{}/{}/{}.png";
-#endif
 
     // create the streamer with both configurations
     const raytiles::streamer streamer(conf, pool_conf);
@@ -69,16 +63,12 @@ int main() {
     camera.fovy = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
 
-    // rlSetClipPlanes(1, 100000);
-
     streamer.set_fog_color(SKYBLUE);
     streamer.set_ambient_light({200, 200, 200, 255});
     float sun = 1.0f;
 
     auto update = [&]() {
-        streamer.set_sun_direction(Vector3{0.1f, sun, 0.0f});
         streamer.update(camera);
-
         BeginDrawing();
         ClearBackground(SKYBLUE);
 
@@ -91,6 +81,7 @@ int main() {
         EndDrawing();
 
         const auto dt = GetFrameTime();
+
         const auto last_pos = camera.position;
 
         if (IsKeyDown(KEY_W)) camera.position.z -= 1500.0f * dt;
@@ -100,11 +91,11 @@ int main() {
         if (IsKeyDown(KEY_DOWN)) camera.position.y -= 1500.0f * dt;
         if (IsKeyDown(KEY_UP)) camera.position.y += 1500.0f * dt;
 
-        if (IsKeyDown(KEY_LEFT_BRACKET)) sun -= dt * 0.5f;
-        if (IsKeyDown(KEY_RIGHT_BRACKET)) sun += dt * 0.5f;
+        if (IsKeyDown(KEY_LEFT)) sun -= dt * 0.5f;
+        if (IsKeyDown(KEY_RIGHT)) sun += dt * 0.5f;
         sun = std::clamp(sun, -1.0f, 1.0f);
 
-
+        streamer.set_sun_direction(Vector3{sun, 0.1f, 0.0f});
 
         const auto move = camera.position - last_pos;
         // camera.target += move;
@@ -113,15 +104,25 @@ int main() {
         // sync every 10 seconds
         if (GetTime() - last_sync_time > 10.0) {
             last_sync_time = GetTime();
-#ifdef __EMSCRIPTEN__
             MAIN_THREAD_EM_ASM({
                 console.log("Syncing to IndexedDB...");
                 FS.syncfs(false, function(err) {
                     if (err) console.error("IDBFS Sync error:", err);
                     else console.log("IDBFS Sync successful!");
+
+
+
+
+
+
+
+
+
+
+
+
                 });
             });
-#endif
         }
     };
 
