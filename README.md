@@ -128,7 +128,7 @@ Replacing the heightmap provider require to choose the right height calculation 
 
 ## TODOs
 
-- [ ] support normals for lighting (in progress)
+- [x] support normals for lighting (in progress)
 - [ ] support more than level 15 zoom
 - [ ] add sky module (atmosphere + sun + moon + stars)
 
