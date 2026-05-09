@@ -2,16 +2,18 @@
 
 <img src="res/logo.png" alt="logo" width="256" align="right"/>
 
-Raytiles is a 3D geospatial engine 🌎 for [raylib](https://www.raylib.com/). Designed to stream and render the world in
-real-time in raylib applications, allow rendering any location on Earth.
+**Raytiles** is a 3D geospatial engine 🌎 for [raylib](https://www.raylib.com/). Designed to stream and render the real
+world in real-time, it allows
+you to visualize any location on Earth directly within your raylib applications.
 
-Built for indie games and can feet UAVs simulations and flight planing, light weight GIS systems analysis,
-presentations, digital sandtable, and any other geospatial visualizations.
+Built for indie developers and professionals alike, Raytiles perfectly fits UAV simulations, flight planning software,
+lightweight GIS analysis, presentations, digital sandtables, and any other geospatial visualizations.
 
-Provide ground-truth altitude data for collision and spawning (gaming) or analysis (GIS) purposes.
+It provides precise, ground-truth altitude data, essential for accurate collision detection and spawning mechanics in
+gaming, as well as topographical analysis for GIS purposes.
 
-Originally developed for a flight simulator project, and extracted into a standalone library to allow embedding in any
-raylib application.
+Originally developed to power a flight simulator, Raytiles was extracted into a lightweight, standalone library to
+enable seamless embedding into any raylib project.
 
 ![GitHub Release](https://img.shields.io/github/v/release/ziv/raytiles)
 ![GitHub License](https://img.shields.io/github/license/ziv/raytiles)
