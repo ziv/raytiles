@@ -19,8 +19,6 @@
 #ifndef RAYTILES_C_LIBRARY_H
 #define RAYTILES_C_LIBRARY_H
 
-#include <stdbool.h>
-
 #include "raylib.h"
 
 #ifdef __cplusplus

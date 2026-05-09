@@ -109,7 +109,7 @@ namespace raytiles {
         /// `set_fog_color`'s color.
         float fog_start = 40000.0f;
 
-        /// Distance (in meters) at which fog reaches full opacity.
+        /// Distance (in meters) at which fog reaches full cover.
         float fog_end = 70000.0f;
 
         /// Weather to log from the threads or from the main process

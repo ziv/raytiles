@@ -106,8 +106,7 @@ namespace raytiles {
         }
 
         void worker_loop(const std::stop_token &st) {
-#ifdef __EMSCRIPTEN__
-#else
+#ifndef __EMSCRIPTEN__
 
             // persistent http clients per host. endpoints all live under a
             // single host, so we can keep the TLS connection alive across many tiles
