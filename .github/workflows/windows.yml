@@ -29,8 +29,8 @@ jobs:
           path: ${{ github.workspace }}/vcpkg_cache
           key: vcpkg-openssl-${{ runner.os }}-v2
 
-      - name: Install OpenSSL
-        run: vcpkg install openssl:x64-windows
+#      - name: Install OpenSSL
+#        run: vcpkg install openssl:x64-windows
 
       - name: Configure CMake
         run: >
