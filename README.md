@@ -31,6 +31,7 @@ https://github.com/user-attachments/assets/0422ffea-654f-4299-8860-23f99d7d98ec
 - Streaming **ANY** location on Earth!
 - **Background** tile downloading (HTTP + persistent on-disk cache).
 - Adaptive **LOD** (level-of-detail): more detail near the camera, less far away.
+- **Lights and shadows** via normal maps.
 - **GPU**-side displacement via a heightmap-driven vertex shader.
 - Per-frame upload **budgeting**, no GPU stalls on bursty load.
 - Ground-truth **altitude queries** (`ground_height`) for collision / spawning.
@@ -40,7 +41,9 @@ https://github.com/user-attachments/assets/0422ffea-654f-4299-8860-23f99d7d98ec
 - **Configurable**! fit it to your needs by tweaking `raytiles::config` fields.
 - **Open-source** and permissively licensed (MIT)
 
-![how it works](res/how-it-works.png)
+## How It Works
+
+![how it works](res/how-it-works0.png)
 
 ## Quick Start
 
