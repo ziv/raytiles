@@ -45,7 +45,13 @@ namespace raytiles {
 
         void set_ambient_light(Color color);
 
+        void set_ambient_light(Vector4 color);
+
+        void set_ambient_light(float r, float g, float b, float a);
+
         void set_fog_color(Color color);
+        void set_fog_color(Vector4 color);
+        void set_fog_color(float r, float g, float b, float a);
 
         void set_fog_start(float distance);
 

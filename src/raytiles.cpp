@@ -25,7 +25,7 @@ using namespace std::chrono_literals;
 namespace raytiles {
     namespace {
         /// a better performance function instead of using
-        /// const auto c = GetImageColor(img, px, pz);
+        /// raylib's GetImageColor(img, px, pz)
         float get_height_from_image(const Image &img, int x, int y) {
             if (x < 0) x = 0;
             if (y < 0) y = 0;
@@ -49,7 +49,7 @@ namespace raytiles {
                 return 0.0f;
             }
 
-            return -10000.0f + (static_cast<float>(r) * 65536.0f + static_cast<float>(g) * 256.0f + static_cast<float>(b)) * 0.1f;
+            return static_cast<float>(r) * 256.0f + static_cast<float>(g) + static_cast<float>(b) / 256.0f - 32768.0f;
         }
 
         int radius(const float height) {
@@ -323,27 +323,44 @@ void main()
         std::erase_if(loading_tiles, [&](const auto &item) { return !desired_keys.contains(item.first); });
     }
 
-    void manager::set_ambient_light(const Color color) {
-        ambient_light[0] = static_cast<float>(color.r) / 255.0f;
-        ambient_light[1] = static_cast<float>(color.g) / 255.0f;
-        ambient_light[2] = static_cast<float>(color.b) / 255.0f;
-        ambient_light[3] = static_cast<float>(color.a) / 255.0f;
 
+    void manager::set_ambient_light(float r, float g, float b, float a) {
+        ambient_light[0] = r;
+        ambient_light[1] = g;
+        ambient_light[2] = b;
+        ambient_light[3] = a;
         SetShaderValue(*displacement_shader, ambient_loc, ambient_light, SHADER_UNIFORM_VEC4);
     }
 
-    void manager::set_fog_color(const Color color) {
-        fog_color[0] = static_cast<float>(color.r) / 255.0f;
-        fog_color[1] = static_cast<float>(color.g) / 255.0f;
-        fog_color[2] = static_cast<float>(color.b) / 255.0f;
-        fog_color[3] = static_cast<float>(color.a) / 255.0f;
+    void manager::set_ambient_light(const Color color) {
+        set_ambient_light(static_cast<float>(color.r) / 255.0f, static_cast<float>(color.g) / 255.0f, static_cast<float>(color.b) / 255.0f,
+                          static_cast<float>(color.a) / 255.0f);
+    }
 
+    void manager::set_ambient_light(Vector4 color) {
+        set_ambient_light(color.x, color.y, color.z, color.w);
+    }
+
+    void manager::set_fog_color(const float r, const float g, const float b, const float a) {
+        fog_color[0] = r;
+        fog_color[1] = g;
+        fog_color[2] = b;
+        fog_color[3] = a;
         SetShaderValue(*displacement_shader, fog_color_log, fog_color, SHADER_UNIFORM_VEC4);
     }
 
+    void manager::set_fog_color(const Color color) {
+        set_fog_color(static_cast<float>(color.r) / 255.0f, static_cast<float>(color.g) / 255.0f, static_cast<float>(color.b) / 255.0f,
+                      static_cast<float>(color.a) / 255.0f);
+    }
+
+    void manager::set_fog_color(const Vector4 color) {
+        set_fog_color(color.x, color.y, color.z, color.w);
+    }
+
+
     void manager::set_fog_start(const float distance) {
         fog_start = distance;
-
         SetShaderValue(*displacement_shader, fog_start_loc, &fog_start, SHADER_UNIFORM_FLOAT);
     }
 
