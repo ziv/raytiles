@@ -150,6 +150,7 @@ void main()
         : conf(conf),
           displacement_shader(raii::load_shader_from_memory(vertex_shader, fragment_shader)),
           tile_downloader(std::move(pool_conf)) {
+        // todo should be set as part of height?!
         // set the rendering distance
         rlSetClipPlanes(conf.near_plane, conf.far_plane);
         desired_keys.reserve(512);
