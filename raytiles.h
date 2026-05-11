@@ -29,7 +29,7 @@
 #endif
 
 #ifndef RAYTILES_NORMALS_URL_PATH
-#define RAYTILES_NORMALS_URL_PATH "/elevation-tiles-prod/normals/{zoom}/{x}/{y}.png"
+#define RAYTILES_NORMALS_URL_PATH "/elevation-tiles-prod/normal/{zoom}/{x}/{y}.png"
 #endif
 
 
