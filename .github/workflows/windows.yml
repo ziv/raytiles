@@ -27,4 +27,4 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake"
 
       - name: Build Project
-        run: cmake --build build --config Release
+        run: cmake --build build --config Release --target Sandbox
