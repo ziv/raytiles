@@ -58,6 +58,7 @@ namespace raytiles {
 
         /// Skirt geometry overlap factor (per side) used to hide cracks between
         /// neighboring tiles at different LODs.
+        /// Refer to the max_zoom.
         float skirt_size = 15.0f;
 
         /// Scaling the heightmap by this factor to increase or reduce the real height

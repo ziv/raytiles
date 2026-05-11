@@ -50,7 +50,9 @@ namespace raytiles {
         void set_ambient_light(float r, float g, float b, float a);
 
         void set_fog_color(Color color);
+
         void set_fog_color(Vector4 color);
+
         void set_fog_color(float r, float g, float b, float a);
 
         void set_fog_start(float distance);
@@ -108,7 +110,8 @@ namespace raytiles {
         float normals_scale = 1.0f;
         float sun_scale = 1.0f;
 
-        std::vector<raii::model> models = {};
+        Material material{};
+        std::vector<raii::mesh> meshes = {};
         std::vector<float> tile_sizes = {};
         std::vector<float> tile_distances = {};
 

@@ -167,8 +167,13 @@ void main()
             tile_distances[idx] = distance * distance / static_cast<float>(ratio * ratio * ratio);
         }
 
-        // creating model for each zoom level, avoiding the need to stretch the model
-        models.reserve(zoom_count);
+
+        // one Material to rule them all, one material to bind them
+        material = LoadMaterialDefault();
+        material.shader = *displacement_shader;
+
+        // creating Mesh for each zoom level, avoiding the need to stretch the mesh
+        meshes.reserve(zoom_count);
         for (int zoom = conf.base_zoom; zoom <= conf.max_zoom; ++zoom) {
             const int idx = zoom - conf.base_zoom;
             const int res = 16 * (1 << idx);
@@ -179,8 +184,7 @@ void main()
             if (zoom == 12) skirt_size /= 4;
             if (zoom == 11) skirt_size /= 8;
 
-            models.emplace_back(raii::load_model_from_mesh(GenMeshPlane(size + skirt_size, size + skirt_size, res, res)));
-            models[idx]->materials[0].shader = *displacement_shader;
+            meshes.emplace_back(GenMeshPlane(size + skirt_size, size + skirt_size, res, res));
         }
 
         // update defaults
@@ -256,7 +260,8 @@ void main()
         const float fwd_nz = cull_enabled ? fwd_z / fwd_len : 0.0f;
 
         for (const auto &[key, tile]: rendering_tiles) {
-            const auto size = tile_sizes[key.zoom - conf.base_zoom];
+            const auto zoom = key.zoom - conf.base_zoom;
+            const auto size = tile_sizes[zoom];
 
             // skip tiles that lie behind the camera by more than one tile-size buffer.
             // tiles to the side (perpendicular to forward) and anything in front pass.
@@ -268,12 +273,12 @@ void main()
                 if (const float along_forward = dx * fwd_nx + dz * fwd_nz; along_forward < -size) continue;
             }
 
-            const auto &model = models[key.zoom - conf.base_zoom];
-            model->materials[0].maps[MATERIAL_MAP_ALBEDO].texture = *tile.tx_texture;
-            model->materials[0].maps[MATERIAL_MAP_ROUGHNESS].texture = *tile.hm_texture;
-            model->materials[0].maps[MATERIAL_MAP_NORMAL].texture = *tile.nl_texture;
+            material.maps[MATERIAL_MAP_ALBEDO].texture = *tile.tx_texture;
+            material.maps[MATERIAL_MAP_ROUGHNESS].texture = *tile.hm_texture;
+            material.maps[MATERIAL_MAP_NORMAL].texture = *tile.nl_texture;
 
-            DrawModel(*model, {tile.tx, 0.0f, tile.tz}, 1.0f, WHITE);
+            const Matrix transform = MatrixTranslate(tile.tx, 0.0f, tile.tz);
+            DrawMesh(*meshes[zoom], material, transform);
         }
     }
 

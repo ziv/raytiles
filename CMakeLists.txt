@@ -69,6 +69,8 @@ else ()
     target_compile_definitions(${PROJECT_NAME} PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
 endif ()
 
+
+
 # sandbox example application
 add_executable(Sandbox sandbox/main.cpp)
 target_link_libraries(Sandbox PRIVATE ${PROJECT_NAME})
@@ -76,3 +78,20 @@ target_link_libraries(Sandbox PRIVATE ${PROJECT_NAME})
 if (EMSCRIPTEN)
     set_target_properties(Sandbox PROPERTIES SUFFIX ".html")
 endif ()
+
+# tests
+FetchContent_Declare(
+        doctest
+        GIT_REPOSITORY https://github.com/doctest/doctest
+        GIT_TAG v2.5.2
+)
+FetchContent_MakeAvailable(doctest)
+add_executable(run_tests
+        tests/tests_main.cpp
+        tests/example_tests.cpp
+)
+
+target_link_libraries(run_tests PRIVATE doctest::doctest)
+
+include(CTest)
+add_test(NAME AllTests COMMAND run_tests)
