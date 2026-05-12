@@ -43,8 +43,12 @@ int main() {
 
     // streamer configuration, set the anchor tiles (currently around greece)
     raytiles::config conf;
-    conf.anchor_x_tile = 1179.0f; // somewhere at greece
-    conf.anchor_z_tile = 797.0f;
+    conf.anchor_x_tile = 294.0f; // somewhere at greece
+    conf.anchor_z_tile = 199.0f;
+    conf.base_zoom = 9;
+    conf.base_zoom_tile_size = 66400.0f;
+    conf.fog_start = 150000;
+    conf.fog_end = 200000;
     // conf.max_zoom = 15;
     conf.height_scale = 3.0f;
     conf.skirt_size = 50;
@@ -95,10 +99,10 @@ int main() {
 
         if (IsKeyDown(KEY_W)) camera.position.z -= 1500.0f * dt;
         if (IsKeyDown(KEY_S)) camera.position.z += 1500.0f * dt;
-        if (IsKeyDown(KEY_A)) camera.position.x -= 1500.0f * dt;
-        if (IsKeyDown(KEY_D)) camera.position.x += 1500.0f * dt;
-        if (IsKeyDown(KEY_DOWN)) camera.position.y -= 1500.0f * dt;
-        if (IsKeyDown(KEY_UP)) camera.position.y += 1500.0f * dt;
+        if (IsKeyDown(KEY_A)) camera.position.x -= 4500.0f * dt;
+        if (IsKeyDown(KEY_D)) camera.position.x += 4500.0f * dt;
+        if (IsKeyDown(KEY_DOWN)) camera.position.y -= 4500.0f * dt;
+        if (IsKeyDown(KEY_UP)) camera.position.y += 4500.0f * dt;
 
         if (IsKeyDown(KEY_LEFT_BRACKET)) sun -= dt * 0.5f;
         if (IsKeyDown(KEY_RIGHT_BRACKET)) sun += dt * 0.5f;
@@ -107,7 +111,7 @@ int main() {
 
 
         const auto move = camera.position - last_pos;
-        camera.target += move;
+        // camera.target += move;
 
 
         // sync every 10 seconds

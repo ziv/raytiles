@@ -25,6 +25,8 @@ add_library(${PROJECT_NAME}
         src/craytiles.cpp
         src/downloader.hpp
         src/tilekey.hpp
+        src/utils.hpp
+        src/coordinates.hpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

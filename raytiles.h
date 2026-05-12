@@ -96,7 +96,7 @@ namespace raytiles {
         /// Near / far clip planes used by the displacement shader for fog and
         /// depth precision tuning. Match these to your camera setup.
         double near_plane = 1;
-        double far_plane = 100000;
+        double far_plane = 400000;
 
         /// Generate trilinear / anisotropic mipmaps for the albedo texture on
         /// upload. Strongly recommended; avoids shimmering at distance.

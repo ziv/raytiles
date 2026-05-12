@@ -19,6 +19,7 @@
 
 #include "manager.hpp"
 #include "tilekey.hpp"
+#include "utils.hpp"
 
 using namespace std::chrono_literals;
 
@@ -442,15 +443,16 @@ void main()
             }
 
             // calculate distance of the tile from the camera
-            const float tile_size = tile_sizes[zoom - conf.base_zoom];
-            const float world_x = (static_cast<float>(tx) + 0.5f) * tile_size;
-            const float world_z = (static_cast<float>(tz) + 0.5f) * tile_size;
-            const float ddx = last_position.x - world_x;
-            const float ddz = last_position.z - world_z;
+            const Meters distance_sq = utils::distance_sq_to_tile(last_position, {zoom, tx, tz}, tile_sizes[zoom - conf.base_zoom]);
+            // const float tile_size = tile_sizes[zoom - conf.base_zoom];
+            // const float world_x = (static_cast<float>(tx) + 0.5f) * tile_size;
+            // const float world_z = (static_cast<float>(tz) + 0.5f) * tile_size;
+            // const float ddx = last_position.x - world_x;
+            // const float ddz = last_position.z - world_z;
 
             // check against the next zoom distance threshold, if it's far enough,
             // add to the list, otherwise subdivide into 4 children
-            if (ddx * ddx + ddz * ddz >= tile_distances[zoom + 1 - conf.base_zoom]) {
+            if (distance_sq >= tile_distances[zoom + 1 - conf.base_zoom]) {
                 desired_keys.insert({zoom, tx, tz});
                 return;
             }
