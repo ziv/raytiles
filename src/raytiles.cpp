@@ -124,36 +124,19 @@ namespace raytiles {
     void manager::draw(const Camera3D &camera) {
         // set the camera location (for distance -> fog)
         SetShaderValue(*displacement_shader, cam_pos_loc, &camera.position, SHADER_UNIFORM_VEC3);
-
-        // horizontal forward direction (xz plane). tiles are flat on y=0 so testing
-        // against the horizontal projection of the camera forward is enough to decide
-        // "is the tile in front of (or beside) the camera?". if the camera is looking
-        // straight up/down, fwd_len ~ 0, and we disable culling for this frame.
-        const float fwd_x = camera.target.x - camera.position.x;
-        const float fwd_z = camera.target.z - camera.position.z;
-        const float fwd_len = std::sqrt(fwd_x * fwd_x + fwd_z * fwd_z);
-        const bool cull_enabled = fwd_len > 0.0001f;
-        const float fwd_nx = cull_enabled ? fwd_x / fwd_len : 0.0f;
-        const float fwd_nz = cull_enabled ? fwd_z / fwd_len : 0.0f;
+        const auto f = utils::extract_frustum(camera, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight()), conf.near_plane,
+                                              conf.far_plane);
 
         for (const auto &[key, tile]: rendering_tiles) {
             const auto &t = tiles.at(key.zoom);
-            // skip tiles that lie behind the camera by more than one tile-size buffer.
-            // tiles to the side (perpendicular to forward) and anything in front pass.
-            // the buffer is the tile size at this zoom so a tile straddling the camera
-            // plane is still drawn.
-            if (cull_enabled) {
-                const float dx = tile.tx - camera.position.x;
-                const float dz = tile.tz - camera.position.z;
-                if (const float along_forward = dx * fwd_nx + dz * fwd_nz; along_forward < -t.size) continue;
-            }
+
+            if (!utils::is_tile_in_frustum(tile.tx, tile.tz, t.size, f)) continue;
 
             material.maps[MATERIAL_MAP_ALBEDO].texture = *tile.tx_texture;
             material.maps[MATERIAL_MAP_ROUGHNESS].texture = *tile.hm_texture;
             material.maps[MATERIAL_MAP_NORMAL].texture = *tile.nl_texture;
 
-            const Matrix transform = MatrixTranslate(tile.tx, 0.0f, tile.tz);
-            DrawMesh(*t.mesh, material, transform);
+            DrawMesh(*t.mesh, material, MatrixTranslate(tile.tx, 0.0f, tile.tz));
         }
     }
 
