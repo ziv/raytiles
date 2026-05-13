@@ -46,7 +46,7 @@ namespace raytiles {
 
         /// Highest level-of-detail zoom available. Tiles directly under the camera
         /// are subdivided up to this zoom.
-        int max_zoom = 14;
+        int max_zoom = 15;
 
         /// World size (in meters) of one tile at `base_zoom`. Tiles at higher zooms
         /// are scaled by `1 / (1 << (zoom - base_zoom))`.
@@ -59,7 +59,7 @@ namespace raytiles {
         /// Skirt geometry overlap factor (per side) used to hide cracks between
         /// neighboring tiles at different LODs.
         /// Refer to the max_zoom.
-        float skirt_size = 15.0f;
+        float skirt_size = 0.05f;
 
         /// Scaling the heightmap by this factor to increase or reduce the real height
         /// into desired (drama factor)
@@ -108,14 +108,18 @@ namespace raytiles {
 
         /// Distance (in meters) at which atmospheric fog starts to fade tiles to
         /// `set_fog_color`'s color.
-        float fog_start = 40000.0f;
+        float fog_start = 100000.0f;
 
         /// Distance (in meters) at which fog reaches full cover.
-        float fog_end = 70000.0f;
+        float fog_end = 150000.0f;
 
         /// Weather to log from the threads or from the main process
         /// Logging from main thread/process is done via raylib's TraceLog function
         bool use_logger = false;
+
+        /// Zoom level distance thresholds (11 to 15)
+        /// Optimized for performance and limit the tiles number under 600
+        float ths[5] = {55000.0f, 25000.0f, 10000.0f, 5000.0f, 1000.0f};
     };
 
     struct pool_config {

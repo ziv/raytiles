@@ -18,175 +18,46 @@
 #include <vector>
 
 #include "manager.hpp"
-#include "tilekey.hpp"
+#include "tile.hpp"
 #include "utils.hpp"
+#include "shaders.hpp"
 
 using namespace std::chrono_literals;
 
 namespace raytiles {
-    namespace {
-        /// a better performance function instead of using
-        /// raylib's GetImageColor(img, px, pz)
-        float get_height_from_image(const Image &img, int x, int y) {
-            if (x < 0) x = 0;
-            if (y < 0) y = 0;
-            if (x >= img.width) x = img.width - 1;
-            if (y >= img.height) y = img.height - 1;
-
-            const auto pixels = static_cast<const unsigned char *>(img.data);
-            unsigned char r, g, b;
-
-            if (img.format == PIXELFORMAT_UNCOMPRESSED_R8G8B8) {
-                const int index = (y * img.width + x) * 3;
-                r = pixels[index];
-                g = pixels[index + 1];
-                b = pixels[index + 2];
-            } else if (img.format == PIXELFORMAT_UNCOMPRESSED_R8G8B8A8) {
-                const int index = (y * img.width + x) * 4;
-                r = pixels[index];
-                g = pixels[index + 1];
-                b = pixels[index + 2];
-            } else {
-                return 0.0f;
-            }
-
-            return static_cast<float>(r) * 256.0f + static_cast<float>(g) + static_cast<float>(b) / 256.0f - 32768.0f;
-        }
-
-        int radius(const float height) {
-            if (height < 500) return 2;
-            if (height < 1000) return 3;
-            if (height < 2000) return 4;
-            if (height < 4000) return 5;
-            if (height < 8000) return 6;
-            return 7;
-        }
-
-#ifdef __EMSCRIPTEN__
-#define GLSL_VERSION_HEADER "#version 300 es\nprecision mediump float;\n"
-#else
-#define GLSL_VERSION_HEADER "#version 330\n"
-#endif
-
-        constexpr auto vertex_shader = GLSL_VERSION_HEADER R"(
-in vec3 vertexPosition;         // current vertex position
-in vec2 vertexTexCoord;         // current vertex uv
-
-uniform mat4 mvp;               // model view projection
-uniform mat4 matModel;          // position matrix
-uniform sampler2D heightMap;    // heightmap input
-uniform float heightScale;      // scale factor input
-uniform float normalScale;      // scale factor input
-uniform vec3 cameraPosition;    // camera world position (for distance -> fog)
-
-out vec2 fragTexCoord;          // uv for the fragment
-out float fragCamDist;          // distance from the camera to the vertex, for fog calculation in the fragment shader
-
-void main()
-{
-    // moving the value to the fragment
-    fragTexCoord = vertexTexCoord;
-
-    // terrarium heightmap calculations
-    // sample the heightmap; the RGB values are combined into a single height value.
-    vec3 color = texture(heightMap, vertexTexCoord).rgb;
-    vec3 c = color * 255.0;
-    float heightValue = (c.r * 256.0 + c.g + c.b / 256.0) - 32768.0;
-
-    // update the displacement
-    vec3 displacedPosition = vertexPosition;
-    displacedPosition.y += heightValue * heightScale;
-
-    vec3 worldPosition = vec3(matModel * vec4(displacedPosition, 1.0));
-    fragCamDist = distance(worldPosition, cameraPosition);
-
-    // real pixel position on screen
-    gl_Position = mvp * vec4(displacedPosition, 1.0);
-}
-)";
-
-        constexpr auto fragment_shader = GLSL_VERSION_HEADER R"(
-in vec2 fragTexCoord;
-in float fragCamDist;
-
-uniform sampler2D texture0;
-uniform sampler2D normalMap;
-uniform vec4 ambientLight;
-uniform vec4 fogColor;
-uniform float fogStart;
-uniform float fogEnd;
-uniform vec3 sunDir;
-uniform float normalScale;
-uniform float sunScale;
-
-out vec4 finalColor;
-
-void main()
-{
-    vec4 texColor = texture(texture0, fragTexCoord);
-    vec3 normalColor = texture(normalMap, fragTexCoord).rgb;
-
-    // increasing normals (use scale uniform like height)
-    vec3 normal = normalColor * 2.0 - 1.0;
-    normal.xy *= normalScale;
-    normal = normalize(normal);
-
-    // sun light factor should be a uniform
-    float sunLight = max(dot(normal, normalize(sunDir)), 0.0);
-    vec4 sunColor = vec4(sunLight * sunScale);
-
-    vec4 totalLighting = ambientLight + sunColor;
-    totalLighting = clamp(totalLighting, 0.0, 1.0);
-    vec4 lit = texColor * totalLighting;
-
-    float fogFactor = clamp((fragCamDist - fogStart) / (fogEnd - fogStart), 0.0, 1.0);
-    finalColor = mix(lit, fogColor, fogFactor);
-}
-)";
-    } // namespace
-
     // manager
 
     manager::manager(const config &conf, pool_config pool_conf)
         : conf(conf),
-          displacement_shader(raii::load_shader_from_memory(vertex_shader, fragment_shader)),
+          displacement_shader(raii::load_shader_from_memory(shaders::vertex_shader, shaders::fragment_shader)),
           tile_downloader(std::move(pool_conf)) {
-        // todo should be set as part of height?!
-        // set the rendering distance
-        rlSetClipPlanes(conf.near_plane, conf.far_plane);
-        desired_keys.reserve(512);
-        const auto distance = static_cast<float>(conf.rendering_radius) * conf.base_zoom_tile_size;
+        const std::unordered_map<int, float> thresholds = {
+            {11, conf.ths[0]},
+            {12, conf.ths[1]},
+            {13, conf.ths[2]},
+            {14, conf.ths[3]},
+            {15, conf.ths[4]},
+        };
 
-        // prepare tiles size and distance for each zoom
-        const int zoom_count = conf.max_zoom - conf.base_zoom + 1;
-        tile_sizes.resize(zoom_count);
-        tile_distances.resize(zoom_count);
+        int res = 4;
+
         for (int zoom = conf.base_zoom; zoom <= conf.max_zoom; ++zoom) {
-            const int ratio = 1 << (zoom - conf.base_zoom);
-            const int idx = zoom - conf.base_zoom;
-            tile_sizes[idx] = conf.base_zoom_tile_size / static_cast<float>(ratio);
-            tile_distances[idx] = distance * distance / static_cast<float>(ratio * ratio * ratio);
-        }
+            const float ratio = static_cast<float>(1 << (zoom - conf.base_zoom));
+            const auto size = conf.base_zoom_tile_size / ratio;
+            const auto skirt_size = conf.skirt_size * ratio;
+            const auto th = thresholds.at(zoom);
 
+            tiles[zoom] = TileValue{
+                size,
+                th * th,
+                raii::mesh{GenMeshPlane(size + skirt_size, size + skirt_size, res, res)}
+            };
+            res *= 2;
+        }
 
         // one Material to rule them all, one material to bind them
         material = LoadMaterialDefault();
         material.shader = *displacement_shader;
-
-        // creating Mesh for each zoom level, avoiding the need to stretch the mesh
-        meshes.reserve(zoom_count);
-        for (int zoom = conf.base_zoom; zoom <= conf.max_zoom; ++zoom) {
-            const int idx = zoom - conf.base_zoom;
-            const int res = 16 * (1 << idx);
-            const float size = tile_sizes[idx];
-
-            float skirt_size = conf.skirt_size;
-            if (zoom == 13) skirt_size /= 2;
-            if (zoom == 12) skirt_size /= 4;
-            if (zoom == 11) skirt_size /= 8;
-
-            meshes.emplace_back(GenMeshPlane(size + skirt_size, size + skirt_size, res, res));
-        }
 
         // update defaults
         fog_start = conf.fog_start;
@@ -208,6 +79,7 @@ void main()
         fog_start_loc = GetShaderLocation(*displacement_shader, "fogStart");
         fog_end_loc = GetShaderLocation(*displacement_shader, "fogEnd");
 
+
         // define the slots used with the model
         // we hack the SHADER_LOC_MAP_ROUGHNESS to be used as the heightmap input
         displacement_shader->locs[SHADER_LOC_MAP_ALBEDO] = tex_albedo_loc;
@@ -225,7 +97,16 @@ void main()
         // the reset shaders uniform (those are dynamically changed...)
         update_shader_uniforms();
 
+
+        /// ------------------------- REMOVE FROM HERE -------------------------
+
+
         if (conf.use_logger) TraceLog(LOG_INFO, "raytiles streamer initialized");
+
+
+        // todo should be set as part of height?!
+        // set the rendering distance
+        rlSetClipPlanes(conf.near_plane, conf.far_plane);
     }
 
     void manager::update(const Camera3D &camera) {
@@ -261,9 +142,7 @@ void main()
         const float fwd_nz = cull_enabled ? fwd_z / fwd_len : 0.0f;
 
         for (const auto &[key, tile]: rendering_tiles) {
-            const auto zoom = key.zoom - conf.base_zoom;
-            const auto size = tile_sizes[zoom];
-
+            const auto &t = tiles.at(key.zoom);
             // skip tiles that lie behind the camera by more than one tile-size buffer.
             // tiles to the side (perpendicular to forward) and anything in front pass.
             // the buffer is the tile size at this zoom so a tile straddling the camera
@@ -271,7 +150,7 @@ void main()
             if (cull_enabled) {
                 const float dx = tile.tx - camera.position.x;
                 const float dz = tile.tz - camera.position.z;
-                if (const float along_forward = dx * fwd_nx + dz * fwd_nz; along_forward < -size) continue;
+                if (const float along_forward = dx * fwd_nx + dz * fwd_nz; along_forward < -t.size) continue;
             }
 
             material.maps[MATERIAL_MAP_ALBEDO].texture = *tile.tx_texture;
@@ -279,7 +158,7 @@ void main()
             material.maps[MATERIAL_MAP_NORMAL].texture = *tile.nl_texture;
 
             const Matrix transform = MatrixTranslate(tile.tx, 0.0f, tile.tz);
-            DrawMesh(*meshes[zoom], material, transform);
+            DrawMesh(*t.mesh, material, transform);
         }
     }
 
@@ -293,14 +172,14 @@ void main()
         const float fwd_nz = cull_enabled ? fwd_z / fwd_len : 0.0f;
 
         for (const auto &[key, tile]: rendering_tiles) {
-            const auto size = tile_sizes[key.zoom - conf.base_zoom];
+            const auto &t = tiles.at(key.zoom);
             if (cull_enabled) {
                 const float dx = tile.tx - camera.position.x;
                 const float dz = tile.tz - camera.position.z;
                 const float along_forward = dx * fwd_nx + dz * fwd_nz;
-                if (along_forward < -size) continue;
+                if (along_forward < -t.size) continue;
             }
-            DrawCubeWires({tile.tx, 0.0f, tile.tz}, size, 200.0f, size, GREEN);
+            DrawCubeWires({tile.tx, 0.0f, tile.tz}, t.size, 200.0f, t.size, GREEN);
         }
     }
 
@@ -311,16 +190,21 @@ void main()
             const auto [x, y] = GetWorldToScreen({tile.tx, 0.0f, tile.tz}, camera);
             if (x < 0 || x > width || y < 0 || y > height) continue;
 
+            if (desired_keys.contains(key)) {
+                DrawText(TextFormat("%d", key.zoom), static_cast<int>(x), static_cast<int>(y), 15, GREEN);
+            } else {
+                DrawText(TextFormat("%d", key.zoom), static_cast<int>(x), static_cast<int>(y), 15, RED);
+            }
             // const Color c = key.zoom == 14 ? RED : key.zoom == 15 ? GREEN : WHITE;
-            DrawText(TextFormat("%d", key.zoom), static_cast<int>(x), static_cast<int>(y), 15, GREEN);
+            // DrawText(TextFormat("%d", key.zoom), static_cast<int>(x), static_cast<int>(y), 15, GREEN);
         }
     }
 
     void manager::remove_unused_tiles() {
         std::erase_if(rendering_tiles, [&](const auto &item) {
             if (desired_keys.contains(item.first)) return false;
-            if (!is_tile_covered(item.first)) return false;
-            if (!is_tile_out_of_area(item.first)) return false;
+            // if (!is_tile_covered(item.first)) return false;
+            // if (!is_tile_out_of_area(item.first)) return false;
             return true;
         });
         // also drop loading-tile bookkeeping for tiles we no longer want. the
@@ -408,7 +292,9 @@ void main()
         // tile that contains (position.x, position.z) wins. higher zoom = finer
         // sample, so we prefer it if loaded.
         for (int zoom = conf.max_zoom; zoom >= conf.base_zoom; --zoom) {
-            const float size = tile_sizes[zoom - conf.base_zoom];
+            const auto &t = tiles.at(zoom);
+            // const float size = tile_sizes[zoom - conf.base_zoom];
+            const float size = t.size;
 
             const int tile_x = static_cast<int>(std::floor(position.x / size));
             const int tile_z = static_cast<int>(std::floor(position.z / size));
@@ -427,58 +313,66 @@ void main()
             const int px = static_cast<int>(u * static_cast<float>(img.width));
             const int py = static_cast<int>(v * static_cast<float>(img.height));
 
-            return get_height_from_image(img, px, py);
+            return utils::get_height_from_image(img, px, py);
         }
         return std::nullopt;
     }
 
+    void manager::build_required(const int zoom, const int tx, const int tz, const float render_radius_sq) {
+        if (zoom == conf.max_zoom) {
+            desired_keys.insert({zoom, tx, tz});
+            return;
+        }
+
+        const auto tile = &tiles[zoom];
+
+        // calculate distance of the tile from the camera
+        const MetersSq distance_sq = utils::distance_sq_to_tile(last_position, {zoom, tx, tz}, tile->size);
+
+        // not in the area we render at all
+        if (distance_sq > render_radius_sq) {
+            return;
+        }
+
+        // do we need to subdivide?
+        if (distance_sq >= tile->threshold) {
+            desired_keys.insert({zoom, tx, tz});
+            return;
+        }
+
+        const int child_zoom = zoom + 1;
+        const int cx0 = tx * 2;
+        const int cz0 = tz * 2;
+        for (int ox = 0; ox < 2; ++ox)
+            for (int oz = 0; oz < 2; ++oz) build_required(child_zoom, cx0 + ox, cz0 + oz, render_radius_sq);
+    }
+
     void manager::process_current_location() {
         desired_keys.clear();
-
-        auto subdivide = [&](auto &self, const int zoom, const int tx, const int tz) -> void {
-            // no need for calculations, this is the last zoom
-            if (zoom == conf.max_zoom) {
-                desired_keys.insert({zoom, tx, tz});
-                return;
-            }
-
-            // calculate distance of the tile from the camera
-            const Meters distance_sq = utils::distance_sq_to_tile(last_position, {zoom, tx, tz}, tile_sizes[zoom - conf.base_zoom]);
-            // const float tile_size = tile_sizes[zoom - conf.base_zoom];
-            // const float world_x = (static_cast<float>(tx) + 0.5f) * tile_size;
-            // const float world_z = (static_cast<float>(tz) + 0.5f) * tile_size;
-            // const float ddx = last_position.x - world_x;
-            // const float ddz = last_position.z - world_z;
-
-            // check against the next zoom distance threshold, if it's far enough,
-            // add to the list, otherwise subdivide into 4 children
-            if (distance_sq >= tile_distances[zoom + 1 - conf.base_zoom]) {
-                desired_keys.insert({zoom, tx, tz});
-                return;
-            }
-
-            // split into 4 children at zoom+1.
-            const int child_zoom = zoom + 1;
-            const int cx0 = tx * 2;
-            const int cz0 = tz * 2;
-            for (int ox = 0; ox < 2; ++ox)
-                for (int oz = 0; oz < 2; ++oz) self(self, child_zoom, cx0 + ox, cz0 + oz);
-        };
-
         const int current_tile_x = static_cast<int>(std::floor(last_position.x / conf.base_zoom_tile_size));
         const int current_tile_z = static_cast<int>(std::floor(last_position.z / conf.base_zoom_tile_size));
 
-        const auto r = radius(last_position.y);
-        const auto allowed_radius = (r - 1) * (r - 1);
+        // scanning radius: 10 -> is ((10 * 2 + 1) * 33km) width -> ~ 700km -> max horizon distance * 2
+        constexpr auto r = 10;
+        constexpr auto allowed_radius = (r - 1) * (r - 1);
+
+        // rendering limit radius based on the horizon distance from the current camera height.
+        // we use the horizon distance as a limit because tiles beyond that point won't be visible anyway,
+        // so no need to even request them.
+        const auto d = 3.57 * 1000 * std::sqrt(last_position.y); // the radius of rendering
+
+        // todo set clip base on the horizon
 
         for (int dx = -r; dx <= r; ++dx)
             for (int dz = -r; dz <= r; ++dz)
-                if (dz * dz + dx * dx < allowed_radius) subdivide(subdivide, conf.base_zoom, current_tile_x + dx, current_tile_z + dz);
+                if (dz * dz + dx * dx < allowed_radius)
+                    build_required(conf.base_zoom, current_tile_x + dx, current_tile_z + dz, d * d);
+
 
         // spawn new if not in rendering list
-        for (const auto &key: desired_keys) {
-            if (!rendering_tiles.contains(key) && !loading_tiles.contains(key)) loading_tiles.try_emplace(key, spawn(key));
-        }
+        for (const auto &key: desired_keys)
+            if (!rendering_tiles.contains(key) && !loading_tiles.contains(key))
+                loading_tiles.try_emplace(key, spawn(key));
     }
 
     void manager::process_loaded_tiles() {
@@ -494,8 +388,9 @@ void main()
             auto &[key, tile] = *it;
 
             // all three futures must be ready
-            if (tile.tx_future.wait_for(0s) != std::future_status::ready || tile.hm_future.wait_for(0s) != std::future_status::ready || tile.nl_future.
-                wait_for(0s) != std::future_status::ready) {
+            if (tile.tx_future.wait_for(0s) != std::future_status::ready ||
+                tile.hm_future.wait_for(0s) != std::future_status::ready ||
+                tile.nl_future.wait_for(0s) != std::future_status::ready) {
                 ++it;
                 continue;
             }
@@ -528,13 +423,26 @@ void main()
             raii::image height_img{LoadImageFromMemory(".png", reinterpret_cast<const unsigned char *>(hm_bytes.data()), static_cast<int>(hm_bytes.size()))};
             raii::image normals_img{LoadImageFromMemory(".png", reinterpret_cast<const unsigned char *>(nm_bytes.data()), static_cast<int>(nm_bytes.size()))};
 
-            // todo if normal failed, use flat normal and don't fail the tile rendering
-            if (!IsImageValid(*tex_img) || !IsImageValid(*height_img) || !IsImageValid(*normals_img)) {
-                TraceLog(LOG_WARNING, "failed to load tile %d/%d/%d - dropping", key.zoom, key.x, key.z);
+            // get specific error what is wrong...
+            bool valid = true;
+            if (!IsImageValid(*tex_img)) {
+                TraceLog(LOG_WARNING, "failed to decode texture tile %d/%d/%d - dropping", key.zoom, key.x, key.z);
+                valid = false;
+            }
+            if (!IsImageValid(*height_img)) {
+                TraceLog(LOG_WARNING, "failed to decode heightmap tile %d/%d/%d - dropping", key.zoom, key.x, key.z);
+                valid = false;
+            }
+            if (!IsImageValid(*normals_img)) {
+                TraceLog(LOG_WARNING, "failed to decode normals tile %d/%d/%d - dropping", key.zoom, key.x, key.z);
+                valid = false;
+            }
+            if (!valid) {
                 it = loading_tiles.erase(it);
                 continue;
             }
 
+            // do we still need it?
             if (!desired_keys.contains(key)) {
                 if (conf.use_logger) TraceLog(LOG_DEBUG, "tile %d/%d/%d became stale before upload - dropping", key.zoom, key.x, key.z);
                 it = loading_tiles.erase(it);
@@ -555,10 +463,13 @@ void main()
             raii::texture texture_tex = raii::load_texture_from_image(*tex_img);
             raii::texture height_tex = raii::load_texture_from_image(*height_img);
             raii::texture normals_tex = raii::load_texture_from_image(*normals_img);
+
+            // don't clamp the ends
             SetTextureWrap(*texture_tex, TEXTURE_WRAP_CLAMP);
             SetTextureWrap(*height_tex, TEXTURE_WRAP_CLAMP);
             SetTextureWrap(*normals_tex, TEXTURE_WRAP_CLAMP);
 
+            // allow use of mipmaps (only for texture)
             if (conf.use_mipmap) {
                 GenTextureMipmaps(&texture_tex.get());
                 SetTextureFilter(*texture_tex, TEXTURE_FILTER_ANISOTROPIC_16X);
@@ -581,20 +492,12 @@ void main()
         }
     }
 
-    void manager::update_shader_uniforms() {
-        // set the ambient color (weather/day/night/...)
-        SetShaderValue(*displacement_shader, ambient_loc, ambient_light, SHADER_UNIFORM_VEC4);
-        // set the fog color (to match the sky)
-        SetShaderValue(*displacement_shader, fog_color_log, fog_color, SHADER_UNIFORM_VEC4);
-        // set the sun direction
-        SetShaderValue(*displacement_shader, sun_dir_loc, sun_direction, SHADER_UNIFORM_VEC3);
-    }
-
     loading_tile manager::spawn(const TileKey &tile) {
+        const auto &te = tiles.at(tile.zoom);
         const auto scale = 1 << (tile.zoom - conf.base_zoom);
         const auto tx = tile.x + conf.anchor_x_tile * scale;
         const auto tz = tile.z + conf.anchor_z_tile * scale;
-        const auto tile_size = tile_sizes[tile.zoom - conf.base_zoom];
+        const auto tile_size = te.size;
 
         auto t = loading_tile{
             // loading tile structure
@@ -609,9 +512,19 @@ void main()
         return t;
     }
 
+    void manager::update_shader_uniforms() {
+        // set the ambient color (weather/day/night/...)
+        SetShaderValue(*displacement_shader, ambient_loc, ambient_light, SHADER_UNIFORM_VEC4);
+        // set the fog color (to match the sky)
+        SetShaderValue(*displacement_shader, fog_color_log, fog_color, SHADER_UNIFORM_VEC4);
+        // set the sun direction
+        SetShaderValue(*displacement_shader, sun_dir_loc, sun_direction, SHADER_UNIFORM_VEC3);
+    }
+
     // todo check this function
     bool manager::is_tile_out_of_area(const TileKey &key) const {
-        const auto tile_size = tile_sizes[key.zoom - conf.base_zoom];
+        const auto &t = tiles.at(key.zoom);
+        const auto tile_size = t.size;
         const auto rendering_radius = static_cast<float>(conf.rendering_radius) * tile_size;
         const auto half_size = tile_size / 2.0f;
         const auto dx = std::fabs((static_cast<float>(key.x) + 0.5f) * tile_size - last_position.x);
@@ -633,7 +546,9 @@ void main()
         if (key.zoom < conf.max_zoom) {
             const int child_x = key.x * 2;
             const int child_z = key.z * 2;
-            if (contains(key.zoom + 1, child_x, child_z) && contains(key.zoom + 1, child_x + 1, child_z) && contains(key.zoom + 1, child_x, child_z + 1) &&
+            if (contains(key.zoom + 1, child_x, child_z) &&
+                contains(key.zoom + 1, child_x + 1, child_z) &&
+                contains(key.zoom + 1, child_x, child_z + 1) &&
                 contains(key.zoom + 1, child_x + 1, child_z + 1)) {
                 return true;
             }

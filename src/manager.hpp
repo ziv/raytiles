@@ -11,7 +11,7 @@
 #include "downloader.hpp"
 #include "raii.hpp"
 #include "raylib.h"
-#include "tilekey.hpp"
+#include "tile.hpp"
 
 namespace raytiles {
     struct loading_tile {
@@ -70,6 +70,8 @@ namespace raytiles {
         [[nodiscard]] std::optional<float> ground_height(Vector3 position) const;
 
     private:
+        void build_required(int zoom, int tx, int tz, float render_radius_sq);
+
         void process_loaded_tiles();
 
         void process_current_location();
@@ -111,14 +113,13 @@ namespace raytiles {
         float sun_scale = 1.0f;
 
         Material material{};
-        std::vector<raii::mesh> meshes = {};
-        std::vector<float> tile_sizes = {};
-        std::vector<float> tile_distances = {};
-
         Vector3 last_position = {-9999.9f, -9999.9f, -9999.9f};
 
         std::unordered_set<TileKey> desired_keys;
         std::unordered_map<TileKey, loading_tile> loading_tiles;
         std::unordered_map<TileKey, loaded_tile> rendering_tiles;
+
+        // metadata about tiles by their zoom
+        std::unordered_map<int, TileValue> tiles;
     };
 } // namespace raytiles

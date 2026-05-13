@@ -1,6 +1,10 @@
 # Raytiles
 
-## Tiles Sizes
+Drafts and number crunching for the raytiles implementation.
+
+By Ziv Perry, 2026-05-01
+
+## Tile Sizes Calculation
 
 $TileWidth_{meters} = \frac{C \cdot \cos(\phi)}{2^z}$
 
@@ -37,9 +41,14 @@ $Resolution = \frac{C \cdot \cos(\phi)}{256 \cdot 2^z}$
 | 9              | Equator      | 305.77                    | 78240               |
 | 9              | TLV          | 259.20                    | 66304               |
 
+From now on, all calculations will be based on $\phi=32^\circ$ but the real values are configurable in the code.
+
 ## Distances
 
 From commercial aircraft, at 43K feets (~13Km) the distance to the horizon is approximately 250 miles (~400km).
+
+From Pythagorean theorem, we can calculate the distance to the horizon `d` based on the height of the observer `h` and
+the radius of the Earth `R` (let say Earth is a perfect sphere):
 
 $$(R + h)^2 = R^2 + d^2$$
 
@@ -59,68 +68,91 @@ $$d \approx {3.57}\cdot10^3\sqrt{h}$$
 
 **We limit the GPU pixels rendeing by limit the far plane to the horizon distance.**
 
+### About Tiles Loading
+
+We are always load the surrounding tiles. We render only those we can actually see, but we have to load the entire
+raduis around us to support aircraft manouvers that can change the camera position and orientation quickly.
+
 ## Tile Zoom Level Selection
-
-Take the camera `Y` position and calculate the distance to the horizon `d`:
-
-$$d \approx {3.57}\cdot10^3\sqrt{Y}$$
 
 From max rendering distance of 400km, we set the distance thresholds for each zoom level to be half of the previous zoom
 level:
 
-| Zoom Level (z) | Distance Threshold (km) |
+| Zoom Level (z) | Distance Threshold (km) | 
 |----------------|-------------------------|
-| 9              | 400                     |
-| 10             | 200                     |
-| 11             | 100                     |
-| 12             | 50                      |
-| 13             | 25                      |
-| 14             | 12.5                    |
-| 15             | 6.25                    |
+| 9              | 400                     | 
+| 10             | 200                     | 
+| 11             | 100                     | 
+| 12             | 50                      |                                   
+| 13             | 25                      |                                   
+| 14             | 12.5                    |                                   
+| 15             | 6.25                    |                                   
 
-For example, if the camera is at 13km height, the distance to the horizon is approximately 400km. Therefore, we will
-render tiles up to zoom level 9, and for tiles that are closer than 200km, we will render zoom level 10, and so on.
-
----
-
-With the sight distance, we can calculate the radius of the area that needs to be covered by the tiles. The radius can
-be calculated as:
-
-$$Radius \approx \frac{d}{TileSize}$$
-
-Where TileSize is the width of the tile in meters of the base zoom level.
-
-## Tile Zoom Level Distance Thresholds
-
-- Max rendering distance is 400km.
-- Each zoom level has a distance threshold that is half of the previous zoom level.
+In zoom level 9, radius of ~6 tiles (400km / 66km) around the camera position will cover the horizon distance.
 
 ## Tiles Selection
 
-- Take the camera `Y` position and calculate the distance to the horizon `d`:
+Iterating from -6 to +6 in both X and Z directions, we will cover an area of 13x13 tiles around the camera position at
+zoom level 9, which is sufficient to cover the horizon distance of 400km.
 
-$$d \approx \frac{3.57 \cdot \sqrt{Y}}{1000}$$
+$$(2*R+1)*TileWidth_{meters} \approx 13*66km = 858km$$
+$$\frac{858km}{2} > d$$
 
-- Convert the distance to the horizon into a radius in tiles `R` based on the tile size at the base zoom level.
-- Iterate the tiles in a square area around the camera position, from `-R` to `+R` in both X and Z directions.
+While the iteration is based on the lowest zoom level, the actual rendering distance is based on the camera height and
+the distance to the tile.
+
+For each tile in base zoom level, calculate the distance to the camera (XYZ distance). Check in the thresholds to
+decide if we need to display it or not, and if we display it, if we need to subdivide it into higher zoom level.
+
+Update the `desired_keys` with the tiles that should be rendered based on the camera position and zoom level.
+
+For any tile in `desired_keys` not spawned yet, spawn it.
+
+### Performance optimizations:
+
+During the creation of the desired keys list, add a check if the tile is frustum culling and mark it as so.
+Sort the list by frustum culling and spawn first those who are in the frustum, and then those who are not.
+This way we can start rendering the visible tiles faster while the others are still loading.
 
 ## Tile Subdivision Decision
 
-- For the base zoom level, `MaxDistance` is the distance to the horizon `D`.
-- Calculate the distance from the camera to the center of each tile `d`.
-- If `d` is greater than `MaxDistance`, skip this tile.
-- If `d` is less than `MaxDistance / 2`, subdivide the tile into a higher zoom level and repeat the process for the
-  sub-tiles.
-- Else use the tile.
+Each zoom level has a distance threshold. If the distance from the camera to the tile is less than the threshold, we
+subdivide the tile into 4 sub-tiles of the next zoom level and repeat the process for each sub-tile. If the distance is
+greater than the threshold, we render the tile as is.
 
 ## Tile Eviction
 
-- For each tiles in the rendered tiles list
-- If it in the desired tiles list, keep it
-- If the tiles parent is not loaded and tiles children are not fully loaded, keep it (replacement)
-- Else, evict it
+Each tile that not in the desired keys list is a candidate for eviction.
+We can evict a tile only if it has a replacement or if it is not is the right distance for its zoom level.
 
-### Tiles Selection 2
+## Tiles Usage
 
-- Find the tile you're on.
-- 
+The tiles will follow the raylib application XYZ coordinates, where X is the east-west axis, Y is the up-down axis, and
+Z is the north-south axis.
+
+- Currently max zoom level is 15 (provider dependent).
+- There is no limit of the min zoom level, but we will set it to 9 since zoom 8 covers an area larger than the horizon
+  distance.
+
+### Positioning
+
+To work with float numbers required by the vectors of raylib, we have to use an anchore point for the tiles, and
+calculate the offset of each tile from the anchor point.
+
+If we want to travel to far that floats are not enough to represent the position of the tiles, we can change the anchor
+point to be closer to the camera position, and calculate the offset.
+
+### Sizing
+
+To avoid calculate the tiles sizes, we will hold a pre-calculated size for each zoom level for a given latitude.
+
+## Implementation Details
+
+### Preparations
+
+On construction, we will create for each supported zoom level:
+
+1. Tile size in meters.
+2. Min and max distance for rendering this zoom level.
+3. Resolution in number of vertices per tile.
+4. Mesh from the tile size and resolution.

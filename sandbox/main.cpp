@@ -32,8 +32,43 @@ void InitStorage() {
 }
 #endif
 
+
+inline void CustomLogCallback(const int logLevel, const char *text, const va_list args) {
+    // get rid of raylib internal annoying messages
+    if (logLevel == LOG_INFO) {
+        if (strstr(text, "uploaded successfully") != nullptr ||
+            strstr(text, "loaded successfully") != nullptr ||
+            strstr(text, "Load mipmap") != nullptr ||
+            strstr(text, "Mipmaps generated") != nullptr ||
+            strstr(text, "Unloaded") != nullptr) {
+            return;
+            }
+    }
+    switch (logLevel) {
+        case LOG_DEBUG:
+            printf("\033[34m[D]\033[0m ");
+            break;
+        case LOG_INFO:
+            printf("\033[32m[I]\033[0m ");
+            break;
+        case LOG_ERROR:
+            printf("\033[31m[E]\033[0m ");
+            break;
+        case LOG_WARNING:
+            printf("\033[33m[W]\033[0m ");
+            break;
+        default:
+            printf("[U] ");
+            break;
+    }
+    vprintf(text, args);
+    printf("\n");
+}
+
+
 int main() {
-    SetTraceLogLevel(LOG_DEBUG);
+    SetTraceLogCallback(CustomLogCallback);
+    SetTraceLogLevel(LOG_INFO);
     InitWindow(800, 600, "raytiles");
 #ifdef __EMSCRIPTEN__
     InitStorage();
@@ -43,26 +78,23 @@ int main() {
 
     // streamer configuration, set the anchor tiles (currently around greece)
     raytiles::config conf;
-    conf.anchor_x_tile = 294.0f; // somewhere at greece
-    conf.anchor_z_tile = 199.0f;
-    conf.base_zoom = 9;
-    conf.base_zoom_tile_size = 66400.0f;
-    conf.fog_start = 150000;
-    conf.fog_end = 200000;
-    // conf.max_zoom = 15;
+    conf.use_logger = true;
+    conf.anchor_x_tile = 1176.0f; // somewhere at greece
+    conf.anchor_z_tile = 796.0f;
     conf.height_scale = 3.0f;
     conf.skirt_size = 50;
 
     // pool configuration, set your mapbox token
     raytiles::pool_config pool_conf;
-    pool_conf.download_threads = 2; // good enough
+    pool_conf.download_threads = 8; // just for fun
+    // pool_conf.use_logger = true;
 
 #ifdef __EMSCRIPTEN__
     pool_conf.texture_cache_path = "/assets/t/{}/{}/{}.png";
     pool_conf.heightmap_cache_path = "/assets/h/{}/{}/{}.png";
 #endif
 
-    // create the streamer with both configurations
+    // create the streamer§§ with both configurations
     const raytiles::streamer streamer(conf, pool_conf);
     streamer.set_normals_scale(5.0f);
 
@@ -70,7 +102,7 @@ int main() {
     camera.position = Vector3{3000.0f, 5000.0f, 3000.0f};
     camera.target = Vector3{0.0f, 0.0f, 0.0f};
     camera.up = Vector3{0.0f, 1.0f, 0.0f};
-    camera.fovy = 45.0f;
+    camera.fovy = 70.0f;
     camera.projection = CAMERA_PERSPECTIVE;
 
     // rlSetClipPlanes(1, 100000);

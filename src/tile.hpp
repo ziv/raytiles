@@ -2,6 +2,13 @@
 #include <cstddef>
 
 namespace raytiles {
+
+    struct TileValue {
+        float size;
+        float threshold;
+        raii::mesh mesh;
+    };
+
     struct TileKey {
         int zoom;
         int x;
