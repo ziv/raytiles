@@ -98,12 +98,7 @@ namespace raytiles {
         update_shader_uniforms();
 
 
-        /// ------------------------- REMOVE FROM HERE -------------------------
-
-
         if (conf.use_logger) TraceLog(LOG_INFO, "raytiles streamer initialized");
-
-
         // todo should be set as part of height?!
         // set the rendering distance
         rlSetClipPlanes(conf.near_plane, conf.far_plane);
