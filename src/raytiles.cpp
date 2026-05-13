@@ -348,8 +348,8 @@ namespace raytiles {
         const int current_tile_z = static_cast<int>(std::floor(last_position.z / conf.base_zoom_tile_size));
 
         // scanning radius: 10 -> is ((10 * 2 + 1) * 33km) width -> ~ 700km -> max horizon distance * 2
-        constexpr auto r = 10;
-        constexpr auto allowed_radius = (r - 1) * (r - 1);
+        const auto r = conf.rendering_radius;
+        const auto allowed_radius = (r - 1) * (r - 1);
 
         // rendering limit radius based on the horizon distance from the current camera height.
         // we use the horizon distance as a limit because tiles beyond that point won't be visible anyway,

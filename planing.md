@@ -75,20 +75,20 @@ raduis around us to support aircraft manouvers that can change the camera positi
 
 ## Tile Zoom Level Selection
 
-From max rendering distance of 400km, we set the distance thresholds for each zoom level to be half of the previous zoom
-level:
+The following table shows the distance thresholds for each zoom level, it can be changed in the configuration.
 
-| Zoom Level (z) | Distance Threshold (km) | 
-|----------------|-------------------------|
-| 9              | 400                     | 
-| 10             | 200                     | 
-| 11             | 100                     | 
-| 12             | 50                      |                                   
-| 13             | 25                      |                                   
-| 14             | 12.5                    |                                   
-| 15             | 6.25                    |                                   
+| Zoom Level (z) | Distance Threshold (m) | 
+|----------------|------------------------|
+| 9              | -                      | 
+| 10             | -                      | 
+| 11             | 55000                  | 
+| 12             | 25000                  |                                   
+| 13             | 10000                  |                    
+| 14             | 5000                   |                                   
+| 15             | 1000                   |                                      
 
-In zoom level 9, radius of ~6 tiles (400km / 66km) around the camera position will cover the horizon distance.
+In zoom level 11, radius of ~10 (350km width total) is our base zoom level. You can increase the radius to cover more
+area, but it will increase the number of tiles we need to load and render.
 
 ## Tiles Selection
 

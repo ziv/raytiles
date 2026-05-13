@@ -54,7 +54,7 @@ namespace raytiles {
 
         /// Radius, in `base_zoom` tiles, of the disc of tiles loaded around the
         /// camera. Larger values = more tiles in flight = more memory / bandwidth.
-        int rendering_radius = 7;
+        int rendering_radius = 10;
 
         /// Skirt geometry overlap factor (per side) used to hide cracks between
         /// neighboring tiles at different LODs.
