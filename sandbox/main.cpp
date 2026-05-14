@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <string>
 
-#include "../include/raytiles.h"
+#include "include/raytiles.h"
 #include <rlgl.h>
 #include <raymath.h>
 #ifdef __EMSCRIPTEN__
