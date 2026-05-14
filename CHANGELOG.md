@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.2](https://github.com/ziv/raytiles/compare/v0.7.1...v0.7.2) (2026-05-14)
+
+
+### Bug Fixes
+
+* add cancelation mechanism to downloader, partially solve [#48](https://github.com/ziv/raytiles/issues/48) ([404f1ff](https://github.com/ziv/raytiles/commit/404f1ff02a72cd087be8fa9d9e264946f9234239))
+* add notify_all after request stop to stop pool ([c49ce94](https://github.com/ziv/raytiles/commit/c49ce9452659811145d12c7185075d349fda794e))
+* add validation to GetShaderLocation results ([85c62cc](https://github.com/ziv/raytiles/commit/85c62cc6c4ac7d9491eebd326f29c18e67837f1c))
+* add warnings to the build system, set raylib as sytem to silence warnings ([3114e22](https://github.com/ziv/raytiles/commit/3114e22b4c7e334cd4847f63eb6e4a966d12717b))
+* fog_end doubles as the culling radius replaced with real horizon calculation ([0920ead](https://github.com/ziv/raytiles/commit/0920ead2e0ca61b2c20a571a93eb3421752e3080))
+* remove the compiler enforced value in EMSCRIPTEN ([fb47380](https://github.com/ziv/raytiles/commit/fb4738022d38dc4f32cbaa468bea22c74d0e1d5d))
+* reorder files and add installation in cmake files ([48afa63](https://github.com/ziv/raytiles/commit/48afa6318be288d9aed484250e8d30ead2f60329))
+* replace replace_all with replace in downloader ([2c90f25](https://github.com/ziv/raytiles/commit/2c90f2570429950148faf2f6d051f58756763147))
+
 ## [0.7.1](https://github.com/ziv/raytiles/compare/v0.7.0...v0.7.1) (2026-05-14)
 
 
