@@ -44,10 +44,12 @@ namespace raytiles {
     struct config {
         /// Lowest level-of-detail zoom that will ever be loaded. Tiles outside the
         /// camera's near radius are kept at this zoom to bound the working set.
+        /// Changing this value must also update "thresholds" and "base_zoom_tile_size"
         int base_zoom = 11;
 
         /// Highest level-of-detail zoom available. Tiles directly under the camera
         /// are subdivided up to this zoom.
+        /// Changing this value must also update "thresholds"
         int max_zoom = 15;
 
         /// World size (in meters) of one tile at `base_zoom`. Tiles at higher zooms
@@ -121,8 +123,7 @@ namespace raytiles {
 
         /// Zoom level distance thresholds (11 to 15)
         /// Optimized for performance and limit the tiles number under 600
-        // float ths[5] = {55000.0f, 25000.0f, 10000.0f, 5000.0f, 1000.0f};
-
+        /// Changing base_zoom or max_zoom must be reflected here
         std::unordered_map<int, float> thresholds = {
             {11, 55000.0f},
             {12, 25000.0f},
