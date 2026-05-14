@@ -48,8 +48,8 @@ namespace raytiles {
         }
 
         // one Material to rule them all, one material to bind them
-        material = LoadMaterialDefault();
-        material.shader = *displacement_shader;
+        material = raii::material{LoadMaterialDefault()};
+        material->shader = *displacement_shader;
 
         // update defaults
         fog_start = conf.fog_start;
@@ -125,11 +125,13 @@ namespace raytiles {
 
             if (!utils::is_tile_in_frustum(tile.tx, tile.tz, t.size, f)) continue;
 
-            material.maps[MATERIAL_MAP_ALBEDO].texture = *tile.tx_texture;
-            material.maps[MATERIAL_MAP_ROUGHNESS].texture = *tile.hm_texture;
-            material.maps[MATERIAL_MAP_NORMAL].texture = *tile.nl_texture;
+            // material->maps[0]
+            // const auto m = material();
+            material->maps[MATERIAL_MAP_ALBEDO].texture = *tile.tx_texture;
+            material->maps[MATERIAL_MAP_ROUGHNESS].texture = *tile.hm_texture;
+            material->maps[MATERIAL_MAP_NORMAL].texture = *tile.nl_texture;
 
-            DrawMesh(*t.mesh, material, MatrixTranslate(tile.tx, 0.0f, tile.tz));
+            DrawMesh(*t.mesh, *material, MatrixTranslate(tile.tx, 0.0f, tile.tz));
             ++rendered;
         }
     }

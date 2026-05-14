@@ -70,6 +70,7 @@ namespace raytiles::raii {
     using texture = resource<Texture2D, UnloadTexture>;
     using shader = resource<Shader, UnloadShader>;
     using model = resource<Model, UnloadModel>;
+    using material = resource<Material, UnloadMaterial>;
 
     inline texture load_texture_from_image(const Image &img) { return texture{LoadTextureFromImage(img)}; }
 

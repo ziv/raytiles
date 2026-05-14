@@ -112,7 +112,7 @@ namespace raytiles {
         float normals_scale = 1.0f;
         float sun_scale = 1.0f;
 
-        Material material{};
+        raii::material material{};
         Vector3 last_position = {-9999.9f, -9999.9f, -9999.9f};
 
         std::unordered_set<TileKey> desired_keys;
