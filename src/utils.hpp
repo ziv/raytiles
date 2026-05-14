@@ -46,7 +46,9 @@ namespace raytiles::utils {
         const float world_z = (static_cast<float>(tile.z) + 0.5f) * tile_size;
         const float dx = position.x - world_x;
         const float dz = position.z - world_z;
-        return dx * dx + dz * dz + position.y * position.y; // include height for better LOD selection
+        return static_cast<double>(dx) * static_cast<double>(dx) +
+               static_cast<double>(dz) * static_cast<double>(dz) +
+               static_cast<double>(position.y) * static_cast<double>(position.y); // include height for better LOD selection
     }
 
     /// Calculates the distance from a position to the center of a tile.

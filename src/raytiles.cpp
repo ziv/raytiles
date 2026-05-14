@@ -503,7 +503,7 @@ namespace raytiles {
     bool manager::is_tile_out_of_area(const TileKey &key) const {
         const auto &t = tiles.at(key.zoom);
         const MetersSq distance_sq = utils::distance_sq_to_tile(last_position, key, t.size);
-        const MetersSq far_sq = conf.fog_end * conf.fog_end;
+        const MetersSq far_sq = static_cast<double>(conf.fog_end) * static_cast<double>(conf.fog_end);
 
         if (distance_sq > far_sq) {
             return true;
