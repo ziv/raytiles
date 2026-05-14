@@ -5,7 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include "../raytiles.h"
+#include "../include/raytiles.h"
 #include "downloader.hpp"
 #include "raii.hpp"
 #include "raylib.h"

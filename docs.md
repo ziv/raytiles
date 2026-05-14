@@ -114,7 +114,7 @@ move bytes from the network onto disk and into a `std::shared_future<std::string
 
 ## Public API
 
-Everything you need is in [`include/raytiles.h`](raytiles.h):
+Everything you need is in [`include/raytiles.h`](include/raytiles.h):
 
 - **`raytiles::config`** — tunables (zoom range, render radius, fog, cache paths, …). All defaults are sensible.
 - **`raytiles::provider`** — wraps your map-service API token; constructs URLs.

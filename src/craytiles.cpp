@@ -1,7 +1,7 @@
 /// @file craytiles.cpp
 /// Implementation of the C wrapper declared in craytiles.h.
 /// Translates C structs / opaque handles into raytiles::streamer calls.
-#include "../craytiles.h"
+#include "../include/craytiles.h"
 
 #include <new>
 #include <string>
@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "../raytiles.h"
+#include "../include/raytiles.h"
 
 namespace {
     inline std::string to_string_or_empty(const char *s) {

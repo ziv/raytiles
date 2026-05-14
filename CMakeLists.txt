@@ -19,8 +19,8 @@ if (NOT TARGET raylib)
 endif ()
 
 add_library(${PROJECT_NAME}
-        raytiles.h
-        craytiles.h
+        include/raytiles.h
+        include/craytiles.h
         src/raytiles.cpp
         src/craytiles.cpp
         src/downloader.hpp

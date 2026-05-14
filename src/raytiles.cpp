@@ -1,4 +1,4 @@
-#include "../raytiles.h"
+#include "../include/raytiles.h"
 #if defined(_WIN32)
 #define NOGDI
 #define NOUSER
