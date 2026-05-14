@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.2](https://github.com/ziv/raytiles/compare/v0.6.1...v0.6.2) (2026-05-14)
+
+
+### Bug Fixes
+
+* code review items ([#39](https://github.com/ziv/raytiles/issues/39)) ([a9749b5](https://github.com/ziv/raytiles/commit/a9749b57a209e2fd2bbca7405812b2fc99b12ca1))
+* pimpl signature - remove const ([a9749b5](https://github.com/ziv/raytiles/commit/a9749b57a209e2fd2bbca7405812b2fc99b12ca1))
+* remove redecode image ([a41174c](https://github.com/ziv/raytiles/commit/a41174c66aca74df6e9dddb8901e51e72be477d9))
+* sandbox example ([a9749b5](https://github.com/ziv/raytiles/commit/a9749b57a209e2fd2bbca7405812b2fc99b12ca1))
+* typo in fog_color_loc ([a9749b5](https://github.com/ziv/raytiles/commit/a9749b57a209e2fd2bbca7405812b2fc99b12ca1))
+
 ## [0.6.1](https://github.com/ziv/raytiles/compare/v0.6.0...v0.6.1) (2026-05-13)
 
 
