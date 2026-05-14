@@ -44,10 +44,14 @@ namespace raytiles {
         int res = min_resolution;
 
         for (int zoom = conf.base_zoom; zoom <= conf.max_zoom; ++zoom) {
+            if (!conf.thresholds.contains(zoom)) {
+                // don't start with missing items
+                throw std::runtime_error(std::format("missing distance threshold for zoom {}", zoom));
+            }
             const float ratio = static_cast<float>(1 << (zoom - conf.base_zoom));
             const auto size = conf.base_zoom_tile_size / ratio;
             const auto skirt_size = conf.skirt_size * ratio;
-            const auto th = conf.thresholds.at(zoom);
+            const auto th = conf.thresholds.at(zoom); // safe (see check at the beginning of loop)
 
             tiles[zoom] = TileValue{
                 size,
@@ -56,6 +60,10 @@ namespace raytiles {
             };
             res = std::min(res * 2, max_resolution);
         }
+
+        // todo should be set as part of height?! (i.e. in "process_current_location")
+        // set the rendering distance
+        rlSetClipPlanes(conf.near_plane, conf.far_plane);
 
         // one Material to rule them all, one material to bind them
         material = raii::material{LoadMaterialDefault()};
@@ -81,29 +89,24 @@ namespace raytiles {
         fog_start_loc = GetShaderLocation(*displacement_shader, "fogStart");
         fog_end_loc = GetShaderLocation(*displacement_shader, "fogEnd");
 
-
         // define the slots used with the model
         // we hack the SHADER_LOC_MAP_ROUGHNESS to be used as the heightmap input
         displacement_shader->locs[SHADER_LOC_MAP_ALBEDO] = tex_albedo_loc;
         displacement_shader->locs[SHADER_LOC_MAP_ROUGHNESS] = tex_height_loc;
         displacement_shader->locs[SHADER_LOC_MAP_NORMAL] = tex_normal_loc;
 
-        // todo cache keys and add to "update_shader_uniforms()" too allow change those values based on camera y position
+        // todo should we move those into dynamically changed list? (worth the performance impact?)
         SetShaderValue(*displacement_shader, height_scale_loc, &height_scale, SHADER_UNIFORM_FLOAT);
         SetShaderValue(*displacement_shader, normal_scale_loc, &normals_scale, SHADER_UNIFORM_FLOAT);
         SetShaderValue(*displacement_shader, fog_start_loc, &fog_start, SHADER_UNIFORM_FLOAT);
         SetShaderValue(*displacement_shader, fog_end_loc, &fog_end, SHADER_UNIFORM_FLOAT);
         SetShaderValue(*displacement_shader, sun_scale_loc, &sun_scale, SHADER_UNIFORM_FLOAT);
-        // SetShaderValue(*displacement_shader, GetShaderLocation(*displacement_shader, "skirtDrop"), &conf.skirt_drop, SHADER_UNIFORM_FLOAT);
 
         // the reset shaders uniform (those are dynamically changed...)
         update_shader_uniforms();
 
 
         if (conf.use_logger) TraceLog(LOG_INFO, "raytiles streamer initialized");
-        // todo should be set as part of height?!
-        // set the rendering distance
-        rlSetClipPlanes(conf.near_plane, conf.far_plane);
     }
 
     void manager::update(const Camera3D &camera) {
@@ -187,11 +190,11 @@ namespace raytiles {
     }
 
     void manager::remove_unused_tiles() {
+        // todo drop from rendering_tiles is still got an issue, for tiles that are not in their comfort zone - need to check grand parent/children as covered.
         std::erase_if(rendering_tiles, [&](const auto &item) {
             if (desired_keys.contains(item.first)) return false;
             if (is_tile_out_of_area(item.first)) return true;
             if (!is_tile_covered(item.first)) return false;
-            // if (!is_tile_out_of_area(item.first, item.second)) return false;
             return true;
         });
         // also drop loading-tile bookkeeping for tiles we no longer want. the
