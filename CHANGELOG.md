@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.7.0](https://github.com/ziv/raytiles/compare/v0.6.2...v0.7.0) (2026-05-14)
+
+
+### Features
+
+* extend support for zoom levels 9 to 15 ([#40](https://github.com/ziv/raytiles/issues/40)) ([bc497b4](https://github.com/ziv/raytiles/commit/bc497b407f18a4ab27c695a537d26461fcf77977))
+* now support zoom level 10 ([bc497b4](https://github.com/ziv/raytiles/commit/bc497b407f18a4ab27c695a537d26461fcf77977))
+
+
+### Bug Fixes
+
+* add input validation for zoom levels ([bc497b4](https://github.com/ziv/raytiles/commit/bc497b407f18a4ab27c695a537d26461fcf77977))
+* limit the build to sandbox target ([bc497b4](https://github.com/ziv/raytiles/commit/bc497b407f18a4ab27c695a537d26461fcf77977))
+* remove pImpl for gain more pref ([#43](https://github.com/ziv/raytiles/issues/43)) ([1c67aef](https://github.com/ziv/raytiles/commit/1c67aef4ce25db61a33d2ccc7fa8ff46458f0052))
+* remove the pimpl manager class and move all impl directly into streamer ([1c67aef](https://github.com/ziv/raytiles/commit/1c67aef4ce25db61a33d2ccc7fa8ff46458f0052))
+* update config to work with zoom 9 as default ([bc497b4](https://github.com/ziv/raytiles/commit/bc497b407f18a4ab27c695a537d26461fcf77977))
+* update sandbox to work with zoom 9 ([bc497b4](https://github.com/ziv/raytiles/commit/bc497b407f18a4ab27c695a537d26461fcf77977))
+
 ## [0.6.2](https://github.com/ziv/raytiles/compare/v0.6.1...v0.6.2) (2026-05-14)
 
 
