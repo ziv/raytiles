@@ -60,7 +60,7 @@ namespace raytiles {
         // cache shader locations
         cam_pos_loc = GetShaderLocation(*displacement_shader, "cameraPosition");
         ambient_loc = GetShaderLocation(*displacement_shader, "ambientLight");
-        fog_color_log = GetShaderLocation(*displacement_shader, "fogColor");
+        fog_color_loc = GetShaderLocation(*displacement_shader, "fogColor");
         tex_albedo_loc = GetShaderLocation(*displacement_shader, "texture0");
         tex_height_loc = GetShaderLocation(*displacement_shader, "heightMap");
         tex_normal_loc = GetShaderLocation(*displacement_shader, "normalMap");
@@ -214,7 +214,7 @@ namespace raytiles {
         fog_color[1] = g;
         fog_color[2] = b;
         fog_color[3] = a;
-        SetShaderValue(*displacement_shader, fog_color_log, fog_color, SHADER_UNIFORM_VEC4);
+        SetShaderValue(*displacement_shader, fog_color_loc, fog_color, SHADER_UNIFORM_VEC4);
     }
 
     void manager::set_fog_color(const Color color) {
@@ -485,7 +485,7 @@ namespace raytiles {
         // set the ambient color (weather/day/night/...)
         SetShaderValue(*displacement_shader, ambient_loc, ambient_light, SHADER_UNIFORM_VEC4);
         // set the fog color (to match the sky)
-        SetShaderValue(*displacement_shader, fog_color_log, fog_color, SHADER_UNIFORM_VEC4);
+        SetShaderValue(*displacement_shader, fog_color_loc, fog_color, SHADER_UNIFORM_VEC4);
         // set the sun direction
         SetShaderValue(*displacement_shader, sun_dir_loc, sun_direction, SHADER_UNIFORM_VEC3);
     }

@@ -98,7 +98,7 @@ namespace raytiles {
 
         int cam_pos_loc = -1;
         int ambient_loc = -1;
-        int fog_color_log = -1;
+        int fog_color_loc = -1;
         int tex_albedo_loc = -1;
         int tex_height_loc = -1;
         int tex_normal_loc = -1;
