@@ -45,14 +45,12 @@ int main() {
     // streamer configuration, set the anchor tiles (currently around greece)
     raytiles::config conf;
     conf.use_logger = true;
-    // conf.anchor_x_tile = 1176.0f; // somewhere at greece
-    // conf.anchor_z_tile = 796.0f;
+    conf.anchor_x_tile = 294.0f; // somewhere at greece
+    conf.anchor_z_tile = 199.0f;
 
-    conf.anchor_x_tile = 588.0f; // somewhere at greece
-    conf.anchor_z_tile = 398.0f;
-    conf.base_zoom = 10;
-    conf.height_scale = 3.0f;
-    conf.skirt_size = 50;
+
+    conf.height_scale = 2.0f;
+    conf.skirt_size = 0.5f;
 
     // pool configuration, set your mapbox token
     raytiles::pool_config pool_conf;
@@ -70,7 +68,7 @@ int main() {
 
     Camera3D camera;
     camera.position = Vector3{3000.0f, 5000.0f, 3000.0f};
-    camera.target = Vector3{0.0f, 0.0f, 0.0f};
+    camera.target = Vector3{10000.0f, 0.0f, 1000.0f};
     camera.up = Vector3{0.0f, 1.0f, 0.0f};
     camera.fovy = 60.0f;
     camera.projection = CAMERA_PERSPECTIVE;
@@ -97,17 +95,18 @@ int main() {
         const auto dt = GetFrameTime();
         const auto last_pos = camera.position;
 
-        if (IsKeyDown(KEY_W)) camera.position.z -= 3000.0f * dt;
-        if (IsKeyDown(KEY_S)) camera.position.z += 3000.0f * dt;
-        if (IsKeyDown(KEY_A)) camera.position.x -= 3000.0f * dt;
-        if (IsKeyDown(KEY_D)) camera.position.x += 3000.0f * dt;
-        if (IsKeyDown(KEY_DOWN)) camera.position.y -= 3000.0f * dt;
-        if (IsKeyDown(KEY_UP)) camera.position.y += 3000.0f * dt;
+        if (IsKeyDown(KEY_W)) camera.position.z -= 1000.0f * dt;
+        if (IsKeyDown(KEY_S)) camera.position.z += 1000.0f * dt;
+        if (IsKeyDown(KEY_A)) camera.position.x -= 1000.0f * dt;
+        if (IsKeyDown(KEY_D)) camera.position.x += 1000.0f * dt;
+        if (IsKeyDown(KEY_DOWN)) camera.position.y -= 1000.0f * dt;
+        if (IsKeyDown(KEY_UP)) camera.position.y += 1000.0f * dt;
 
         if (IsKeyDown(KEY_LEFT_BRACKET)) sun -= dt * 0.5f;
         if (IsKeyDown(KEY_RIGHT_BRACKET)) sun += dt * 0.5f;
         sun = std::clamp(sun, -1.0f, 1.0f);
 
+        // uncomment to allow moving around without changing the view direction (for testing only)
         // const auto move = camera.position - last_pos;
         // camera.target += move;
 
