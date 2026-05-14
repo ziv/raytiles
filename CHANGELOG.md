@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/ziv/raytiles/compare/v0.7.0...v0.7.1) (2026-05-14)
+
+
+### Bug Fixes
+
+* add another distance function for xz, issue [#34](https://github.com/ziv/raytiles/issues/34) ([d893bbd](https://github.com/ziv/raytiles/commit/d893bbd871c77e8479064d23996a939d8d6f1fbb))
+
 ## [0.7.0](https://github.com/ziv/raytiles/compare/v0.6.2...v0.7.0) (2026-05-14)
 
 
