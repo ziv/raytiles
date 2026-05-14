@@ -31,7 +31,17 @@ namespace raytiles {
         : conf(conf),
           displacement_shader(raii::load_shader_from_memory(shaders::vertex_shader, shaders::fragment_shader)),
           tile_downloader(std::move(pool_conf)) {
-        int res = 4;
+        // input validation
+        if (conf.max_zoom > max_supported_zoom) {
+            // stop on not supported zoom
+            throw std::runtime_error(std::format("max_zoom {} is not supported; max is {}", conf.max_zoom, max_supported_zoom));
+        }
+        if (conf.base_zoom < min_tested_zoom) {
+            // warn on not supported zoom
+            TraceLog(LOG_WARNING, std::format("base_zoom {} is not tested; lowest tested is {}", conf.base_zoom, min_tested_zoom).c_str());
+        }
+
+        int res = min_resolution;
 
         for (int zoom = conf.base_zoom; zoom <= conf.max_zoom; ++zoom) {
             const float ratio = static_cast<float>(1 << (zoom - conf.base_zoom));
@@ -44,7 +54,7 @@ namespace raytiles {
                 th * th,
                 raii::mesh{GenMeshPlane(size + skirt_size, size + skirt_size, res, res)}
             };
-            res *= 2;
+            res = std::min(res * 2, max_resolution);
         }
 
         // one Material to rule them all, one material to bind them
