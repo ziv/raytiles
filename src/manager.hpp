@@ -33,6 +33,12 @@ namespace raytiles {
     public:
         manager(const config &conf, pool_config pool_conf);
 
+        manager &operator=(const manager &) = delete;
+
+        manager(manager &&) = delete;
+
+        manager &operator=(manager &&) = delete;
+
         void update(const Camera3D &camera);
 
         void draw(const Camera3D &camera);
