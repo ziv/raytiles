@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 
-#include "manager.hpp"
+#include "downloader.hpp"
 #include "tile.hpp"
 #include "utils.hpp"
 #include "shaders.hpp"
@@ -25,12 +25,10 @@
 using namespace std::chrono_literals;
 
 namespace raytiles {
-    // manager
-
-    manager::manager(const config &conf, pool_config pool_conf)
+    streamer::streamer(const config &conf, const pool_config &pool_conf)
         : conf(conf),
           displacement_shader(raii::load_shader_from_memory(shaders::vertex_shader, shaders::fragment_shader)),
-          tile_downloader(std::move(pool_conf)) {
+          tile_downloader(std::make_unique<pool>(pool_conf)) {
         // input validation
         if (conf.max_zoom > max_supported_zoom) {
             // stop on not supported zoom
@@ -53,7 +51,7 @@ namespace raytiles {
             const auto skirt_size = conf.skirt_size * ratio;
             const auto th = conf.thresholds.at(zoom); // safe (see check at the beginning of loop)
 
-            tiles[zoom] = TileValue{
+            tiles[zoom] = tile_value{
                 size,
                 th * th,
                 raii::mesh{GenMeshPlane(size + skirt_size, size + skirt_size, res, res)}
@@ -109,7 +107,7 @@ namespace raytiles {
         if (conf.use_logger) TraceLog(LOG_INFO, "raytiles streamer initialized");
     }
 
-    void manager::update(const Camera3D &camera) {
+    void streamer::update(const Camera3D &camera) {
         // start with clearing items we've done with
         remove_unused_tiles();
 
@@ -126,7 +124,7 @@ namespace raytiles {
         process_current_location();
     }
 
-    void manager::draw(const Camera3D &camera) {
+    void streamer::draw(const Camera3D &camera) {
         rendered = 0;
         // set the camera location (for distance -> fog)
         SetShaderValue(*displacement_shader, cam_pos_loc, &camera.position, SHADER_UNIFORM_VEC3);
@@ -149,8 +147,8 @@ namespace raytiles {
         }
     }
 
-    void manager::debug_3d(const Camera3D &camera) {
-        // see manager::draw
+    void streamer::debug_3d(const Camera3D &camera) const {
+        // see streamer::draw
         const float fwd_x = camera.target.x - camera.position.x;
         const float fwd_z = camera.target.z - camera.position.z;
         const float fwd_len = std::sqrt(fwd_x * fwd_x + fwd_z * fwd_z);
@@ -170,7 +168,7 @@ namespace raytiles {
         }
     }
 
-    void manager::debug(const Camera3D &camera) {
+    void streamer::debug(const Camera3D &camera) const {
         const auto width = static_cast<float>(GetScreenWidth());
         const auto height = static_cast<float>(GetScreenHeight());
         for (const auto &[key, tile]: rendering_tiles) {
@@ -189,7 +187,7 @@ namespace raytiles {
         DrawText(TextFormat("rendered=%d", rendered), 10, 40, 20, WHITE);
     }
 
-    void manager::remove_unused_tiles() {
+    void streamer::remove_unused_tiles() {
         // todo drop from rendering_tiles is still got an issue, for tiles that are not in their comfort zone - need to check grand parent/children as covered.
         std::erase_if(rendering_tiles, [&](const auto &item) {
             if (desired_keys.contains(item.first)) return false;
@@ -205,7 +203,7 @@ namespace raytiles {
     }
 
 
-    void manager::set_ambient_light(float r, float g, float b, float a) {
+    void streamer::set_ambient_light(float r, float g, float b, float a) {
         ambient_light[0] = r;
         ambient_light[1] = g;
         ambient_light[2] = b;
@@ -213,16 +211,16 @@ namespace raytiles {
         SetShaderValue(*displacement_shader, ambient_loc, ambient_light, SHADER_UNIFORM_VEC4);
     }
 
-    void manager::set_ambient_light(const Color color) {
+    void streamer::set_ambient_light(const Color color) {
         set_ambient_light(static_cast<float>(color.r) / 255.0f, static_cast<float>(color.g) / 255.0f, static_cast<float>(color.b) / 255.0f,
                           static_cast<float>(color.a) / 255.0f);
     }
 
-    void manager::set_ambient_light(Vector4 color) {
+    void streamer::set_ambient_light(const Vector4 color) {
         set_ambient_light(color.x, color.y, color.z, color.w);
     }
 
-    void manager::set_fog_color(const float r, const float g, const float b, const float a) {
+    void streamer::set_fog_color(const float r, const float g, const float b, const float a) {
         fog_color[0] = r;
         fog_color[1] = g;
         fog_color[2] = b;
@@ -230,28 +228,27 @@ namespace raytiles {
         SetShaderValue(*displacement_shader, fog_color_loc, fog_color, SHADER_UNIFORM_VEC4);
     }
 
-    void manager::set_fog_color(const Color color) {
+    void streamer::set_fog_color(const Color color) {
         set_fog_color(static_cast<float>(color.r) / 255.0f, static_cast<float>(color.g) / 255.0f, static_cast<float>(color.b) / 255.0f,
                       static_cast<float>(color.a) / 255.0f);
     }
 
-    void manager::set_fog_color(const Vector4 color) {
+    void streamer::set_fog_color(const Vector4 color) {
         set_fog_color(color.x, color.y, color.z, color.w);
     }
 
-
-    void manager::set_fog_start(const float distance) {
+    void streamer::set_fog_start(const float distance) {
         fog_start = distance;
         SetShaderValue(*displacement_shader, fog_start_loc, &fog_start, SHADER_UNIFORM_FLOAT);
     }
 
-    void manager::set_fog_end(const float distance) {
+    void streamer::set_fog_end(const float distance) {
         fog_end = distance;
 
         SetShaderValue(*displacement_shader, fog_end_loc, &fog_end, SHADER_UNIFORM_FLOAT);
     }
 
-    void manager::set_sun_direction(Vector3 direction) {
+    void streamer::set_sun_direction(Vector3 direction) {
         sun_direction[0] = direction.x;
         sun_direction[1] = direction.y;
         sun_direction[2] = direction.z;
@@ -259,25 +256,25 @@ namespace raytiles {
         SetShaderValue(*displacement_shader, sun_dir_loc, sun_direction, SHADER_UNIFORM_VEC3);
     }
 
-    void manager::set_sun_scale(const float scale) {
+    void streamer::set_sun_scale(const float scale) {
         sun_scale = scale;
 
         SetShaderValue(*displacement_shader, sun_scale_loc, &sun_scale, SHADER_UNIFORM_FLOAT);
     }
 
-    void manager::set_height_scale(const float scale) {
+    void streamer::set_height_scale(const float scale) {
         height_scale = scale;
 
         SetShaderValue(*displacement_shader, height_scale_loc, &height_scale, SHADER_UNIFORM_FLOAT);
     }
 
-    void manager::set_normals_scale(const float scale) {
+    void streamer::set_normals_scale(const float scale) {
         normals_scale = scale;
 
         SetShaderValue(*displacement_shader, normal_scale_loc, &normals_scale, SHADER_UNIFORM_FLOAT);
     }
 
-    std::optional<float> manager::ground_height(const Vector3 position) const {
+    std::optional<float> streamer::ground_height(const Vector3 position) const {
         // walk from the highest available zoom down to base; whichever zoom holds the
         // tile that contains (position.x, position.z) wins. higher zoom = finer
         // sample, so we prefer it if loaded.
@@ -289,7 +286,7 @@ namespace raytiles {
             const int tile_x = static_cast<int>(std::floor(position.x / size));
             const int tile_z = static_cast<int>(std::floor(position.z / size));
 
-            const auto it = rendering_tiles.find(TileKey{zoom, tile_x, tile_z});
+            const auto it = rendering_tiles.find(tile_key{zoom, tile_x, tile_z});
             if (it == rendering_tiles.end()) continue;
 
             const auto &tile = it->second;
@@ -308,7 +305,7 @@ namespace raytiles {
         return std::nullopt;
     }
 
-    void manager::build_required(const int zoom, const int tx, const int tz, const float render_radius_sq) {
+    void streamer::build_required(const int zoom, const int tx, const int tz, const float render_radius_sq) {
         if (zoom == conf.max_zoom) {
             desired_keys.insert({zoom, tx, tz});
             return;
@@ -337,7 +334,7 @@ namespace raytiles {
             for (int oz = 0; oz < 2; ++oz) build_required(child_zoom, cx0 + ox, cz0 + oz, render_radius_sq);
     }
 
-    void manager::process_current_location() {
+    void streamer::process_current_location() {
         desired_keys.clear();
         const int current_tile_x = static_cast<int>(std::floor(last_position.x / conf.base_zoom_tile_size));
         const int current_tile_z = static_cast<int>(std::floor(last_position.z / conf.base_zoom_tile_size));
@@ -366,7 +363,7 @@ namespace raytiles {
                 loading_tiles.try_emplace(key, spawn(key));
     }
 
-    void manager::process_loaded_tiles() {
+    void streamer::process_loaded_tiles() {
         // walk loading tiles; for each entry that finished downloading, either promote
         // it to rendering_tiles or drop it (invalid / no longer desired). entries are
         // erased immediately on the iterator. uploads are bounded both by a wall-clock
@@ -474,7 +471,7 @@ namespace raytiles {
         }
     }
 
-    loading_tile manager::spawn(const TileKey &tile) {
+    loading_tile streamer::spawn(const tile_key &tile) {
         const auto &te = tiles.at(tile.zoom);
         const auto scale = 1 << (tile.zoom - conf.base_zoom);
         const auto tx = tile.x + conf.anchor_x_tile * scale;
@@ -485,16 +482,16 @@ namespace raytiles {
             // loading tile structure
             (static_cast<float>(tile.x) + 0.5f) * tile_size,
             (static_cast<float>(tile.z) + 0.5f) * tile_size,
-            tile_downloader.enqueue_texture(tile.zoom, tx, tz),
-            tile_downloader.enqueue_heightmap(tile.zoom, tx, tz),
-            tile_downloader.enqueue_normals(tile.zoom, tx, tz),
+            tile_downloader->enqueue_texture(tile.zoom, tx, tz),
+            tile_downloader->enqueue_heightmap(tile.zoom, tx, tz),
+            tile_downloader->enqueue_normals(tile.zoom, tx, tz),
         };
 
         if (conf.use_logger) TraceLog(LOG_DEBUG, "spawned tile %d,%d,%d position %f,%f", tile.zoom, tile.x, tile.z, t.tx, t.tz);
         return t;
     }
 
-    void manager::update_shader_uniforms() {
+    void streamer::update_shader_uniforms() {
         // set the ambient color (weather/day/night/...)
         SetShaderValue(*displacement_shader, ambient_loc, ambient_light, SHADER_UNIFORM_VEC4);
         // set the fog color (to match the sky)
@@ -504,7 +501,7 @@ namespace raytiles {
     }
 
     // todo check this function
-    bool manager::is_tile_out_of_area(const TileKey &key) const {
+    bool streamer::is_tile_out_of_area(const tile_key &key) const {
         const auto &t = tiles.at(key.zoom);
         const MetersSq distance_sq = utils::distance_sq_to_tile(last_position, key, t.size);
         const MetersSq far_sq = static_cast<double>(conf.fog_end) * static_cast<double>(conf.fog_end);
@@ -515,8 +512,8 @@ namespace raytiles {
         return false;
     }
 
-    bool manager::is_tile_covered(const TileKey &key) const {
-        const auto contains = [&](const int zoom, const int x, const int z) { return rendering_tiles.contains(TileKey{zoom, x, z}); };
+    bool streamer::is_tile_covered(const tile_key &key) const {
+        const auto contains = [&](const int zoom, const int x, const int z) { return rendering_tiles.contains(tile_key{zoom, x, z}); };
 
         // check parent
         if (key.zoom > conf.base_zoom) {
@@ -539,29 +536,12 @@ namespace raytiles {
         return false;
     }
 
-    // streamer (pImpl forwarding)
-
-    streamer::streamer(const config &conf, const pool_config &pool_conf) : impl(
-        std::make_unique<manager>(conf, pool_conf)) {
-    }
-
+    // out-of-line because the destructor of std::unique_ptr<pool> needs to
+    // see pool's complete type. pool is defined in src/downloader.hpp, which
+    // is included by this TU (but deliberately not by the public header).
     streamer::~streamer() = default;
 
     streamer::streamer(streamer &&) noexcept = default;
 
     streamer &streamer::operator=(streamer &&) noexcept = default;
-
-    void streamer::update(const Camera3D &camera) { impl->update(camera); }
-    void streamer::draw(const Camera3D &camera) const { impl->draw(camera); }
-    void streamer::debug(const Camera3D &camera) const { impl->debug(camera); }
-    void streamer::debug_3d(const Camera3D &camera) const { impl->debug_3d(camera); }
-    void streamer::set_ambient_light(const Color color) const { impl->set_ambient_light(color); }
-    void streamer::set_fog_color(const Color color) const { impl->set_fog_color(color); }
-    void streamer::set_sun_direction(const Vector3 direction) const { impl->set_sun_direction(direction); }
-    void streamer::set_sun_scale(const float scale) const { impl->set_sun_scale(scale); }
-    void streamer::set_fog_start(const float distance) const { impl->set_fog_start(distance); }
-    void streamer::set_fog_end(const float distance) const { impl->set_fog_end(distance); }
-    void streamer::set_height_scale(const float scale) const { impl->set_height_scale(scale); }
-    void streamer::set_normals_scale(const float scale) const { impl->set_normals_scale(scale); }
-    std::optional<float> streamer::ground_height(const Vector3 position) const { return impl->ground_height(position); }
 } // namespace raytiles

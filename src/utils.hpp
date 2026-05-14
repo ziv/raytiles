@@ -45,7 +45,7 @@ namespace raytiles::utils {
 
     /// Calculates the squared distance from a position to the center of a tile.
     /// Tile position is determined by its x and z indices and the tile size at the given zoom level.
-    inline MetersSq distance_sq_to_tile(const Vector3 &position, const TileKey &tile, const float tile_size) {
+    inline MetersSq distance_sq_to_tile(const Vector3 &position, const tile_key &tile, const float tile_size) {
         const float world_x = (static_cast<float>(tile.x) + 0.5f) * tile_size;
         const float world_z = (static_cast<float>(tile.z) + 0.5f) * tile_size;
         const float dx = position.x - world_x;
@@ -56,7 +56,7 @@ namespace raytiles::utils {
     }
 
     /// Calculate the distance from a position to center of a tile on XZ plane
-    inline MetersSq distance_sq_to_tile_xz(const Vector3 &position, const TileKey &tile, const float tile_size) {
+    inline MetersSq distance_sq_to_tile_xz(const Vector3 &position, const tile_key &tile, const float tile_size) {
         const float world_x = (static_cast<float>(tile.x) + 0.5f) * tile_size;
         const float world_z = (static_cast<float>(tile.z) + 0.5f) * tile_size;
         const float dx = position.x - world_x;
@@ -66,7 +66,7 @@ namespace raytiles::utils {
     }
 
     /// Calculates the distance from a position to the center of a tile.
-    inline Meters distance_to_tile(const Vector3 &position, const TileKey &tile, const float tile_size) {
+    inline Meters distance_to_tile(const Vector3 &position, const tile_key &tile, const float tile_size) {
         return std::sqrt(distance_sq_to_tile(position, tile, tile_size));
     }
 

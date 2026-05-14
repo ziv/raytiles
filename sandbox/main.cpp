@@ -74,7 +74,7 @@ int main() {
     camera.projection = CAMERA_PERSPECTIVE;
 
     streamer.set_fog_color(SKYBLUE);
-    streamer.set_ambient_light({200, 200, 200, 255});
+    streamer.set_ambient_light(Color{200, 200, 200, 255});
     float sun = 1.0f;
 
     auto update = [&] {

@@ -7,8 +7,11 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "raylib.h"
+#include "src/raii.hpp"
+#include "src/tile.hpp"
 
 #ifndef RAYTILES_TEXTURE_HOST
 #define RAYTILES_TEXTURE_HOST "https://server.arcgisonline.com"
@@ -170,7 +173,9 @@ namespace raytiles {
         std::string normals_url_path = RAYTILES_NORMALS_URL_PATH;
     };
 
-    class manager;
+    // forward-declared so the public header doesn't drag httplib in via
+    // downloader.hpp. defined in src/downloader.hpp.
+    class pool;
 
     /// Per-frame driver that maintains the working set of tiles around a camera
     /// and renders them. One streamer manages one world; create more if you need
@@ -218,7 +223,7 @@ namespace raytiles {
 
         /// Renders all currently loaded tiles. Must be called between
         /// `BeginMode3D` / `EndMode3D` with the same camera passed to `update`.
-        void draw(const Camera3D &camera) const;
+        void draw(const Camera3D &camera);
 
         /// Draws a 2D HUD with streamer statistics (loaded / loading counts, etc).
         /// Call between `BeginDrawing` / `EndDrawing`, after `EndMode3D`.
@@ -230,35 +235,39 @@ namespace raytiles {
 
         /// Sets the ambient light color sent to the displacement shader. Use this
         /// to drive day / night / weather lighting changes.
-        void set_ambient_light(Color color) const;
+        void set_ambient_light(Color color);
+        void set_ambient_light(Vector4 color);
+        void set_ambient_light(float r, float g, float b, float a);
 
         /// Sets the fog color for distance attenuation. Match this to your sky
         /// color for a seamless horizon.
-        void set_fog_color(Color color) const;
+        void set_fog_color(Color color);
+        void set_fog_color(Vector4 color);
+        void set_fog_color(float r, float g, float b, float a);
 
         /// Set the fog start distance, the distance from the camera
         /// colors start to blend with fog
-        void set_fog_start(float distance) const;
+        void set_fog_start(float distance);
 
         /// Set the fog end distance, the distance from the camera
         /// colors are fully blended with fog color
-        void set_fog_end(float distance) const;
+        void set_fog_end(float distance);
 
         /// Set the heightmap scale factor, to increase or reduce
         /// the real height into desired (drama factor)
-        void set_height_scale(float scale) const;
+        void set_height_scale(float scale);
 
         /// Set the normals scale factor, to increase or reduce
         /// the lighting contrast.
-        void set_normals_scale(float scale) const;
+        void set_normals_scale(float scale);
 
         /// Sets the sun direction vector for the displacement
         /// shader's lighting calculations.
-        void set_sun_direction(Vector3 direction) const;
+        void set_sun_direction(Vector3 direction);
 
         /// Set the intensity of the sun lighting, to increase
         /// or reduce the contrast between lit and shaded areas.
-        void set_sun_scale(float scale) const;
+        void set_sun_scale(float scale);
 
         /// Returns the terrain altitude (Y world-coordinate) under `position`,
         /// sampled from the heightmap pixel at the equivalent UV.
@@ -270,7 +279,61 @@ namespace raytiles {
         [[nodiscard]] std::optional<float> ground_height(Vector3 position) const;
 
     private:
-        std::unique_ptr<manager> impl;
+        void build_required(int zoom, int tx, int tz, float render_radius_sq);
+
+        void process_loaded_tiles();
+
+        void process_current_location();
+
+        void remove_unused_tiles();
+
+        void update_shader_uniforms();
+
+        loading_tile spawn(const tile_key &tile);
+
+        [[nodiscard]] bool is_tile_covered(const tile_key &key) const;
+
+        [[nodiscard]] bool is_tile_out_of_area(const tile_key &key) const;
+
+        config conf;
+        raii::shader displacement_shader;
+        // held by unique_ptr so the public header can forward-declare `pool`
+        // and keep httplib out of every consumer's translation unit.
+        std::unique_ptr<pool> tile_downloader;
+
+        int rendered = 0;
+
+        int cam_pos_loc = -1;
+        int ambient_loc = -1;
+        int fog_color_loc = -1;
+        int tex_albedo_loc = -1;
+        int tex_height_loc = -1;
+        int tex_normal_loc = -1;
+        int sun_dir_loc = -1;
+        int sun_scale_loc = -1;
+        int height_scale_loc = -1;
+        int normal_scale_loc = -1;
+        int fog_start_loc = -1;
+        int fog_end_loc = -1;
+
+        float ambient_light[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+        float fog_color[4] = {0.0f, 0.0f, 1.0f, 1.0f};
+        float sun_direction[3] = {0.1f, 1.0f, 0.1f};
+        float fog_start = 1.0f;
+        float fog_end = 100000.0f;
+        float height_scale = 1.0f;
+        float normals_scale = 1.0f;
+        float sun_scale = 1.0f;
+
+        raii::material material{};
+        Vector3 last_position = {-9999.9f, -9999.9f, -9999.9f};
+
+        std::unordered_set<tile_key> desired_keys;
+        std::unordered_map<tile_key, loading_tile> loading_tiles;
+        std::unordered_map<tile_key, loaded_tile> rendering_tiles;
+
+        // metadata about tiles by their zoom
+        std::unordered_map<int, tile_value> tiles;
     };
 } // namespace raytiles
 
