@@ -72,13 +72,15 @@ else ()
 endif ()
 
 
-
 # sandbox example application
-add_executable(Sandbox sandbox/main.cpp)
+add_executable(Sandbox sandbox/main.cpp sandbox/free_camera.h)
 target_link_libraries(Sandbox PRIVATE ${PROJECT_NAME})
 
+
+add_executable(SandboxEmscripten sandbox/main.emscripten.cpp sandbox/free_camera.h)
+target_link_libraries(SandboxEmscripten PRIVATE ${PROJECT_NAME})
 if (EMSCRIPTEN)
-    set_target_properties(Sandbox PROPERTIES SUFFIX ".html")
+    set_target_properties(SandboxEmscripten PROPERTIES SUFFIX ".html")
 endif ()
 
 # tests

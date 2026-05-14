@@ -1,16 +1,12 @@
+#ifdef __EMSCRIPTEN__
 #include <algorithm>
 #include <string>
-
-#include "include/raytiles.h"
-#include "free_camera.h"
 #include <rlgl.h>
 #include <raymath.h>
-#ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
-#endif
-
-#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#include "include/raytiles.h"
+#include "free_camera.h"
 
 bool g_storage_ready = false;
 
@@ -23,7 +19,6 @@ void InitStorage() {
     EM_ASM(
         FS.mkdir('/assets');
     FS.mount(IDBFS, {}, '/assets');
-
     FS.syncfs(true, function(err)
     {
         if (err) console.error("Syncfs error:", err);
@@ -34,15 +29,12 @@ void InitStorage() {
     )
     ;
 }
-#endif
 
 
 int main() {
     SetTraceLogLevel(LOG_INFO);
     InitWindow(800, 600, "raytiles");
-#ifdef __EMSCRIPTEN__
     InitStorage();
-#endif
     double last_sync_time = GetTime();
 
 
@@ -58,17 +50,19 @@ int main() {
 
     // pool configuration, set your mapbox token
     raytiles::pool_config pool_conf;
-    pool_conf.download_threads = 8; // just for fun
-    // pool_conf.use_logger = true;
+    pool_conf.download_threads = 4;
 
-#ifdef __EMSCRIPTEN__
+    // set the path with /absolute notation
     pool_conf.texture_cache_path = "/assets/t/{}/{}/{}.png";
     pool_conf.heightmap_cache_path = "/assets/h/{}/{}/{}.png";
-#endif
 
-    // create the streamer§§ with both configurations
+    // create the streamer with both configurations
     raytiles::streamer streamer(conf, pool_conf);
-    streamer.set_normals_scale(5.0f);
+
+    // set colors
+    streamer.set_fog_color(SKYBLUE);
+    streamer.set_ambient_light(Color{200, 200, 200, 255});
+    float sun = 1.0f;
 
     Camera3D camera;
     camera.position = Vector3{3000.0f, 5000.0f, 3000.0f};
@@ -79,13 +73,10 @@ int main() {
 
     FreeCamera f(camera);
 
-    streamer.set_fog_color(SKYBLUE);
-    streamer.set_ambient_light(Color{200, 200, 200, 255});
-    float sun = 1.0f;
-
     auto update = [&] {
         const auto dt = GetFrameTime();
         f.update(camera, dt);
+
         streamer.set_sun_direction(Vector3{0.1f, sun, 0.0f});
         streamer.update(camera);
 
@@ -100,29 +91,13 @@ int main() {
         streamer.debug(camera);
         EndDrawing();
 
-        //
-        // const auto last_pos = camera.position;
-
-        // if (IsKeyDown(KEY_W)) camera.position.z -= 1000.0f * dt;
-        // if (IsKeyDown(KEY_S)) camera.position.z += 1000.0f * dt;
-        // if (IsKeyDown(KEY_A)) camera.position.x -= 1000.0f * dt;
-        // if (IsKeyDown(KEY_D)) camera.position.x += 1000.0f * dt;
-        // if (IsKeyDown(KEY_DOWN)) camera.position.y -= 1000.0f * dt;
-        // if (IsKeyDown(KEY_UP)) camera.position.y += 1000.0f * dt;
-
         if (IsKeyDown(KEY_LEFT_BRACKET)) sun -= dt * 0.5f;
         if (IsKeyDown(KEY_RIGHT_BRACKET)) sun += dt * 0.5f;
         sun = std::clamp(sun, -1.0f, 1.0f);
 
-        // uncomment to allow moving around without changing the view direction (for testing only)
-        // const auto move = camera.position - last_pos;
-        // camera.target += move;
-
-
-        // sync every 10 seconds
+        // sync file system every 10 seconds
         if (GetTime() - last_sync_time > 10.0) {
             last_sync_time = GetTime();
-#ifdef __EMSCRIPTEN__
             MAIN_THREAD_EM_ASM({
                 console.log("Syncing to IndexedDB...");
                 FS.syncfs(false, function(err) {
@@ -130,29 +105,30 @@ int main() {
                     else console.log("IDBFS Sync successful!");
 
 
+
                 });
 
 
+
             });
-#endif
         }
     };
 
-#ifdef __EMSCRIPTEN__
 
+    // convert labda to callable
     auto caller = [](void *arg) {
         auto *updateFunc = static_cast<decltype(update) *>(arg);
         (*updateFunc)();
     };
+
+    // main loop
     emscripten_set_main_loop_arg(caller, &update, 0, 1);
-#else
-
-    while (!WindowShouldClose()) {
-        update();
-    }
-#endif
-
 
     CloseWindow();
     return 0;
 }
+#else
+int main() {
+    return 0;
+}
+#endif
