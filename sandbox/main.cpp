@@ -61,7 +61,7 @@ int main() {
 #endif
 
     // create the streamer§§ with both configurations
-    const raytiles::streamer streamer(conf, pool_conf);
+    raytiles::streamer streamer(conf, pool_conf);
     streamer.set_normals_scale(5.0f);
 
     Camera3D camera;
