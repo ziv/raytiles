@@ -121,14 +121,15 @@ namespace raytiles {
         /// Logging from main thread/process is done via raylib's TraceLog function
         bool use_logger = false;
 
-        /// Zoom level distance thresholds (11 to 15)
+        /// Zoom level distance thresholds (10 to 15)
         /// Optimized for performance and limit the tiles number under 600
         /// Changing base_zoom or max_zoom must be reflected here
         std::unordered_map<int, float> thresholds = {
-            {11, 55000.0f},
-            {12, 25000.0f},
-            {13, 10000.0f},
-            {14, 5000.0f},
+            {10, 60000.0f},
+            {11, 30000.0f},
+            {12, 15000.0f},
+            {13, 7500.0f},
+            {14, 3000.0f},
             {15, 1000.0f}
         };
     };

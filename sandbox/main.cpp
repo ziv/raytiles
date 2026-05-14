@@ -45,8 +45,12 @@ int main() {
     // streamer configuration, set the anchor tiles (currently around greece)
     raytiles::config conf;
     conf.use_logger = true;
-    conf.anchor_x_tile = 1176.0f; // somewhere at greece
-    conf.anchor_z_tile = 796.0f;
+    // conf.anchor_x_tile = 1176.0f; // somewhere at greece
+    // conf.anchor_z_tile = 796.0f;
+
+    conf.anchor_x_tile = 588.0f; // somewhere at greece
+    conf.anchor_z_tile = 398.0f;
+    conf.base_zoom = 10;
     conf.height_scale = 3.0f;
     conf.skirt_size = 50;
 
