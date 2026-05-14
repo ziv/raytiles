@@ -45,25 +45,27 @@ namespace raytiles {
         /// Lowest level-of-detail zoom that will ever be loaded. Tiles outside the
         /// camera's near radius are kept at this zoom to bound the working set.
         /// Changing this value must also update "thresholds" and "base_zoom_tile_size"
-        int base_zoom = 11;
+        /// Note that this library never tested against base_zoom lower than 9
+        int base_zoom = 9;
 
         /// Highest level-of-detail zoom available. Tiles directly under the camera
         /// are subdivided up to this zoom.
         /// Changing this value must also update "thresholds"
+        /// 15 is max zoom currently supported
         int max_zoom = 15;
 
         /// World size (in meters) of one tile at `base_zoom`. Tiles at higher zooms
         /// are scaled by `1 / (1 << (zoom - base_zoom))`.
-        float base_zoom_tile_size = 16600.0f;
+        float base_zoom_tile_size = 66400.0f;
 
         /// Radius, in `base_zoom` tiles, of the disc of tiles loaded around the
         /// camera. Larger values = more tiles in flight = more memory / bandwidth.
-        int rendering_radius = 10;
+        int rendering_radius = 6;
 
         /// Skirt geometry overlap factor (per side) used to hide cracks between
         /// neighboring tiles at different LODs.
         /// Refer to the max_zoom.
-        float skirt_size = 0.05f;
+        float skirt_size = 0.01f;
 
         /// Scaling the heightmap by this factor to increase or reduce the real height
         /// into desired (drama factor)
@@ -94,8 +96,8 @@ namespace raytiles {
         /// World-space anchor in tile coordinates at `base_zoom`. The streamer
         /// translates tile XY to world XZ relative to this anchor so the world
         /// origin is wherever you want it (e.g. your runway).
-        int anchor_x_tile = 1223;
-        int anchor_z_tile = 828;
+        int anchor_x_tile = 306;
+        int anchor_z_tile = 207;
 
         /// Near / far clip planes used by the displacement shader for fog and
         /// depth precision tuning. Match these to your camera setup.
@@ -125,12 +127,13 @@ namespace raytiles {
         /// Optimized for performance and limit the tiles number under 600
         /// Changing base_zoom or max_zoom must be reflected here
         std::unordered_map<int, float> thresholds = {
-            {10, 60000.0f},
-            {11, 30000.0f},
-            {12, 15000.0f},
-            {13, 7500.0f},
-            {14, 3000.0f},
-            {15, 1000.0f}
+            {9, 100000.0f},
+            {10, 80000.0f},
+            {11, 40000.0f},
+            {12, 20000.0f},
+            {13, 10000.0f},
+            {14, 5000.0f},
+            {15, 2500.0f}
         };
     };
 
