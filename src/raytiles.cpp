@@ -538,7 +538,7 @@ namespace raytiles {
 
     streamer &streamer::operator=(streamer &&) noexcept = default;
 
-    void streamer::update(const Camera3D &camera) const { impl->update(camera); }
+    void streamer::update(const Camera3D &camera) { impl->update(camera); }
     void streamer::draw(const Camera3D &camera) const { impl->draw(camera); }
     void streamer::debug(const Camera3D &camera) const { impl->debug(camera); }
     void streamer::debug_3d(const Camera3D &camera) const { impl->debug_3d(camera); }

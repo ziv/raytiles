@@ -210,7 +210,7 @@ namespace raytiles {
         /// finished downloads into renderable GPU resources. Cheap to call every
         /// frame; internally rate-limited by `config::upload_budget_sec` and
         /// `config::max_uploads_per_frame`.
-        void update(const Camera3D &camera) const;
+        void update(const Camera3D &camera);
 
         /// Renders all currently loaded tiles. Must be called between
         /// `BeginMode3D` / `EndMode3D` with the same camera passed to `update`.
