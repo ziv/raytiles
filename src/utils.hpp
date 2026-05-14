@@ -11,6 +11,10 @@ namespace raytiles {
     using MetersSq = double;
 
     constexpr float max_world_height = 8848.0f; // Mount Everest height in meters
+    constexpr int max_supported_zoom = 15;
+    constexpr int min_tested_zoom = 9;
+    constexpr int min_resolution = 4;
+    constexpr int max_resolution = 256;
 
     struct Plane {
         Vector3 normal;
@@ -51,6 +55,16 @@ namespace raytiles::utils {
                static_cast<double>(position.y) * static_cast<double>(position.y); // include height for better LOD selection
     }
 
+    /// Calculate the distance from a position to center of a tile on XZ plane
+    inline MetersSq distance_sq_to_tile_xz(const Vector3 &position, const TileKey &tile, const float tile_size) {
+        const float world_x = (static_cast<float>(tile.x) + 0.5f) * tile_size;
+        const float world_z = (static_cast<float>(tile.z) + 0.5f) * tile_size;
+        const float dx = position.x - world_x;
+        const float dz = position.z - world_z;
+        return static_cast<double>(dx) * static_cast<double>(dx) +
+               static_cast<double>(dz) * static_cast<double>(dz);
+    }
+
     /// Calculates the distance from a position to the center of a tile.
     inline Meters distance_to_tile(const Vector3 &position, const TileKey &tile, const float tile_size) {
         return std::sqrt(distance_sq_to_tile(position, tile, tile_size));
@@ -58,7 +72,7 @@ namespace raytiles::utils {
 
 
     /// Get height from image based on https://registry.opendata.aws/terrain-tiles/
-    inline float get_height_from_image(const Image &img, int x, int y) {
+    inline Meters get_height_from_image(const Image &img, int x, int y) {
         if (x < 0) x = 0;
         if (y < 0) y = 0;
         if (x >= img.width) x = img.width - 1;
@@ -87,7 +101,7 @@ namespace raytiles::utils {
     }
 
     inline void normalize_plane(Plane &p) {
-        float mag = sqrtf(p.normal.x * p.normal.x + p.normal.y * p.normal.y + p.normal.z * p.normal.z);
+        const float mag = sqrtf(p.normal.x * p.normal.x + p.normal.y * p.normal.y + p.normal.z * p.normal.z);
         p.normal.x /= mag;
         p.normal.y /= mag;
         p.normal.z /= mag;
@@ -95,50 +109,43 @@ namespace raytiles::utils {
     }
 
     inline Frustum extract_frustum(const Camera3D &camera, const float screen_width, const float screen_height, const float near_plane, const float far_plane) {
-        Frustum frustum;
-
         const float aspect = screen_width / screen_height;
-
         const Matrix view = GetCameraMatrix(camera);
         const Matrix proj = MatrixPerspective(camera.fovy * DEG2RAD, aspect, near_plane, far_plane);
 
-        Matrix vp = MatrixMultiply(view, proj);
+        auto [m0, m4, m8, m12, m1, m5, m9, m13, m2, m6, m10, m14, m3, m7, m11, m15] = MatrixMultiply(view, proj);
 
+        Frustum frustum;
         // left
-        frustum.planes[0].normal.x = vp.m3 + vp.m0;
-        frustum.planes[0].normal.y = vp.m7 + vp.m4;
-        frustum.planes[0].normal.z = vp.m11 + vp.m8;
-        frustum.planes[0].distance = vp.m15 + vp.m12;
-
+        frustum.planes[0].normal.x = m3 + m0;
+        frustum.planes[0].normal.y = m7 + m4;
+        frustum.planes[0].normal.z = m11 + m8;
+        frustum.planes[0].distance = m15 + m12;
         // right
-        frustum.planes[1].normal.x = vp.m3 - vp.m0;
-        frustum.planes[1].normal.y = vp.m7 - vp.m4;
-        frustum.planes[1].normal.z = vp.m11 - vp.m8;
-        frustum.planes[1].distance = vp.m15 - vp.m12;
-
+        frustum.planes[1].normal.x = m3 - m0;
+        frustum.planes[1].normal.y = m7 - m4;
+        frustum.planes[1].normal.z = m11 - m8;
+        frustum.planes[1].distance = m15 - m12;
         // bottom
-        frustum.planes[2].normal.x = vp.m3 + vp.m1;
-        frustum.planes[2].normal.y = vp.m7 + vp.m5;
-        frustum.planes[2].normal.z = vp.m11 + vp.m9;
-        frustum.planes[2].distance = vp.m15 + vp.m13;
-
+        frustum.planes[2].normal.x = m3 + m1;
+        frustum.planes[2].normal.y = m7 + m5;
+        frustum.planes[2].normal.z = m11 + m9;
+        frustum.planes[2].distance = m15 + m13;
         // top
-        frustum.planes[3].normal.x = vp.m3 - vp.m1;
-        frustum.planes[3].normal.y = vp.m7 - vp.m5;
-        frustum.planes[3].normal.z = vp.m11 - vp.m9;
-        frustum.planes[3].distance = vp.m15 - vp.m13;
-
+        frustum.planes[3].normal.x = m3 - m1;
+        frustum.planes[3].normal.y = m7 - m5;
+        frustum.planes[3].normal.z = m11 - m9;
+        frustum.planes[3].distance = m15 - m13;
         // near
-        frustum.planes[4].normal.x = vp.m3 + vp.m2;
-        frustum.planes[4].normal.y = vp.m7 + vp.m6;
-        frustum.planes[4].normal.z = vp.m11 + vp.m10;
-        frustum.planes[4].distance = vp.m15 + vp.m14;
-
+        frustum.planes[4].normal.x = m3 + m2;
+        frustum.planes[4].normal.y = m7 + m6;
+        frustum.planes[4].normal.z = m11 + m10;
+        frustum.planes[4].distance = m15 + m14;
         // far
-        frustum.planes[5].normal.x = vp.m3 - vp.m2;
-        frustum.planes[5].normal.y = vp.m7 - vp.m6;
-        frustum.planes[5].normal.z = vp.m11 - vp.m10;
-        frustum.planes[5].distance = vp.m15 - vp.m14;
+        frustum.planes[5].normal.x = m3 - m2;
+        frustum.planes[5].normal.y = m7 - m6;
+        frustum.planes[5].normal.z = m11 - m10;
+        frustum.planes[5].distance = m15 - m14;
 
         // normalize all
         for (int i = 0; i < 6; i++) normalize_plane(frustum.planes[i]);
