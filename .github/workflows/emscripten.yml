@@ -44,7 +44,7 @@ jobs:
         run: emcmake cmake -B build-web-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPLATFORM=Web
 
       - name: Build
-        run: cmake --build build-web-release
+        run: cmake --build build-web-release --target Sandbox
 
 #      - name: Deploy to GitHub Pages
 #          if: github.ref == 'refs/heads/main'

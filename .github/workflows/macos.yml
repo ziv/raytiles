@@ -28,9 +28,7 @@ jobs:
           export CC=$(brew --prefix llvm)/bin/clang
           export CXX=$(brew --prefix llvm)/bin/clang++
           export SDKROOT=$(xcrun --show-sdk-path)
-          
-          # יוצר תיקיית build ומשתמש ב-Ninja כדי לקמפל מהר
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build Project
-        run: cmake --build build --config Release
+        run: cmake --build build --config Release --target Sandbox
