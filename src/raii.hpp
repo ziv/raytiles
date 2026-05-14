@@ -65,12 +65,19 @@ namespace raytiles::raii {
         bool owned_;
     };
 
+    inline void SafeUnloadMaterial(Material m) {
+        // make sure the shader is cleared because it is not owned by the material and will be unloaded separately.
+        // if not cleared, it will cause a crash when the material is unloaded.
+        m.shader = {};
+        UnloadMaterial(m);
+    }
+
     using mesh = resource<Mesh, UnloadMesh>;
     using image = resource<Image, UnloadImage>;
     using texture = resource<Texture2D, UnloadTexture>;
     using shader = resource<Shader, UnloadShader>;
     using model = resource<Model, UnloadModel>;
-    using material = resource<Material, UnloadMaterial>;
+    using material = resource<Material, SafeUnloadMaterial>;
 
     inline texture load_texture_from_image(const Image &img) { return texture{LoadTextureFromImage(img)}; }
 
