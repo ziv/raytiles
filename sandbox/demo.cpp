@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <string>
 #include <raytiles/raytiles.h>
 #include "fly.h"
 
@@ -12,8 +11,10 @@ int main() {
     raytiles::rendering_config rendering;
     raytiles::pool_config pool_conf;
 
-    world.anchor_x_tile = 289;
-    world.anchor_z_tile = 198;
+    world.anchor_x_tile = 269;
+    world.anchor_z_tile = 186;
+    world.skirt_size = 0.5f;
+
 
     raytiles::streamer streamer(world, streaming, rendering, pool_conf);
     streamer.get_renderer().set_normals_scale(5.0f);

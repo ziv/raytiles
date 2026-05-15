@@ -68,6 +68,18 @@ typedef struct RaytilesConfig {
     float  fog_start;
     /// Distance (meters) at which fog reaches full opacity.
     float  fog_end;
+    /// Fog color (RGBA, 0..1). Match this to your sky color for a seamless
+    /// horizon.
+    float  fog_color[4];
+    /// World ambient color (RGBA, 0..1). Drives day / night / weather
+    /// lighting changes.
+    float  ambient_light[4];
+    /// Sun direction vector. The shader normalizes it internally; magnitude
+    /// is irrelevant.
+    float  sun_direction[3];
+    /// Sun lighting intensity, controlling contrast between lit and shaded
+    /// areas.
+    float  sun_scale;
     /// Whether the streamer logs from the main thread via raylib's TraceLog.
     bool   use_logger;
     /// Per-zoom subdivision thresholds. Parallel arrays:

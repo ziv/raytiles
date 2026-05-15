@@ -52,6 +52,18 @@ RaytilesConfig RaytilesConfigDefault(void) {
     out.far_plane = r.far_plane;
     out.fog_start = r.fog_start;
     out.fog_end = r.fog_end;
+    out.fog_color[0] = r.fog_color[0];
+    out.fog_color[1] = r.fog_color[1];
+    out.fog_color[2] = r.fog_color[2];
+    out.fog_color[3] = r.fog_color[3];
+    out.ambient_light[0] = r.ambient_light[0];
+    out.ambient_light[1] = r.ambient_light[1];
+    out.ambient_light[2] = r.ambient_light[2];
+    out.ambient_light[3] = r.ambient_light[3];
+    out.sun_direction[0] = r.sun_direction[0];
+    out.sun_direction[1] = r.sun_direction[1];
+    out.sun_direction[2] = r.sun_direction[2];
+    out.sun_scale = r.sun_scale;
     out.height_scale = r.height_scale;
     out.normals_scale = r.normals_scale;
     return out;
@@ -108,6 +120,18 @@ RaytilesStreamer *RaytilesStreamerCreate(const RaytilesConfig *conf,
     r.far_plane = conf->far_plane;
     r.fog_start = conf->fog_start;
     r.fog_end = conf->fog_end;
+    r.fog_color[0] = conf->fog_color[0];
+    r.fog_color[1] = conf->fog_color[1];
+    r.fog_color[2] = conf->fog_color[2];
+    r.fog_color[3] = conf->fog_color[3];
+    r.ambient_light[0] = conf->ambient_light[0];
+    r.ambient_light[1] = conf->ambient_light[1];
+    r.ambient_light[2] = conf->ambient_light[2];
+    r.ambient_light[3] = conf->ambient_light[3];
+    r.sun_direction[0] = conf->sun_direction[0];
+    r.sun_direction[1] = conf->sun_direction[1];
+    r.sun_direction[2] = conf->sun_direction[2];
+    r.sun_scale = conf->sun_scale;
     r.height_scale = conf->height_scale;
     r.normals_scale = conf->normals_scale;
 
@@ -155,68 +179,6 @@ void RaytilesStreamerDebug3D(RaytilesStreamer *streamer) {
     if (!streamer) return;
     streamer->impl.debug_3d();
 }
-//
-// void RaytilesStreamerSetAmbientLight(RaytilesStreamer *streamer, const Color color) {
-//     if (!streamer) return;
-//     streamer->impl.set_ambient_light(color);
-// }
-//
-// void RaytilesStreamerSetAmbientLightV4(RaytilesStreamer *streamer, const Vector4 color) {
-//     if (!streamer) return;
-//     streamer->impl.set_ambient_light(color);
-// }
-//
-// void RaytilesStreamerSetAmbientLightRGBA(RaytilesStreamer *streamer,
-//                                          const float r, const float g, const float b, const float a) {
-//     if (!streamer) return;
-//     streamer->impl.set_ambient_light(r, g, b, a);
-// }
-//
-// void RaytilesStreamerSetFogColor(RaytilesStreamer *streamer, const Color color) {
-//     if (!streamer) return;
-//     streamer->impl.set_fog_color(color);
-// }
-//
-// void RaytilesStreamerSetFogColorV4(RaytilesStreamer *streamer, const Vector4 color) {
-//     if (!streamer) return;
-//     streamer->impl.set_fog_color(color);
-// }
-//
-// void RaytilesStreamerSetFogColorRGBA(RaytilesStreamer *streamer,
-//                                      const float r, const float g, const float b, const float a) {
-//     if (!streamer) return;
-//     streamer->impl.set_fog_color(r, g, b, a);
-// }
-//
-// void RaytilesStreamerSetFogStart(RaytilesStreamer *streamer, const float distance) {
-//     if (!streamer) return;
-//     streamer->impl.set_fog_start(distance);
-// }
-//
-// void RaytilesStreamerSetFogEnd(RaytilesStreamer *streamer, const float distance) {
-//     if (!streamer) return;
-//     streamer->impl.set_fog_end(distance);
-// }
-//
-// void RaytilesStreamerSetHeightScale(RaytilesStreamer *streamer, const float scale) {
-//     if (!streamer) return;
-//     streamer->impl.set_height_scale(scale);
-// }
-//
-// void RaytilesStreamerSetNormalsScale(RaytilesStreamer *streamer, const float scale) {
-//     if (!streamer) return;
-//     streamer->impl.set_normals_scale(scale);
-// }
-//
-// void RaytilesStreamerSetSunDirection(RaytilesStreamer *streamer, const Vector3 direction) {
-//     if (!streamer) return;
-//     streamer->impl.set_sun_direction(direction);
-// }
-//
-// void RaytilesStreamerSetSunScale(RaytilesStreamer *streamer, const float scale) {
-//     if (!streamer) return;
-//     streamer->impl.set_sun_scale(scale);
-// }
 
 bool RaytilesStreamerGroundHeight(RaytilesStreamer *streamer,
                                   const Vector3 position,
@@ -226,5 +188,67 @@ bool RaytilesStreamerGroundHeight(RaytilesStreamer *streamer,
     if (!h.has_value()) return false;
     if (out_height) *out_height = *h;
     return true;
+}
+
+void RaytilesStreamerSetAmbientLight(RaytilesStreamer *streamer, const Color color) {
+    if (!streamer) return;
+    streamer->impl.get_renderer().set_ambient_light(color);
+}
+
+void RaytilesStreamerSetAmbientLightV4(RaytilesStreamer *streamer, const Vector4 color) {
+    if (!streamer) return;
+    streamer->impl.get_renderer().set_ambient_light(color);
+}
+
+void RaytilesStreamerSetAmbientLightRGBA(RaytilesStreamer *streamer,
+                                         const float r, const float g, const float b, const float a) {
+    if (!streamer) return;
+    streamer->impl.get_renderer().set_ambient_light(r, g, b, a);
+}
+
+void RaytilesStreamerSetFogColor(RaytilesStreamer *streamer, const Color color) {
+    if (!streamer) return;
+    streamer->impl.get_renderer().set_fog_color(color);
+}
+
+void RaytilesStreamerSetFogColorV4(RaytilesStreamer *streamer, const Vector4 color) {
+    if (!streamer) return;
+    streamer->impl.get_renderer().set_fog_color(color);
+}
+
+void RaytilesStreamerSetFogColorRGBA(RaytilesStreamer *streamer,
+                                     const float r, const float g, const float b, const float a) {
+    if (!streamer) return;
+    streamer->impl.get_renderer().set_fog_color(r, g, b, a);
+}
+
+void RaytilesStreamerSetFogStart(RaytilesStreamer *streamer, const float distance) {
+    if (!streamer) return;
+    streamer->impl.get_renderer().set_fog_start(distance);
+}
+
+void RaytilesStreamerSetFogEnd(RaytilesStreamer *streamer, const float distance) {
+    if (!streamer) return;
+    streamer->impl.get_renderer().set_fog_end(distance);
+}
+
+void RaytilesStreamerSetHeightScale(RaytilesStreamer *streamer, const float scale) {
+    if (!streamer) return;
+    streamer->impl.get_renderer().set_height_scale(scale);
+}
+
+void RaytilesStreamerSetNormalsScale(RaytilesStreamer *streamer, const float scale) {
+    if (!streamer) return;
+    streamer->impl.get_renderer().set_normals_scale(scale);
+}
+
+void RaytilesStreamerSetSunDirection(RaytilesStreamer *streamer, const Vector3 direction) {
+    if (!streamer) return;
+    streamer->impl.get_renderer().set_sun_direction(direction);
+}
+
+void RaytilesStreamerSetSunScale(RaytilesStreamer *streamer, const float scale) {
+    if (!streamer) return;
+    streamer->impl.get_renderer().set_sun_scale(scale);
 }
 } // extern "C"
