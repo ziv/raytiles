@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/ziv/raytiles/compare/v0.8.0...v0.8.1) (2026-05-15)
+
+
+### Bug Fixes
+
+* align c wrapper API with public c++ API ([#54](https://github.com/ziv/raytiles/issues/54)) ([4616144](https://github.com/ziv/raytiles/commit/46161446a7fbd1016e9b3b3df6e472e2b1f076fb))
+
 ## [0.8.0](https://github.com/ziv/raytiles/compare/v0.7.2...v0.8.0) (2026-05-15)
 
 
