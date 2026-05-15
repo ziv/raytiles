@@ -7,13 +7,15 @@ int main() {
     SetTraceLogLevel(LOG_INFO);
     InitWindow(800, 600, "raytiles");
 
-    raytiles::config conf;
+    raytiles::world_config world;
+    raytiles::streaming_config streaming;
+    raytiles::rendering_config rendering;
     raytiles::pool_config pool_conf;
 
-    conf.anchor_x_tile = 289;
-    conf.anchor_z_tile = 198;
+    world.anchor_x_tile = 289;
+    world.anchor_z_tile = 198;
 
-    raytiles::streamer streamer(conf, pool_conf);
+    raytiles::streamer streamer(world, streaming, rendering, pool_conf);
     streamer.set_normals_scale(5.0f);
 
     Camera3D camera;

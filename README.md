@@ -102,13 +102,15 @@ int main() {
   InitWindow(1280, 720, "raytiles");
 
   // streamer configuration with default values; tweak as needed
-  raytiles::config conf;
+  raytiles::world_config world;
+  raytiles::streaming_config streaming;
+  raytiles::rendering_config rendering;
 
   // pool configuration with default values; tweak as needed
   raytiles::pool_config pool_conf;
 
   // streamer instance
-  raytiles::streamer streamer(conf, pool_conf);
+  raytiles::streamer streamer(world, streaming, rendering, pool_conf);
 
   Camera3D camera = /* ... your camera ... */;
 

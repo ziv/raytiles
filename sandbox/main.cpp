@@ -44,14 +44,15 @@ int main() {
 
 
     // streamer configuration, set the anchor tiles (currently around greece)
-    raytiles::config conf;
-    conf.use_logger = true;
-    conf.anchor_x_tile = 294.0f; // somewhere at greece
-    conf.anchor_z_tile = 199.0f;
+    raytiles::world_config world;
+    world.use_logger = true;
+    world.anchor_x_tile = 294.0f; // somewhere at greece
+    world.anchor_z_tile = 199.0f;
+    world.skirt_size = 0.5f;
 
-
-    conf.height_scale = 2.0f;
-    conf.skirt_size = 0.5f;
+    raytiles::streaming_config streaming;
+    raytiles::rendering_config rendering;
+    rendering.height_scale = 2.0f;
 
     // pool configuration, set your mapbox token
     raytiles::pool_config pool_conf;
@@ -63,8 +64,8 @@ int main() {
     pool_conf.heightmap_cache_path = "/assets/h/{}/{}/{}.png";
 #endif
 
-    // create the streamer§§ with both configurations
-    raytiles::streamer streamer(conf, pool_conf);
+    // create the streamer with all configurations
+    raytiles::streamer streamer(world, streaming, rendering, pool_conf);
     streamer.set_normals_scale(5.0f);
 
     Camera3D camera;

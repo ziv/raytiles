@@ -25,31 +25,36 @@
 using namespace std::chrono_literals;
 
 namespace raytiles {
-    streamer::streamer(const config &conf, const pool_config &pool_conf)
-        : conf(conf),
+    streamer::streamer(const world_config &world_conf,
+                       const streaming_config &streaming_conf,
+                       const rendering_config &rendering_conf,
+                       const pool_config &pool_conf)
+        : world(world_conf),
+          streaming(streaming_conf),
+          rendering(rendering_conf),
           displacement_shader(raii::load_shader_from_memory(shaders::vertex_shader, shaders::fragment_shader)),
           tile_downloader(std::make_unique<pool>(pool_conf)) {
         // input validation
-        if (conf.max_zoom > max_supported_zoom) {
+        if (world.max_zoom > max_supported_zoom) {
             // stop on not supported zoom
-            throw std::runtime_error(std::format("max_zoom {} is not supported; max is {}", conf.max_zoom, max_supported_zoom));
+            throw std::runtime_error(std::format("max_zoom {} is not supported; max is {}", world.max_zoom, max_supported_zoom));
         }
-        if (conf.base_zoom < min_tested_zoom) {
+        if (world.base_zoom < min_tested_zoom) {
             // warn on not supported zoom
-            TraceLog(LOG_WARNING, std::format("base_zoom {} is not tested; lowest tested is {}", conf.base_zoom, min_tested_zoom).c_str());
+            TraceLog(LOG_WARNING, std::format("base_zoom {} is not tested; lowest tested is {}", world.base_zoom, min_tested_zoom).c_str());
         }
 
         int res = min_resolution;
 
-        for (int zoom = conf.base_zoom; zoom <= conf.max_zoom; ++zoom) {
-            if (!conf.thresholds.contains(zoom)) {
+        for (int zoom = world.base_zoom; zoom <= world.max_zoom; ++zoom) {
+            if (!streaming.thresholds.contains(zoom)) {
                 // don't start with missing items
                 throw std::runtime_error(std::format("missing distance threshold for zoom {}", zoom));
             }
-            const float ratio = static_cast<float>(1 << (zoom - conf.base_zoom));
-            const auto size = conf.base_zoom_tile_size / ratio;
-            const auto skirt_size = conf.skirt_size * ratio;
-            const auto th = conf.thresholds.at(zoom); // safe (see check at the beginning of loop)
+            const float ratio = static_cast<float>(1 << (zoom - world.base_zoom));
+            const auto size = world.base_zoom_tile_size / ratio;
+            const auto skirt_size = world.skirt_size * ratio;
+            const auto th = streaming.thresholds.at(zoom); // safe (see check at the beginning of loop)
 
             tiles[zoom] = tile_value{
                 size,
@@ -61,17 +66,11 @@ namespace raytiles {
 
         // todo should be set as part of height?! (i.e. in "process_current_location")
         // set the rendering distance
-        rlSetClipPlanes(conf.near_plane, conf.far_plane);
+        rlSetClipPlanes(rendering.near_plane, rendering.far_plane);
 
         // one Material to rule them all, one material to bind them
         material = raii::material{LoadMaterialDefault()};
         material->shader = *displacement_shader;
-
-        // update defaults
-        fog_start = conf.fog_start;
-        fog_end = conf.fog_end;
-        height_scale = conf.height_scale;
-        normals_scale = conf.normals_scale;
 
         // cache shader locations
         cam_pos_loc = GetShaderLocation(*displacement_shader, "cameraPosition");
@@ -111,17 +110,17 @@ namespace raytiles {
         displacement_shader->locs[SHADER_LOC_MAP_NORMAL] = tex_normal_loc;
 
         // todo should we move those into dynamically changed list? (worth the performance impact?)
-        SetShaderValue(*displacement_shader, height_scale_loc, &height_scale, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*displacement_shader, normal_scale_loc, &normals_scale, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*displacement_shader, fog_start_loc, &fog_start, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*displacement_shader, fog_end_loc, &fog_end, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*displacement_shader, sun_scale_loc, &sun_scale, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(*displacement_shader, height_scale_loc, &rendering.height_scale, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(*displacement_shader, normal_scale_loc, &rendering.normals_scale, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(*displacement_shader, fog_start_loc, &rendering.fog_start, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(*displacement_shader, fog_end_loc, &rendering.fog_end, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(*displacement_shader, sun_scale_loc, &rendering.sun_scale, SHADER_UNIFORM_FLOAT);
 
         // the reset shaders uniform (those are dynamically changed...)
         update_shader_uniforms();
 
 
-        if (conf.use_logger) TraceLog(LOG_INFO, "raytiles streamer initialized");
+        if (world.use_logger) TraceLog(LOG_INFO, "raytiles streamer initialized");
     }
 
     void streamer::update(const Camera3D &camera) {
@@ -134,13 +133,13 @@ namespace raytiles {
         process_loaded_tiles();
 
         // // do not update tiles list if didn't pass enough distance
-        // if (Vector3DistanceSqr(position, last_position) < conf.update_distance_sq && std::fabs(position.y - last_position.y) < conf.update_height) return;
+        // if (Vector3DistanceSqr(position, last_position) < streaming.update_distance_sq && std::fabs(position.y - last_position.y) < streaming.update_height) return;
         // last_position = position;
         //
         // // use current location to build "desired_tiles" map
         // process_current_location();
 
-        if (Vector3DistanceSqr(position, last_position) > conf.update_distance_sq || std::fabs(position.y - last_position.y) < conf.update_height) {
+        if (Vector3DistanceSqr(position, last_position) > streaming.update_distance_sq || std::fabs(position.y - last_position.y) < streaming.update_height) {
             last_position = position;
 
             // use current location to build "desired_tiles" map
@@ -150,8 +149,8 @@ namespace raytiles {
         last_frustum = utils::extract_frustum(camera,
                                               static_cast<float>(GetScreenWidth()),
                                               static_cast<float>(GetScreenHeight()),
-                                              conf.near_plane,
-                                              conf.far_plane);
+                                              rendering.near_plane,
+                                              rendering.far_plane);
     }
 
     void streamer::draw(const Camera3D &camera) {
@@ -189,8 +188,7 @@ namespace raytiles {
             if (cull_enabled) {
                 const float dx = tile.tx - camera.position.x;
                 const float dz = tile.tz - camera.position.z;
-                const float along_forward = dx * fwd_nx + dz * fwd_nz;
-                if (along_forward < -t.size) continue;
+                if (const float along_forward = dx * fwd_nx + dz * fwd_nz; along_forward < -t.size) continue;
             }
             DrawCubeWires({tile.tx, 0.0f, tile.tz}, t.size, 200.0f, t.size, GREEN);
         }
@@ -238,12 +236,12 @@ namespace raytiles {
     }
 
 
-    void streamer::set_ambient_light(float r, float g, float b, float a) {
-        ambient_light[0] = r;
-        ambient_light[1] = g;
-        ambient_light[2] = b;
-        ambient_light[3] = a;
-        SetShaderValue(*displacement_shader, ambient_loc, ambient_light, SHADER_UNIFORM_VEC4);
+    void streamer::set_ambient_light(const float r, const float g, const float b, const float a) {
+        rendering.ambient_light[0] = r;
+        rendering.ambient_light[1] = g;
+        rendering.ambient_light[2] = b;
+        rendering.ambient_light[3] = a;
+        SetShaderValue(*displacement_shader, ambient_loc, rendering.ambient_light, SHADER_UNIFORM_VEC4);
     }
 
     void streamer::set_ambient_light(const Color color) {
@@ -256,11 +254,11 @@ namespace raytiles {
     }
 
     void streamer::set_fog_color(const float r, const float g, const float b, const float a) {
-        fog_color[0] = r;
-        fog_color[1] = g;
-        fog_color[2] = b;
-        fog_color[3] = a;
-        SetShaderValue(*displacement_shader, fog_color_loc, fog_color, SHADER_UNIFORM_VEC4);
+        rendering.fog_color[0] = r;
+        rendering.fog_color[1] = g;
+        rendering.fog_color[2] = b;
+        rendering.fog_color[3] = a;
+        SetShaderValue(*displacement_shader, fog_color_loc, rendering.fog_color, SHADER_UNIFORM_VEC4);
     }
 
     void streamer::set_fog_color(const Color color) {
@@ -273,47 +271,47 @@ namespace raytiles {
     }
 
     void streamer::set_fog_start(const float distance) {
-        fog_start = distance;
-        SetShaderValue(*displacement_shader, fog_start_loc, &fog_start, SHADER_UNIFORM_FLOAT);
+        rendering.fog_start = distance;
+        SetShaderValue(*displacement_shader, fog_start_loc, &rendering.fog_start, SHADER_UNIFORM_FLOAT);
     }
 
     void streamer::set_fog_end(const float distance) {
-        fog_end = distance;
+        rendering.fog_end = distance;
 
-        SetShaderValue(*displacement_shader, fog_end_loc, &fog_end, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(*displacement_shader, fog_end_loc, &rendering.fog_end, SHADER_UNIFORM_FLOAT);
     }
 
-    void streamer::set_sun_direction(Vector3 direction) {
-        sun_direction[0] = direction.x;
-        sun_direction[1] = direction.y;
-        sun_direction[2] = direction.z;
+    void streamer::set_sun_direction(const Vector3 direction) {
+        rendering.sun_direction[0] = direction.x;
+        rendering.sun_direction[1] = direction.y;
+        rendering.sun_direction[2] = direction.z;
 
-        SetShaderValue(*displacement_shader, sun_dir_loc, sun_direction, SHADER_UNIFORM_VEC3);
+        SetShaderValue(*displacement_shader, sun_dir_loc, rendering.sun_direction, SHADER_UNIFORM_VEC3);
     }
 
     void streamer::set_sun_scale(const float scale) {
-        sun_scale = scale;
+        rendering.sun_scale = scale;
 
-        SetShaderValue(*displacement_shader, sun_scale_loc, &sun_scale, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(*displacement_shader, sun_scale_loc, &rendering.sun_scale, SHADER_UNIFORM_FLOAT);
     }
 
     void streamer::set_height_scale(const float scale) {
-        height_scale = scale;
+        rendering.height_scale = scale;
 
-        SetShaderValue(*displacement_shader, height_scale_loc, &height_scale, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(*displacement_shader, height_scale_loc, &rendering.height_scale, SHADER_UNIFORM_FLOAT);
     }
 
     void streamer::set_normals_scale(const float scale) {
-        normals_scale = scale;
+        rendering.normals_scale = scale;
 
-        SetShaderValue(*displacement_shader, normal_scale_loc, &normals_scale, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(*displacement_shader, normal_scale_loc, &rendering.normals_scale, SHADER_UNIFORM_FLOAT);
     }
 
     std::optional<float> streamer::ground_height(const Vector3 position) const {
         // walk from the highest available zoom down to base; whichever zoom holds the
         // tile that contains (position.x, position.z) wins. higher zoom = finer
         // sample, so we prefer it if loaded.
-        for (int zoom = conf.max_zoom; zoom >= conf.base_zoom; --zoom) {
+        for (int zoom = world.max_zoom; zoom >= world.base_zoom; --zoom) {
             const auto &t = tiles.at(zoom);
             // const float size = tile_sizes[zoom - conf.base_zoom];
             const float size = t.size;
@@ -341,7 +339,7 @@ namespace raytiles {
     }
 
     void streamer::build_required(const int zoom, const int tx, const int tz, const float render_radius_sq) {
-        if (zoom == conf.max_zoom) {
+        if (zoom == world.max_zoom) {
             desired_keys.insert({zoom, tx, tz});
             return;
         }
@@ -371,11 +369,11 @@ namespace raytiles {
 
     void streamer::process_current_location() {
         desired_keys.clear();
-        const int current_tile_x = static_cast<int>(std::floor(last_position.x / conf.base_zoom_tile_size));
-        const int current_tile_z = static_cast<int>(std::floor(last_position.z / conf.base_zoom_tile_size));
+        const int current_tile_x = static_cast<int>(std::floor(last_position.x / world.base_zoom_tile_size));
+        const int current_tile_z = static_cast<int>(std::floor(last_position.z / world.base_zoom_tile_size));
 
         // scanning radius: 10 -> is ((10 * 2 + 1) * 33km) width -> ~ 700km -> max horizon distance * 2
-        const auto r = conf.rendering_radius;
+        const auto r = streaming.rendering_radius;
         const auto allowed_radius = (r - 1) * (r - 1);
 
         // rendering limit radius based on the horizon distance from the current camera height.
@@ -388,7 +386,7 @@ namespace raytiles {
         for (int dx = -r; dx <= r; ++dx)
             for (int dz = -r; dz <= r; ++dz)
                 if (dz * dz + dx * dx < allowed_radius)
-                    build_required(conf.base_zoom, current_tile_x + dx, current_tile_z + dz, render_radius_sq);
+                    build_required(world.base_zoom, current_tile_x + dx, current_tile_z + dz, render_radius_sq);
 
 
         // spawn new if not in rendering list
@@ -429,7 +427,7 @@ namespace raytiles {
                 tx_bytes_ptr = &tile.tx_future.get();
                 hm_bytes_ptr = &tile.hm_future.get();
                 nm_bytes_ptr = &tile.nl_future.get();
-                if (conf.use_logger) TraceLog(LOG_DEBUG, "tile %d/%d/%d loaded", key.zoom, key.x, key.z);
+                if (world.use_logger) TraceLog(LOG_DEBUG, "tile %d/%d/%d loaded", key.zoom, key.x, key.z);
             } catch (const std::exception &e) {
                 TraceLog(LOG_WARNING, "tile %d/%d/%d download failed: %s - dropping", key.zoom, key.x, key.z, e.what());
                 it = loading_tiles.erase(it);
@@ -466,7 +464,7 @@ namespace raytiles {
 
             // do we still need it?
             if (!desired_keys.contains(key)) {
-                if (conf.use_logger) TraceLog(LOG_DEBUG, "tile %d/%d/%d became stale before upload - dropping", key.zoom, key.x, key.z);
+                if (world.use_logger) TraceLog(LOG_DEBUG, "tile %d/%d/%d became stale before upload - dropping", key.zoom, key.x, key.z);
                 it = loading_tiles.erase(it);
                 continue;
             }
@@ -483,7 +481,7 @@ namespace raytiles {
             SetTextureWrap(*normals_tex, TEXTURE_WRAP_CLAMP);
 
             // allow use of mipmaps (only for texture)
-            if (conf.use_mipmap) {
+            if (world.use_mipmap) {
                 GenTextureMipmaps(&texture_tex.get());
                 SetTextureFilter(*texture_tex, TEXTURE_FILTER_ANISOTROPIC_16X);
             }
@@ -501,16 +499,16 @@ namespace raytiles {
             it = loading_tiles.erase(it);
             ++promoted;
 
-            if (promoted >= conf.max_uploads_per_frame) break;
-            if (GetTime() - frame_start >= conf.upload_budget_sec) break;
+            if (promoted >= streaming.max_uploads_per_frame) break;
+            if (GetTime() - frame_start >= streaming.upload_budget_sec) break;
         }
     }
 
     loading_tile streamer::spawn(const tile_key &tile) const {
         const auto &te = tiles.at(tile.zoom);
-        const auto scale = 1 << (tile.zoom - conf.base_zoom);
-        const auto tx = tile.x + conf.anchor_x_tile * scale;
-        const auto tz = tile.z + conf.anchor_z_tile * scale;
+        const auto scale = 1 << (tile.zoom - world.base_zoom);
+        const auto tx = tile.x + world.anchor_x_tile * scale;
+        const auto tz = tile.z + world.anchor_z_tile * scale;
         const auto tile_size = te.size;
 
         auto t = loading_tile{
@@ -522,17 +520,17 @@ namespace raytiles {
             tile_downloader->enqueue_normals(tile.zoom, tx, tz),
         };
 
-        if (conf.use_logger) TraceLog(LOG_DEBUG, "spawned tile %d,%d,%d position %f,%f", tile.zoom, tile.x, tile.z, t.tx, t.tz);
+        if (world.use_logger) TraceLog(LOG_DEBUG, "spawned tile %d,%d,%d position %f,%f", tile.zoom, tile.x, tile.z, t.tx, t.tz);
         return t;
     }
 
     void streamer::update_shader_uniforms() {
         // set the ambient color (weather/day/night/...)
-        SetShaderValue(*displacement_shader, ambient_loc, ambient_light, SHADER_UNIFORM_VEC4);
+        SetShaderValue(*displacement_shader, ambient_loc, rendering.ambient_light, SHADER_UNIFORM_VEC4);
         // set the fog color (to match the sky)
-        SetShaderValue(*displacement_shader, fog_color_loc, fog_color, SHADER_UNIFORM_VEC4);
+        SetShaderValue(*displacement_shader, fog_color_loc, rendering.fog_color, SHADER_UNIFORM_VEC4);
         // set the sun direction
-        SetShaderValue(*displacement_shader, sun_dir_loc, sun_direction, SHADER_UNIFORM_VEC3);
+        SetShaderValue(*displacement_shader, sun_dir_loc, rendering.sun_direction, SHADER_UNIFORM_VEC3);
     }
 
     MetersSq streamer::horizon() const {
@@ -552,14 +550,14 @@ namespace raytiles {
         const auto contains = [&](const int zoom, const int x, const int z) { return rendering_tiles.contains(tile_key{zoom, x, z}); };
 
         // check parent
-        if (key.zoom > conf.base_zoom) {
+        if (key.zoom > world.base_zoom) {
             if (contains(key.zoom - 1, key.x >> 1, key.z >> 1)) return true;
         }
 
         // check children. use multiplication instead of left-shift: signed left-shift
         // on negative tile indices (which we have around the anchor) is UB even in
         // C++20.
-        if (key.zoom < conf.max_zoom) {
+        if (key.zoom < world.max_zoom) {
             const int child_x = key.x * 2;
             const int child_z = key.z * 2;
             if (contains(key.zoom + 1, child_x, child_z) &&

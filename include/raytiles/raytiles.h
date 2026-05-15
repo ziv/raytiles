@@ -28,121 +28,6 @@
 
 
 namespace raytiles {
-    /// Tunable parameters for a `streamer` instance. Everything has a sensible
-    /// default; override fields before constructing the streamer.
-    ///
-    /// All distances are in raylib world units (1 unit = 1 meter at base zoom in
-    /// the default configuration).
-    struct config {
-        /// World-space anchor in tile coordinates at `base_zoom`. The streamer
-        /// translates tile XY to world XZ relative to this anchor so the world
-        /// origin is wherever you want it (e.g. your runway).
-        int anchor_x_tile = 306;
-        int anchor_z_tile = 207;
-
-        /// Distance (in meters) at which atmospheric fog starts to fade tiles to
-        /// `set_fog_color`'s color.
-        Meters fog_start = 100000.0f;
-
-        /// Distance (in meters) at which fog reaches full cover.
-        Meters fog_end = 150000.0f;
-
-        /// Lowest level-of-detail zoom that will ever be loaded. Tiles outside the
-        /// camera's near radius are kept at this zoom to bound the working set.
-        /// Changing this value also requires updating `thresholds` and
-        /// `base_zoom_tile_size`. Note: this library has never been tested with
-        /// a `base_zoom` lower than 9.
-        int base_zoom = 9;
-
-        /// Highest level-of-detail zoom available. Tiles directly under the camera
-        /// are subdivided up to this zoom.
-        /// Changing this value also requires updating `thresholds`.
-        /// 15 is the maximum zoom currently supported.
-        int max_zoom = 15;
-
-        /// World size (in meters) of one tile at `base_zoom`. Tiles at higher zooms
-        /// are scaled by `1 / (1 << (zoom - base_zoom))`.
-        float base_zoom_tile_size = 66400.0f;
-
-        /// Radius, in `base_zoom` tiles, of the disc of tiles loaded around the
-        /// camera. Larger values = more tiles in flight = more memory / bandwidth.
-        int rendering_radius = 6;
-
-        /// Skirt geometry overlap factor (per side) used to hide cracks between
-        /// neighboring tiles at different LODs. Expressed relative to a tile at
-        /// `max_zoom`.
-        float skirt_size = 0.01f;
-
-        /// Scales the heightmap by this factor to exaggerate or flatten the
-        /// terrain relief (drama factor).
-        float height_scale = 1.0f;
-
-        /// Scales the normals by this factor to increase or reduce lighting
-        /// contrast. Higher values make the terrain look bumpier, but can cause
-        /// lighting artifacts if the normals become too steep.
-        float normals_scale = 1.0f;
-
-        /// Squared XZ distance the camera must travel before the desired-tile set
-        /// is recomputed. Keep this large enough that small movements don't churn
-        /// the working set.
-        MetersSq update_distance_sq = 1000.0f * 1000.0f;
-
-        /// Altitude delta (in meters) that triggers a desired-set recomputation,
-        /// independent of `update_distance`. Lets you stream new LODs as you climb
-        /// or descend without horizontal motion.
-        Meters update_height = 500.0f;
-
-        /// Wall-clock budget (in seconds) per frame for promoting downloaded tiles
-        /// into GPU resources. Caps the cost of a single bursty frame.
-        double upload_budget_sec = 0.002;
-
-        /// Hard cap on tile promotions per frame, on top of `upload_budget_sec`.
-        /// Whichever limit is hit first stops the loop.
-        int max_uploads_per_frame = 8;
-
-        /// Near / far clip planes used by the displacement shader for fog and
-        /// depth precision tuning. Match these to your camera setup.
-        MetersD near_plane = 1;
-        MetersD far_plane = 400000;
-
-        /// Generate trilinear / anisotropic mipmaps for the albedo texture on
-        /// upload. Strongly recommended; avoids shimmering at distance.
-        bool use_mipmap = true;
-
-        /// Vertical drop (in meters) of the skirt geometry below each tile's edge.
-        /// Larger values hide cracks more reliably but cost more fill rate.
-        Meters skirt_drop = 1000.0f;
-
-        /// Whether to emit log lines from the streamer. Logs from the main
-        /// thread/process are routed through raylib's `TraceLog`.
-        bool use_logger = false;
-
-        /// Per-zoom distance thresholds (9 to 15). Tuned for performance and to
-        /// keep the resident tile count under 600. If `base_zoom` or `max_zoom`
-        /// changes, this map must be updated to match.
-        std::unordered_map<Zoom, Meters> thresholds = {
-            {9, 100000.0f},
-            {10, 80000.0f},
-            {11, 40000.0f},
-            {12, 20000.0f},
-            {13, 10000.0f},
-            {14, 5000.0f},
-            {15, 2500.0f}
-        };
-
-        /// World ambient color
-        float ambient_light[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-
-        /// Fog color
-        float fog_color[4] = {0.0f, 0.0f, 1.0f, 1.0f};
-
-        /// Sun direction
-        float sun_direction[3] = {0.1f, 1.0f, 0.1f};
-
-        /// Sun intensity
-        float sun_scale = 1.0f;
-    };
-
     /// World topology / geometry parameters. Everything in this struct is
     /// effectively immutable once a `streamer` exists: changing any field
     /// requires rebuilding meshes, re-uploading textures, or re-anchoring the
@@ -323,7 +208,7 @@ namespace raytiles {
     ///
     /// Typical use:
     /// @code
-    ///   raytiles::streamer s(conf, pool_conf);
+    ///   raytiles::streamer s(world, streaming, rendering, pool_conf);
     ///   while (!WindowShouldClose()) {
     ///     s.update(camera);
     ///     BeginDrawing();
@@ -338,12 +223,17 @@ namespace raytiles {
     /// Movable but not copyable.
     class streamer {
     public:
-        /// @param conf            Tunable parameters; moved into the streamer.
-        /// @param pool_conf       Tunable parameters for the tile downloader pool; moved into the pool.
+        /// @param world_conf
+        /// @param streaming_conf
+        /// @param rendering_conf
+        /// @param pool_conf Tunable parameters for the tile downloader pool; moved into the pool.
         /// @note A raylib window must already be initialized (`InitWindow`) before
         ///       constructing a streamer because shader / texture creation requires
         ///       a live GL context.
-        explicit streamer(const config &conf, const pool_config &pool_conf);
+        explicit streamer(const world_config &world_conf = {},
+                          const streaming_config &streaming_conf = {},
+                          const rendering_config &rendering_conf = {},
+                          const pool_config &pool_conf = {});
 
         ~streamer();
 
@@ -357,8 +247,8 @@ namespace raytiles {
 
         /// Updates the desired tile set based on the camera and promotes any
         /// finished downloads into renderable GPU resources. Cheap to call every
-        /// frame; internally rate-limited by `config::upload_budget_sec` and
-        /// `config::max_uploads_per_frame`.
+        /// frame; internally rate-limited by `streaming_config::upload_budget_sec`
+        /// and `streaming_config::max_uploads_per_frame`.
         void update(const Camera3D &camera);
 
         /// Renders all currently loaded tiles. Must be called between
@@ -440,7 +330,9 @@ namespace raytiles {
 
         [[nodiscard]] bool is_tile_out_of_area(const tile_key &key) const;
 
-        config conf;
+        world_config world;
+        streaming_config streaming;
+        rendering_config rendering;
         raii::shader displacement_shader;
         // held by unique_ptr so the public header can forward-declare `pool`
         // and keep httplib out of every consumer's translation unit.
@@ -460,15 +352,6 @@ namespace raytiles {
         int normal_scale_loc = -1;
         int fog_start_loc = -1;
         int fog_end_loc = -1;
-
-        float ambient_light[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-        float fog_color[4] = {0.0f, 0.0f, 1.0f, 1.0f};
-        float sun_direction[3] = {0.1f, 1.0f, 0.1f};
-        float fog_start = 1.0f;
-        float fog_end = 100000.0f;
-        float height_scale = 1.0f;
-        float normals_scale = 1.0f;
-        float sun_scale = 1.0f;
 
         raii::material material{};
         Vector3 last_position = {-9999.9f, -9999.9f, -9999.9f};

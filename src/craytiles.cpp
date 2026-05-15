@@ -20,35 +20,40 @@ namespace {
 struct RaytilesStreamer {
     raytiles::streamer impl;
 
-    RaytilesStreamer(const raytiles::config &c, const raytiles::pool_config &p)
-        : impl(c, p) {
+    RaytilesStreamer(const raytiles::world_config &w,
+                     const raytiles::streaming_config &s,
+                     const raytiles::rendering_config &r,
+                     const raytiles::pool_config &p)
+        : impl(w, s, r, p) {
     }
 };
 
 extern "C" {
 RaytilesConfig RaytilesConfigDefault(void) {
-    const raytiles::config d{};
+    const raytiles::world_config w{};
+    const raytiles::streaming_config s{};
+    const raytiles::rendering_config r{};
     RaytilesConfig out{};
-    out.base_zoom = d.base_zoom;
-    out.max_zoom = d.max_zoom;
-    out.base_zoom_tile_size = d.base_zoom_tile_size;
-    out.rendering_radius = d.rendering_radius;
-    out.skirt_size = d.skirt_size;
-    out.height_scale = d.height_scale;
-    out.normals_scale = d.normals_scale;
-    out.update_distance = d.update_distance_sq;
-    out.update_height = d.update_height;
-    out.upload_budget_sec = d.upload_budget_sec;
-    out.max_uploads_per_frame = d.max_uploads_per_frame;
-    out.anchor_x_tile = d.anchor_x_tile;
-    out.anchor_z_tile = d.anchor_z_tile;
-    out.near_plane = d.near_plane;
-    out.far_plane = d.far_plane;
-    out.use_mipmap = d.use_mipmap;
-    out.skirt_drop = d.skirt_drop;
-    out.fog_start = d.fog_start;
-    out.fog_end = d.fog_end;
-    out.use_logger = d.use_logger;
+    out.base_zoom = w.base_zoom;
+    out.max_zoom = w.max_zoom;
+    out.base_zoom_tile_size = w.base_zoom_tile_size;
+    out.skirt_size = w.skirt_size;
+    out.skirt_drop = w.skirt_drop;
+    out.anchor_x_tile = w.anchor_x_tile;
+    out.anchor_z_tile = w.anchor_z_tile;
+    out.use_mipmap = w.use_mipmap;
+    out.use_logger = w.use_logger;
+    out.rendering_radius = s.rendering_radius;
+    out.update_distance = s.update_distance_sq;
+    out.update_height = s.update_height;
+    out.upload_budget_sec = s.upload_budget_sec;
+    out.max_uploads_per_frame = s.max_uploads_per_frame;
+    out.near_plane = r.near_plane;
+    out.far_plane = r.far_plane;
+    out.fog_start = r.fog_start;
+    out.fog_end = r.fog_end;
+    out.height_scale = r.height_scale;
+    out.normals_scale = r.normals_scale;
     return out;
 }
 
@@ -74,33 +79,37 @@ RaytilesStreamer *RaytilesStreamerCreate(const RaytilesConfig *conf,
                                          const RaytilesPoolConfig *pool_conf) {
     if (!conf || !pool_conf) return nullptr;
 
-    raytiles::config c{};
-    c.base_zoom = conf->base_zoom;
-    c.max_zoom = conf->max_zoom;
-    c.base_zoom_tile_size = conf->base_zoom_tile_size;
-    c.rendering_radius = conf->rendering_radius;
-    c.skirt_size = conf->skirt_size;
-    c.height_scale = conf->height_scale;
-    c.normals_scale = conf->normals_scale;
-    c.update_distance_sq = conf->update_distance;
-    c.update_height = conf->update_height;
-    c.upload_budget_sec = conf->upload_budget_sec;
-    c.max_uploads_per_frame = conf->max_uploads_per_frame;
-    c.anchor_x_tile = conf->anchor_x_tile;
-    c.anchor_z_tile = conf->anchor_z_tile;
-    c.near_plane = conf->near_plane;
-    c.far_plane = conf->far_plane;
-    c.use_mipmap = conf->use_mipmap;
-    c.skirt_drop = conf->skirt_drop;
-    c.fog_start = conf->fog_start;
-    c.fog_end = conf->fog_end;
-    c.use_logger = conf->use_logger;
-    c.thresholds.clear();
+    raytiles::world_config w{};
+    w.base_zoom = conf->base_zoom;
+    w.max_zoom = conf->max_zoom;
+    w.base_zoom_tile_size = conf->base_zoom_tile_size;
+    w.skirt_size = conf->skirt_size;
+    w.skirt_drop = conf->skirt_drop;
+    w.anchor_x_tile = conf->anchor_x_tile;
+    w.anchor_z_tile = conf->anchor_z_tile;
+    w.use_mipmap = conf->use_mipmap;
+    w.use_logger = conf->use_logger;
+
+    raytiles::streaming_config s{};
+    s.rendering_radius = conf->rendering_radius;
+    s.update_distance_sq = conf->update_distance;
+    s.update_height = conf->update_height;
+    s.upload_budget_sec = conf->upload_budget_sec;
+    s.max_uploads_per_frame = conf->max_uploads_per_frame;
+    s.thresholds.clear();
     if (conf->threshold_zooms && conf->threshold_values) {
         for (int i = 0; i < conf->thresholds_count; ++i) {
-            c.thresholds[conf->threshold_zooms[i]] = conf->threshold_values[i];
+            s.thresholds[conf->threshold_zooms[i]] = conf->threshold_values[i];
         }
     }
+
+    raytiles::rendering_config r{};
+    r.near_plane = conf->near_plane;
+    r.far_plane = conf->far_plane;
+    r.fog_start = conf->fog_start;
+    r.fog_end = conf->fog_end;
+    r.height_scale = conf->height_scale;
+    r.normals_scale = conf->normals_scale;
 
     raytiles::pool_config p{};
     p.download_threads = pool_conf->download_threads;
@@ -117,7 +126,7 @@ RaytilesStreamer *RaytilesStreamerCreate(const RaytilesConfig *conf,
     p.normals_url_path = to_string_or_empty(pool_conf->normals_url_path);
 
     try {
-        return new RaytilesStreamer(c, p);
+        return new RaytilesStreamer(w, s, r, p);
     } catch (...) {
         return nullptr;
     }
