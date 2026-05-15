@@ -129,6 +129,8 @@ namespace raytiles {
             {14, 5000.0f},
             {15, 2500.0f}
         };
+
+        void set_normals_scale(float scale);
     };
 
     struct pool_config {

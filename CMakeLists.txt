@@ -29,6 +29,7 @@ add_library(${PROJECT_NAME}
         include/raytiles/detail/utils.hpp
         src/raytiles.cpp
         src/craytiles.cpp
+        src/config.cpp
         src/downloader.hpp
         src/shaders.hpp
 )
