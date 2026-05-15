@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.8.0](https://github.com/ziv/raytiles/compare/v0.7.2...v0.8.0) (2026-05-15)
+
+
+### Features
+
+* API changed, configuration splited into specific conf structs with defaults ([a7f9a2c](https://github.com/ziv/raytiles/commit/a7f9a2cdcc60f25b5253c92a7edbeee4c37d12b6))
+* change underlying api extracted renderer out of streamer, public API changed ([017558e](https://github.com/ziv/raytiles/commit/017558e916782a265c5b2d2ad7b1cd4917d7d357))
+
+
+### Bug Fixes
+
+* debug 3d use the same culling as draw ([75962d2](https://github.com/ziv/raytiles/commit/75962d2188b02b2885a0483ec8667f145cc1db22))
+* debug use culling ([7738333](https://github.com/ziv/raytiles/commit/773833344ac066d5c0a0e87a38fc0ae5ff94752e))
+* fix the function signature and add missing struct item ([233e5d2](https://github.com/ziv/raytiles/commit/233e5d2ae5e5fd1e56e79fb9f1c7fdc47b7537d3))
+* make the debug methods use the same struct ([afa7077](https://github.com/ziv/raytiles/commit/afa70777618ac5ae9ea29eb9c3bb5bfba00bc8c2))
+* remove from rendered tiles those that not in frustum, partially solve [#49](https://github.com/ziv/raytiles/issues/49) ([f734500](https://github.com/ziv/raytiles/commit/f734500f98c87a772263a303728f996fc55e415e))
+* simplify pool config to use URL ([a36045b](https://github.com/ziv/raytiles/commit/a36045b3c296a450f1841b06cf25815b398a5d54))
+* split configuration ([#52](https://github.com/ziv/raytiles/issues/52)) ([a7f9a2c](https://github.com/ziv/raytiles/commit/a7f9a2cdcc60f25b5253c92a7edbeee4c37d12b6))
+* the order of filtering items in debug view ([ea0dffb](https://github.com/ziv/raytiles/commit/ea0dffbd170af5a5ed7859b66b347c8fbf823e0d))
+
 ## [0.7.2](https://github.com/ziv/raytiles/compare/v0.7.1...v0.7.2) (2026-05-14)
 
 
