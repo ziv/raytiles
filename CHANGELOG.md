@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/ziv/raytiles/compare/v0.8.1...v0.8.2) (2026-05-15)
+
+
+### Bug Fixes
+
+* minor tidy issues ([aa07528](https://github.com/ziv/raytiles/commit/aa0752814d9f3e93f5ddc3294be04059502bd03e))
+
 ## [0.8.1](https://github.com/ziv/raytiles/compare/v0.8.0...v0.8.1) (2026-05-15)
 
 
