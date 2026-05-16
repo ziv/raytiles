@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.4](https://github.com/ziv/raytiles/compare/v0.8.3...v0.8.4) (2026-05-16)
+
+
+### Bug Fixes
+
+* clarify function using comment (cheap and honost) ([f6de3ab](https://github.com/ziv/raytiles/commit/f6de3ab1275675ac8115b03e08db80e3f9eb4661))
+* clarify function using comment (cheap and honost) ([#61](https://github.com/ziv/raytiles/issues/61)) ([f6de3ab](https://github.com/ziv/raytiles/commit/f6de3ab1275675ac8115b03e08db80e3f9eb4661))
+* pool shutdown can block for up to ~15 s per worker ([f6de3ab](https://github.com/ziv/raytiles/commit/f6de3ab1275675ac8115b03e08db80e3f9eb4661))
+* tile_key hash — seed = 0 makes first XOR identity ([f6de3ab](https://github.com/ziv/raytiles/commit/f6de3ab1275675ac8115b03e08db80e3f9eb4661))
+* TraceLog is fed runtime-generated strings via %s ([f6de3ab](https://github.com/ziv/raytiles/commit/f6de3ab1275675ac8115b03e08db80e3f9eb4661))
+
 ## [0.8.3](https://github.com/ziv/raytiles/compare/v0.8.2...v0.8.3) (2026-05-16)
 
 
