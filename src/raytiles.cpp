@@ -362,7 +362,7 @@ namespace raytiles {
     }
 
     MetersSq streamer::calculate_horizon() const {
-        const auto d = 3.57 * 1000 * std::max(last_position.y, 1.0f); // the radius of rendering
+        const auto d = utils::horizon_ratio * std::max(last_position.y, 1.0f); // the radius of rendering
         return d * d;
     }
 

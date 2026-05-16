@@ -40,13 +40,6 @@ namespace raytiles::utils {
     /// where R is Earth radius, h is height above Earth, and d is distance to horizon in Km.
     constexpr MetersSq horizon_ratio = 3.57f * 1000.0f; // convert to meters
 
-
-    /// Calculates the distance to the horizon from a given
-    /// height above the surface of the Earth.
-    inline Meters distance_to_horizon(const Vector3 &position) {
-        return horizon_ratio * std::sqrt(position.y);
-    }
-
     /// Calculates the squared distance from a position to the center of a tile.
     /// Tile position is determined by its x and z indices and the tile size at the given zoom level.
     inline MetersSq distance_sq_to_tile(const Vector3 &position, const tile_key &tile, const float tile_size) {
