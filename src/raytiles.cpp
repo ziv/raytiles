@@ -47,7 +47,7 @@ namespace raytiles {
         }
         if (world.base_zoom < min_tested_zoom) {
             // warn on not supported zoom
-            TraceLog(LOG_WARNING, std::format("base_zoom {} is not tested; lowest tested is {}", world.base_zoom, min_tested_zoom).c_str());
+            TraceLog(LOG_WARNING, "base_zoom %d is not tested; lowest tested is %d", world.base_zoom, min_tested_zoom);
         }
 
         int res = min_resolution;
