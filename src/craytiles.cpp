@@ -3,6 +3,7 @@
 /// Translates C structs / opaque handles into raytiles::streamer calls.
 #include "../include/raytiles/craytiles.h"
 
+#include <algorithm>
 #include <new>
 #include <string>
 #include <utility>
@@ -28,12 +29,47 @@ struct [[maybe_unused]] RaytilesStreamer {
     }
 };
 
+namespace {
+    // Library-owned static storage for the default per-zoom thresholds.
+    // Populated lazily on the first call to RaytilesConfigDefault() from the
+    // C++ streaming_config defaults, so the two stay in sync automatically.
+    // RaytilesConfigDefault() points its threshold_zooms / threshold_values
+    // pointers at these arrays.
+    struct default_thresholds_storage {
+        std::vector<int> zooms;
+        std::vector<float> values;
+    };
+
+    const default_thresholds_storage &default_thresholds() {
+        static const default_thresholds_storage storage = [] {
+            const raytiles::streaming_config s{};
+            default_thresholds_storage out;
+            out.zooms.reserve(s.thresholds.size());
+            out.values.reserve(s.thresholds.size());
+            // sort by zoom so callers iterating the arrays get a stable order
+            std::vector<std::pair<int, float> > entries(s.thresholds.begin(), s.thresholds.end());
+            std::sort(entries.begin(), entries.end(),
+                      [](const auto &a, const auto &b) { return a.first < b.first; });
+            for (const auto &[zoom, value] : entries) {
+                out.zooms.push_back(zoom);
+                out.values.push_back(value);
+            }
+            return out;
+        }();
+        return storage;
+    }
+}
+
 extern "C" {
 RaytilesConfig RaytilesConfigDefault(void) {
     constexpr raytiles::world_config w{};
     const raytiles::streaming_config s{};
     constexpr raytiles::rendering_config r{};
     RaytilesConfig out{};
+    const auto &thresholds = default_thresholds();
+    out.threshold_zooms = thresholds.zooms.data();
+    out.threshold_values = thresholds.values.data();
+    out.thresholds_count = static_cast<int>(thresholds.zooms.size());
     out.base_zoom = w.base_zoom;
     out.max_zoom = w.max_zoom;
     out.base_zoom_tile_size = w.base_zoom_tile_size;
@@ -160,17 +196,17 @@ void RaytilesStreamerDestroy(const RaytilesStreamer *streamer) {
     delete streamer;
 }
 
-void RaytilesStreamerUpdate(RaytilesStreamer *streamer, const Camera3D &camera) {
+void RaytilesStreamerUpdate(RaytilesStreamer *streamer, Camera3D camera) {
     if (!streamer) return;
     streamer->impl.update(camera);
 }
 
-void RaytilesStreamerDraw(RaytilesStreamer *streamer, const Camera3D &camera) {
+void RaytilesStreamerDraw(RaytilesStreamer *streamer, Camera3D camera) {
     if (!streamer) return;
     streamer->impl.draw(camera);
 }
 
-void RaytilesStreamerDebug(RaytilesStreamer *streamer, const Camera3D &camera) {
+void RaytilesStreamerDebug(RaytilesStreamer *streamer, Camera3D camera) {
     if (!streamer) return;
     streamer->impl.debug(camera);
 }

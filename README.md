@@ -39,7 +39,7 @@ open an issue!
 - **RAII** everywhere: zero manual `Unload*` calls, zero leaks on error paths.
 - Pure **C++** and **C** wrapper APIs (`raytiles.h` and `craytiles.h`).
 - **Cross-platform** builds for Windows, Linux, and macOS.
-- **Configurable**: fit it to your needs by tweaking `raytiles::config` fields.
+- **Configurable**: fit it to your needs by tweaking `raytiles::world_config`, `raytiles::streaming_config`, `raytiles::rendering_config`, and `raytiles::pool_config` fields.
 - **Open source** and permissively licensed (MIT).
 
 ## 3D Tiles
@@ -155,10 +155,10 @@ You can use the following tools to find the tile coordinates for a specific loca
 Find the tile at zoom 9 closest to your area of interest and put those values in the configuration:
 
 ```c++
-raytiles::config conf;
+raytiles::world_config world;
 
-conf.anchor_x_tile = 123;
-conf.anchor_z_tile = 456;
+world.anchor_x_tile = 123;
+world.anchor_z_tile = 456;
 ```
 
 ## Providers
