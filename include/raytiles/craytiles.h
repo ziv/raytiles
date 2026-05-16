@@ -45,7 +45,7 @@ typedef struct RaytilesConfig {
     /// Normals XY multiplier (lighting contrast factor).
     float normals_scale;
     /// Squared XZ distance the camera must travel to trigger a re-stream.
-    float update_distance;
+    float update_distance_sq;
     /// Altitude delta (meters) that triggers a re-stream.
     float update_height;
     /// Per-frame wall-clock budget (seconds) for promoting tiles to GPU.
@@ -153,15 +153,15 @@ void RaytilesStreamerDestroy(const RaytilesStreamer *streamer);
 /// Updates the desired tile set based on the camera and promotes any finished
 /// downloads to GPU. Cheap to call every frame; internally rate-limited by
 /// `RaytilesConfig::upload_budget_sec` and `max_uploads_per_frame`.
-void RaytilesStreamerUpdate(RaytilesStreamer *streamer, const Camera3D &camera);
+void RaytilesStreamerUpdate(RaytilesStreamer *streamer, Camera3D camera);
 
 /// Renders all currently loaded tiles. Call between `BeginMode3D` /
 /// `EndMode3D` with the same camera passed to `RaytilesStreamerUpdate`.
-void RaytilesStreamerDraw(RaytilesStreamer *streamer, const Camera3D &camera);
+void RaytilesStreamerDraw(RaytilesStreamer *streamer, Camera3D camera);
 
 /// Draws a 2D debug HUD with per-tile zoom levels. Call between
 /// `BeginDrawing` / `EndDrawing`, after `EndMode3D`.
-void RaytilesStreamerDebug(RaytilesStreamer *streamer, const Camera3D &camera);
+void RaytilesStreamerDebug(RaytilesStreamer *streamer, Camera3D camera);
 
 /// Draws 3D debug overlays (tile bounds). Call inside the same
 /// `BeginMode3D` / `EndMode3D` block as `RaytilesStreamerDraw`.

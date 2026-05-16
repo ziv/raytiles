@@ -44,7 +44,7 @@ RaytilesConfig RaytilesConfigDefault(void) {
     out.use_mipmap = w.use_mipmap;
     out.use_logger = w.use_logger;
     out.rendering_radius = s.rendering_radius;
-    out.update_distance = static_cast<float>(s.update_distance_sq);
+    out.update_distance_sq = static_cast<float>(s.update_distance_sq);
     out.update_height = s.update_height;
     out.upload_budget_sec = s.upload_budget_sec;
     out.max_uploads_per_frame = s.max_uploads_per_frame;
@@ -104,7 +104,7 @@ RaytilesStreamer *RaytilesStreamerCreate(const RaytilesConfig *conf,
 
     raytiles::streaming_config s{};
     s.rendering_radius = conf->rendering_radius;
-    s.update_distance_sq = conf->update_distance;
+    s.update_distance_sq = conf->update_distance_sq;
     s.update_height = conf->update_height;
     s.upload_budget_sec = conf->upload_budget_sec;
     s.max_uploads_per_frame = conf->max_uploads_per_frame;
