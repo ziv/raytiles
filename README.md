@@ -39,7 +39,8 @@ open an issue!
 - **RAII** everywhere: zero manual `Unload*` calls, zero leaks on error paths.
 - Pure **C++** and **C** wrapper APIs (`raytiles.h` and `craytiles.h`).
 - **Cross-platform** builds for Windows, Linux, and macOS.
-- **Configurable**: fit it to your needs by tweaking `raytiles::world_config`, `raytiles::streaming_config`, `raytiles::rendering_config`, and `raytiles::pool_config` fields.
+- **Configurable**: fit it to your needs by tweaking `raytiles::world_config`, `raytiles::streaming_config`,
+  `raytiles::rendering_config`, and `raytiles::pool_config` fields.
 - **Open source** and permissively licensed (MIT).
 
 ## 3D Tiles
@@ -183,7 +184,7 @@ The default texture provider is configured as follows:
 ```c++
 raytiles::pool_config pool_conf;
 
-pool_conf.texture_url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{zoom}/{y}/{x}";
+pool_conf.texture_url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/:zoom:/:y:/:x:";
 ```
 
 Example of using **Mapbox** as texture provider (requires an access token):
@@ -191,7 +192,7 @@ Example of using **Mapbox** as texture provider (requires an access token):
 ```c++
 raytiles::pool_config pool_conf;
 
-pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/{zoom}/{x}/{y}.pngraw?access_token=YOUR_MAPBOX_ACCESS_TOKEN";
+pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=YOUR_MAPBOX_ACCESS_TOKEN";
 ```
 
 ## Caching

@@ -39,9 +39,9 @@ namespace raytiles {
     }
 
     static std::string get_url(std::string url, const int zoom, const int x, const int y) {
-        replace(url, "{zoom}", std::to_string(zoom));
-        replace(url, "{x}", std::to_string(x));
-        replace(url, "{y}", std::to_string(y));
+        replace(url, ":zoom:", std::to_string(zoom));
+        replace(url, ":x:", std::to_string(x));
+        replace(url, ":y:", std::to_string(y));
         return url;
     }
 

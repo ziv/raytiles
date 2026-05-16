@@ -21,7 +21,7 @@ int main() {
 
     Camera3D camera;
     camera.position = Vector3{3000.0f, 5000.0f, 3000.0f};
-    camera.target = Vector3{10000.0f, 0.0f, 1000.0f};
+    camera.target = Vector3{-1000.0f, 2500.0f, -1000.0f};
     camera.up = Vector3{0.0f, 1.0f, 0.0f};
     camera.fovy = 60.0f;
     camera.projection = CAMERA_PERSPECTIVE;

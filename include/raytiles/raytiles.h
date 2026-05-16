@@ -15,15 +15,16 @@
 #include "detail/utils.hpp"
 
 #ifndef RAYTILES_TEXTURE_URL
-#define RAYTILES_TEXTURE_URL "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{zoom}/{y}/{x}"
+// the order zoom/y/x is not a mistake, that is the way Esri encoded their URLs
+#define RAYTILES_TEXTURE_URL "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/:zoom:/:y:/:x:"
 #endif
 
 #ifndef RAYTILES_HEIGHTMAP_URL
-#define RAYTILES_HEIGHTMAP_URL "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{zoom}/{x}/{y}.png"
+#define RAYTILES_HEIGHTMAP_URL "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/:zoom:/:x:/:y:.png"
 #endif
 
 #ifndef RAYTILES_NORMALS_URL
-#define RAYTILES_NORMALS_URL "https://s3.amazonaws.com/elevation-tiles-prod/normal/{zoom}/{x}/{y}.png"
+#define RAYTILES_NORMALS_URL "https://s3.amazonaws.com/elevation-tiles-prod/normal/:zoom:/:x:/:y:.png"
 #endif
 
 
@@ -208,11 +209,12 @@ namespace raytiles {
 
         int draw(const Vector3 &position, const DebugView &draw_view);
 
-        /// Draws a 2D HUD with streamer statistics (loaded / loading counts, etc.).
+        /// Draws a 2D HUD with streamer statistics (loaded / loading counts, etc.)
+        /// and zoom labels above the tiles
         /// Call between `BeginDrawing` / `EndDrawing`, after `EndMode3D`.
         static void debug(const Camera3D &camera, const DebugView &draw_view);
 
-        /// Draws 3D debug overlays (tile bounds, LOD seams). Call inside the same
+        /// Draws 3D debug overlays (tile bounds). Call inside the same
         /// `BeginMode3D` / `EndMode3D` block as `draw`.
         static void debug_3d(const DebugView &draw_view);
 
