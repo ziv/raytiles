@@ -4,7 +4,7 @@
 #include "shaders.hpp"
 
 namespace raytiles {
-    renderer::renderer(rendering_config &conf) : rendering(conf),
+    renderer::renderer(rendering_config conf) : rendering(std::move(conf)),
                                                  displacement_shader(raii::load_shader_from_memory(shaders::vertex_shader, shaders::fragment_shader)) {
         material = raii::material{LoadMaterialDefault()};
         material->shader = *displacement_shader;
@@ -22,6 +22,7 @@ namespace raytiles {
         normal_scale_loc = GetShaderLocation(*displacement_shader, "normalScale");
         fog_start_loc = GetShaderLocation(*displacement_shader, "fogStart");
         fog_end_loc = GetShaderLocation(*displacement_shader, "fogEnd");
+        skirt_drop = GetShaderLocation(*displacement_shader, "skirtDrop");
 
         // validate all slots populated
         if (-1 == cam_pos_loc ||
@@ -36,6 +37,7 @@ namespace raytiles {
             -1 == normal_scale_loc ||
             -1 == fog_start_loc ||
             -1 == fog_end_loc
+            // -1 == skirt_drop
         ) {
             throw std::runtime_error("failed to get shader locations");
         }
@@ -52,6 +54,7 @@ namespace raytiles {
         SetShaderValue(*displacement_shader, fog_start_loc, &rendering.fog_start, SHADER_UNIFORM_FLOAT);
         SetShaderValue(*displacement_shader, fog_end_loc, &rendering.fog_end, SHADER_UNIFORM_FLOAT);
         SetShaderValue(*displacement_shader, sun_scale_loc, &rendering.sun_scale, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(*displacement_shader, skirt_drop, &rendering.skirt_drop, SHADER_UNIFORM_FLOAT);
 
         update_shader_uniforms();
     }
@@ -59,6 +62,7 @@ namespace raytiles {
     int renderer::draw(const Vector3 &position, const DebugView &draw_view) {
         int rendered = 0;
         SetShaderValue(*displacement_shader, cam_pos_loc, &position, SHADER_UNIFORM_VEC3);
+        update_shader_uniforms();
 
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
             if (const auto &t = draw_view.tiles.at(key.zoom); utils::is_tile_in_frustum(tile.tx, tile.tz, t.size, draw_view.frustum)) {

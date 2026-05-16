@@ -137,9 +137,9 @@ public:
         // 0 so that motion fades out for a couple of frames after the user
         // stops, instead of cutting off sharply.
         if (mouse_look_) {
-            const Vector2 md = GetMouseDelta();
-            const float target_mx = -md.x * cfg_.mouse_sensitivity;
-            const float target_my = -md.y * cfg_.mouse_sensitivity;
+            const auto [x, y] = GetMouseDelta();
+            const float target_mx = -x * cfg_.mouse_sensitivity;
+            const float target_my = -y * cfg_.mouse_sensitivity;
             const float t_mouse = smooth_factor(cfg_.mouse_smooth_time, dt);
             mouse_yaw_ = lerp(mouse_yaw_, target_mx, t_mouse);
             mouse_pitch_ = lerp(mouse_pitch_, target_my, t_mouse);
@@ -165,12 +165,12 @@ private:
     // Frame-rate independent exponential smoothing factor.
     // tau is the "time constant" — after ~tau seconds the lerp covers ~63%.
     // tau<=0 disables smoothing (returns 1, i.e. snap to target).
-    static float smooth_factor(float tau, float dt) noexcept {
+    static float smooth_factor(const float tau, const float dt) noexcept {
         if (tau <= 0.0f || dt <= 0.0f) return 1.0f;
         return 1.0f - std::exp(-dt / tau);
     }
 
-    static float lerp(float a, float b, float t) noexcept {
+    static float lerp(const float a, const float b, const float t) noexcept {
         return a + (b - a) * t;
     }
 

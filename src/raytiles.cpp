@@ -29,15 +29,16 @@ namespace raytiles {
 
     streamer::streamer(streamer &&) noexcept = default;
 
-    streamer::streamer(const world_config &world_conf,
-                       const streaming_config &streaming_conf,
-                       const rendering_config &rendering_conf,
-                       const pool_config &pool_conf)
-        : world(world_conf),
-          streaming(streaming_conf),
-          rendering(rendering_conf),
-          tile_renderer(rendering),
-          tile_downloader(std::make_unique<pool>(pool_conf)),
+    streamer::streamer(world_config world_conf,
+                       streaming_config streaming_conf,
+                       rendering_config rendering_conf,
+                       pool_config pool_conf)
+        : near_plane(rendering_conf.near_plane), // take from rendering what we need before loosing ownership
+          far_plane(rendering_conf.far_plane),
+          world(std::move(world_conf)),
+          streaming(std::move(streaming_conf)),
+          tile_renderer(std::move(rendering_conf)),
+          tile_downloader(std::make_unique<pool>(std::move(pool_conf))),
           width(static_cast<float>(GetScreenWidth())),
           height(static_cast<float>(GetScreenHeight())) {
         // input validation
@@ -57,22 +58,26 @@ namespace raytiles {
                 // don't start with missing items
                 throw std::runtime_error(std::format("missing distance threshold for zoom {}", zoom));
             }
+            if (!world.skirt_overlap.contains(zoom)) {
+                // don't start with missing items
+                throw std::runtime_error(std::format("missing skirt_overlap for zoom {}", zoom));
+            }
             const auto ratio = static_cast<float>(1 << (zoom - world.base_zoom));
             const auto size = world.base_zoom_tile_size / ratio;
-            const auto skirt_size = world.skirt_size * ratio;
             const auto th = streaming.thresholds.at(zoom); // safe (see check at the beginning of loop)
+            const auto skirt_factor = world.skirt_overlap.at(zoom); // safe (see check at the beginning of loop)
 
             tiles[zoom] = tile_value{
                 size,
                 th * th,
-                raii::mesh{GenMeshPlane(size + skirt_size, size + skirt_size, res, res)}
+                raii::mesh{GenMeshPlane(size * skirt_factor, size * skirt_factor, res, res)}
             };
             res = std::min(res * 2, max_resolution);
         }
 
         // todo should be set as part of height?! (i.e. in "process_current_location")
         // set the rendering distance
-        rlSetClipPlanes(rendering.near_plane, rendering.far_plane);
+        rlSetClipPlanes(near_plane, far_plane);
 
         if (world.use_logger) TraceLog(LOG_INFO, "raytiles streamer initialized");
     }
@@ -103,8 +108,8 @@ namespace raytiles {
         last_frustum = utils::extract_frustum(camera,
                                               width,
                                               height,
-                                              static_cast<float>(rendering.near_plane),
-                                              static_cast<float>(rendering.far_plane)
+                                              near_plane,
+                                              far_plane
         );
     }
 

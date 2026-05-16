@@ -1,10 +1,5 @@
-#include <algorithm>
-#include <string>
-
 #include <raytiles/raytiles.h>
 #include "fly.h"
-#include <rlgl.h>
-#include <raymath.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 #endif
@@ -42,22 +37,14 @@ int main() {
 #endif
     double last_sync_time = GetTime();
 
-
-    // streamer configuration, set the anchor tiles (currently around greece)
     raytiles::world_config world;
-    world.use_logger = true;
-    world.anchor_x_tile = 294.0f; // somewhere at greece
-    world.anchor_z_tile = 199.0f;
-    world.skirt_size = 0.5f;
-
     raytiles::streaming_config streaming;
     raytiles::rendering_config rendering;
-    rendering.height_scale = 2.0f;
+    raytiles::pool_config pool;
 
-    // pool configuration, set your mapbox token
-    raytiles::pool_config pool_conf;
-    pool_conf.download_threads = 8; // just for fun
-    // pool_conf.use_logger = true;
+    // streamer configuration, set the anchor tiles (currently around greece)
+    world.anchor_x_tile = 294.0f;
+    world.anchor_z_tile = 199.0f;
 
 #ifdef __EMSCRIPTEN__
     pool_conf.texture_cache_path = "/assets/t/{}/{}/{}.png";
@@ -65,8 +52,8 @@ int main() {
 #endif
 
     // create the streamer with all configurations
-    raytiles::streamer streamer(world, streaming, rendering, pool_conf);
-    streamer.get_renderer().set_normals_scale(5.0f);
+    raytiles::streamer streamer(world, streaming, rendering, pool);
+    streamer.get_renderer().set_fog_color(SKYBLUE);
 
     Camera3D camera;
     camera.position = Vector3{3000.0f, 5000.0f, 3000.0f};
@@ -77,15 +64,8 @@ int main() {
 
     FreeCamera f(camera);
 
-    streamer.get_renderer().set_fog_color(SKYBLUE);
-    streamer.get_renderer().set_ambient_light(Color{200, 200, 200, 255});
-    float sun = 1.0f;
-
     auto update = [&] {
-        const auto dt = GetFrameTime();
-        f.update(camera, dt);
-
-        streamer.get_renderer().set_sun_direction(Vector3{0.1f, sun, 0.0f});
+        f.update(camera, GetFrameTime());
         streamer.update(camera);
 
         BeginDrawing();
@@ -94,16 +74,10 @@ int main() {
         BeginMode3D(camera);
         // draw the world around the camera
         streamer.draw(camera);
-        streamer.debug_3d();
         EndMode3D();
-        streamer.debug(camera);
         EndDrawing();
 
-        if (IsKeyDown(KEY_LEFT_BRACKET)) sun -= dt * 0.5f;
-        if (IsKeyDown(KEY_RIGHT_BRACKET)) sun += dt * 0.5f;
-        sun = std::clamp(sun, -1.0f, 1.0f);
-
-        // sync every 10 seconds
+        // sync file system in web env every 10 seconds
         if (GetTime() - last_sync_time > 10.0) {
             last_sync_time = GetTime();
 #ifdef __EMSCRIPTEN__

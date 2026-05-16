@@ -62,7 +62,6 @@ namespace {
 
 extern "C" {
 RaytilesConfig RaytilesConfigDefault(void) {
-    constexpr raytiles::world_config w{};
     const raytiles::streaming_config s{};
     constexpr raytiles::rendering_config r{};
     RaytilesConfig out{};
@@ -70,15 +69,6 @@ RaytilesConfig RaytilesConfigDefault(void) {
     out.threshold_zooms = thresholds.zooms.data();
     out.threshold_values = thresholds.values.data();
     out.thresholds_count = static_cast<int>(thresholds.zooms.size());
-    out.base_zoom = w.base_zoom;
-    out.max_zoom = w.max_zoom;
-    out.base_zoom_tile_size = w.base_zoom_tile_size;
-    out.skirt_size = w.skirt_size;
-    out.skirt_drop = w.skirt_drop;
-    out.anchor_x_tile = w.anchor_x_tile;
-    out.anchor_z_tile = w.anchor_z_tile;
-    out.use_mipmap = w.use_mipmap;
-    out.use_logger = w.use_logger;
     out.rendering_radius = s.rendering_radius;
     out.update_distance_sq = static_cast<float>(s.update_distance_sq);
     out.update_height = s.update_height;
@@ -131,8 +121,6 @@ RaytilesStreamer *RaytilesStreamerCreate(const RaytilesConfig *conf,
     w.base_zoom = conf->base_zoom;
     w.max_zoom = conf->max_zoom;
     w.base_zoom_tile_size = conf->base_zoom_tile_size;
-    w.skirt_size = conf->skirt_size;
-    w.skirt_drop = conf->skirt_drop;
     w.anchor_x_tile = conf->anchor_x_tile;
     w.anchor_z_tile = conf->anchor_z_tile;
     w.use_mipmap = conf->use_mipmap;

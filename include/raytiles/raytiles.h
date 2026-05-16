@@ -57,15 +57,17 @@ namespace raytiles {
         /// are scaled by `1 / (1 << (zoom - base_zoom))`.
         float base_zoom_tile_size = 66400.0f;
 
-        /// Skirt geometry overlap factor (per side) used to hide cracks between
-        /// neighboring tiles at different LODs. Expressed relative to a tile at
-        /// `max_zoom`. Baked into generated meshes.
-        float skirt_size = 0.01f;
-
-        /// Vertical drop (in meters) of the skirt geometry below each tile's edge.
-        /// Larger values hide cracks more reliably but cost more fill rate. Baked
-        /// into generated meshes.
-        Meters skirt_drop = 1000.0f;
+        /// Per-zoom skirt overlap factors, allowing you to tweak the amount of overlap
+        /// (and thus fill rate) at different zoom levels. Baked into generated meshes.
+        std::unordered_map<Zoom, float> skirt_overlap = {
+            {9, 1.00f},
+            {10, 1.00f},
+            {11, 1.00f},
+            {12, 1.00f},
+            {13, 1.00f},
+            {14, 1.01f},
+            {15, 1.02f}
+        };
 
         /// Generate trilinear / anisotropic mipmaps for the albedo texture on
         /// upload. Strongly recommended; avoids shimmering at distance.
@@ -137,6 +139,11 @@ namespace raytiles {
         /// Distance (in meters) at which fog reaches full cover.
         Meters fog_end = 150000.0f;
 
+        /// Vertical drop (in meters) of the skirt geometry below each tile's edge.
+        /// Larger values hide cracks more reliably but cost more fill rate.
+        /// Baked into shader. 0 disable this feature.
+        Meters skirt_drop = 0.0f;
+
         /// Fog color (RGBA, 0..1). Match this to your sky color for a seamless
         /// horizon.
         float fog_color[4] = {0.0f, 0.0f, 1.0f, 1.0f};
@@ -205,7 +212,7 @@ namespace raytiles {
 
     class renderer {
     public:
-        explicit renderer(rendering_config &conf);
+        explicit renderer(rendering_config conf);
 
         int draw(const Vector3 &position, const DebugView &draw_view);
 
@@ -268,7 +275,7 @@ namespace raytiles {
     private:
         void update_shader_uniforms();
 
-        rendering_config &rendering;
+        rendering_config rendering;
 
         raii::shader displacement_shader;
         raii::material material{};
@@ -286,6 +293,7 @@ namespace raytiles {
         int normal_scale_loc = -1;
         int fog_start_loc = -1;
         int fog_end_loc = -1;
+        int skirt_drop = -1;
     };
 
     /// Per-frame driver that maintains the working set of tiles around a camera
@@ -316,10 +324,10 @@ namespace raytiles {
         /// @note A raylib window must already be initialized (`InitWindow`) before
         ///       constructing a streamer because shader / texture creation requires
         ///       a live GL context.
-        explicit streamer(const world_config &world_conf = {},
-                          const streaming_config &streaming_conf = {},
-                          const rendering_config &rendering_conf = {},
-                          const pool_config &pool_conf = {});
+        explicit streamer(world_config world_conf = {},
+                          streaming_config streaming_conf = {},
+                          rendering_config rendering_conf = {},
+                          pool_config pool_conf = {});
 
         ~streamer();
 
@@ -378,9 +386,10 @@ namespace raytiles {
         [[nodiscard]] bool is_tile_out_of_area(const tile_key &key) const;
 
         // configuration
+        float near_plane;
+        float far_plane;
         world_config world;
         streaming_config streaming;
-        rendering_config rendering;
 
         // exposed in the public header (part of the API)
         renderer tile_renderer;
