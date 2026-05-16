@@ -98,11 +98,12 @@ namespace raytiles::utils {
     }
 
     inline void normalize_plane(Plane &p) {
-        const float mag = sqrtf(p.normal.x * p.normal.x + p.normal.y * p.normal.y + p.normal.z * p.normal.z);
-        p.normal.x /= mag;
-        p.normal.y /= mag;
-        p.normal.z /= mag;
-        p.distance /= mag;
+        if (const float mag = sqrtf(p.normal.x * p.normal.x + p.normal.y * p.normal.y + p.normal.z * p.normal.z); mag > 0.0f) {
+            p.normal.x /= mag;
+            p.normal.y /= mag;
+            p.normal.z /= mag;
+            p.distance /= mag;
+        }
     }
 
     inline Frustum extract_frustum(const Camera3D &camera, const float screen_width, const float screen_height, const float near_plane, const float far_plane) {
