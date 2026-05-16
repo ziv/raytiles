@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.3](https://github.com/ziv/raytiles/compare/v0.8.2...v0.8.3) (2026-05-16)
+
+
+### Bug Fixes
+
+* altitude re-stream condition is inverted ([11d3192](https://github.com/ziv/raytiles/commit/11d3192cd5abf99ec44ce65d5d589d335399a87d))
+* c hrader in not c compatible ([11d3192](https://github.com/ziv/raytiles/commit/11d3192cd5abf99ec44ce65d5d589d335399a87d))
+* distance_to_horizon returns NaN for position.y &lt;= 0 ([11d3192](https://github.com/ziv/raytiles/commit/11d3192cd5abf99ec44ce65d5d589d335399a87d))
+* normalize_plane divides by zero ([11d3192](https://github.com/ziv/raytiles/commit/11d3192cd5abf99ec44ce65d5d589d335399a87d))
+* RaytilesConfigDefault() returns a struct that cannot construct a streamer ([11d3192](https://github.com/ziv/raytiles/commit/11d3192cd5abf99ec44ce65d5d589d335399a87d))
+* update check change in distance by xz ([11d3192](https://github.com/ziv/raytiles/commit/11d3192cd5abf99ec44ce65d5d589d335399a87d))
+
 ## [0.8.2](https://github.com/ziv/raytiles/compare/v0.8.1...v0.8.2) (2026-05-15)
 
 
