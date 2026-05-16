@@ -58,10 +58,30 @@ namespace {
         }();
         return storage;
     }
+
+    // Same idea as default_thresholds(), but seeded from world_config::skirt_overlap.
+    const default_thresholds_storage &default_skirt_overlap() {
+        static const default_thresholds_storage storage = [] {
+            const raytiles::world_config w{};
+            default_thresholds_storage out;
+            out.zooms.reserve(w.skirt_overlap.size());
+            out.values.reserve(w.skirt_overlap.size());
+            std::vector<std::pair<int, float> > entries(w.skirt_overlap.begin(), w.skirt_overlap.end());
+            std::sort(entries.begin(), entries.end(),
+                      [](const auto &a, const auto &b) { return a.first < b.first; });
+            for (const auto &[zoom, value] : entries) {
+                out.zooms.push_back(zoom);
+                out.values.push_back(value);
+            }
+            return out;
+        }();
+        return storage;
+    }
 }
 
 extern "C" {
 RaytilesConfig RaytilesConfigDefault(void) {
+    const raytiles::world_config w{};
     const raytiles::streaming_config s{};
     constexpr raytiles::rendering_config r{};
     RaytilesConfig out{};
@@ -69,8 +89,19 @@ RaytilesConfig RaytilesConfigDefault(void) {
     out.threshold_zooms = thresholds.zooms.data();
     out.threshold_values = thresholds.values.data();
     out.thresholds_count = static_cast<int>(thresholds.zooms.size());
+    const auto &skirt = default_skirt_overlap();
+    out.skirt_overlap_zooms = skirt.zooms.data();
+    out.skirt_overlap_values = skirt.values.data();
+    out.skirt_overlap_count = static_cast<int>(skirt.zooms.size());
+    out.base_zoom = w.base_zoom;
+    out.max_zoom = w.max_zoom;
+    out.base_zoom_tile_size = w.base_zoom_tile_size;
+    out.anchor_x_tile = w.anchor_x_tile;
+    out.anchor_z_tile = w.anchor_z_tile;
+    out.use_mipmap = w.use_mipmap;
+    out.use_logger = w.use_logger;
     out.rendering_radius = s.rendering_radius;
-    out.update_distance_sq = static_cast<float>(s.update_distance_sq);
+    out.update_distance_sq = s.update_distance_sq;
     out.update_height = s.update_height;
     out.upload_budget_sec = s.upload_budget_sec;
     out.max_uploads_per_frame = s.max_uploads_per_frame;
@@ -78,6 +109,7 @@ RaytilesConfig RaytilesConfigDefault(void) {
     out.far_plane = r.far_plane;
     out.fog_start = r.fog_start;
     out.fog_end = r.fog_end;
+    out.skirt_drop = r.skirt_drop;
     out.fog_color[0] = r.fog_color[0];
     out.fog_color[1] = r.fog_color[1];
     out.fog_color[2] = r.fog_color[2];
@@ -125,6 +157,12 @@ RaytilesStreamer *RaytilesStreamerCreate(const RaytilesConfig *conf,
     w.anchor_z_tile = conf->anchor_z_tile;
     w.use_mipmap = conf->use_mipmap;
     w.use_logger = conf->use_logger;
+    if (conf->skirt_overlap_zooms && conf->skirt_overlap_values) {
+        w.skirt_overlap.clear();
+        for (int i = 0; i < conf->skirt_overlap_count; ++i) {
+            w.skirt_overlap[conf->skirt_overlap_zooms[i]] = conf->skirt_overlap_values[i];
+        }
+    }
 
     raytiles::streaming_config s{};
     s.rendering_radius = conf->rendering_radius;
@@ -144,6 +182,7 @@ RaytilesStreamer *RaytilesStreamerCreate(const RaytilesConfig *conf,
     r.far_plane = conf->far_plane;
     r.fog_start = conf->fog_start;
     r.fog_end = conf->fog_end;
+    r.skirt_drop = conf->skirt_drop;
     r.fog_color[0] = conf->fog_color[0];
     r.fog_color[1] = conf->fog_color[1];
     r.fog_color[2] = conf->fog_color[2];

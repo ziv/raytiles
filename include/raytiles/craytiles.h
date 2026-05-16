@@ -44,14 +44,14 @@ typedef struct RaytilesConfig {
     float base_zoom_tile_size;
     /// Radius of the loaded-tile disc, in `base_zoom` tiles.
     int rendering_radius;
-    /// Skirt geometry overlap factor (per side) used to hide LOD seams.
-    float skirt_size;
     /// Heightmap multiplier (drama factor).
     float height_scale;
     /// Normals XY multiplier (lighting contrast factor).
     float normals_scale;
     /// Squared XZ distance the camera must travel to trigger a re-stream.
-    float update_distance_sq;
+    /// Type matches the C++ `MetersSq` (double) so values larger than
+    /// ~16.7M m² (i.e. ~4km travel) round-trip without precision loss.
+    double update_distance_sq;
     /// Altitude delta (meters) that triggers a re-stream.
     float update_height;
     /// Per-frame wall-clock budget (seconds) for promoting tiles to GPU.
@@ -102,6 +102,20 @@ typedef struct RaytilesConfig {
     const int *threshold_zooms;
     const float *threshold_values;
     int thresholds_count;
+
+    /// Per-zoom skirt overlap factors (baked into generated meshes). Parallel
+    /// arrays mirroring `raytiles::world_config::skirt_overlap`:
+    ///   `skirt_overlap_zooms[i]`  is the zoom level
+    ///   `skirt_overlap_values[i]` is the overlap factor for that zoom
+    /// `skirt_overlap_count` is the number of entries (must cover every zoom
+    /// in `[base_zoom, max_zoom]`).
+    ///
+    /// `RaytilesConfigDefault()` points these at library-owned static storage
+    /// seeded from `world_config::skirt_overlap`. The arrays only need to
+    /// remain valid for the duration of the `RaytilesStreamerCreate` call.
+    const int *skirt_overlap_zooms;
+    const float *skirt_overlap_values;
+    int skirt_overlap_count;
 } RaytilesConfig;
 
 /// Pool / provider parameters. Mirrors `raytiles::pool_config`.
