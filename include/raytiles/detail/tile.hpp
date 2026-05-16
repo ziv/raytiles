@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <future>
 #include <string>
 
@@ -53,12 +54,24 @@ namespace raytiles {
 template<>
 struct std::hash<raytiles::tile_key> {
     std::size_t operator()(const raytiles::tile_key &key) const noexcept {
-        std::size_t seed = 0;
+        // Bit-pack into a 64-bit word, then apply SplitMix64's finalizer.
+        // Field budget: zoom fits in 5 bits (max supported is 15); x/z fit in
+        // ~30 bits each (at zoom 15 the world has 2^15 tiles per side, anchor
+        // shifts keep us well inside int32). We cast through uint32_t first so
+        // negative coordinates (anchor-relative) preserve their bit pattern.
+        const auto z32 = static_cast<std::uint64_t>(static_cast<std::uint32_t>(key.zoom));
+        const auto x32 = static_cast<std::uint64_t>(static_cast<std::uint32_t>(key.x));
+        const auto y32 = static_cast<std::uint64_t>(static_cast<std::uint32_t>(key.z));
 
-        seed ^= key.zoom + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= key.x + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= key.z + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        std::uint64_t h = (z32 << 60) ^ (x32 << 30) ^ y32;
 
-        return seed;
+        // SplitMix64 finalizer — strong avalanche, no loops.
+        h ^= h >> 30;
+        h *= 0xbf58476d1ce4e5b9ULL;
+        h ^= h >> 27;
+        h *= 0x94d049bb133111ebULL;
+        h ^= h >> 31;
+
+        return static_cast<std::size_t>(h);
     }
 };
