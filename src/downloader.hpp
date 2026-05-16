@@ -30,6 +30,7 @@
 #endif
 
 namespace raytiles {
+    // replaces first occurrence by design
     static void replace(std::string &str, const std::string &from, const std::string &to) {
         if (from.empty()) return;
         const size_t pos = str.find(from);
@@ -271,6 +272,7 @@ namespace raytiles {
             workers.clear();
         }
 
+        // Cancel job only if not already picked up
         void cancel_load(const std::string &path) {
             std::lock_guard lock(mtx);
             if (in_flight_bytes.contains(path)) {
@@ -299,6 +301,8 @@ namespace raytiles {
         // that window, it receives a future that is already satisfied - which is
         // exactly the desired behavior (the bytes are immediately available, no
         // duplicate download is queued).
+        //
+        // rare race may cause a single tile to be re-read from cache
         std::shared_future<std::string> enqueue_and_load(const std::string &path, const std::string &url, const request_type type = TEXTURE) {
             std::lock_guard lock(mtx);
 
