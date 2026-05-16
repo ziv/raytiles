@@ -47,8 +47,8 @@ int main() {
     world.anchor_z_tile = 199.0f;
 
 #ifdef __EMSCRIPTEN__
-    pool_conf.texture_cache_path = "/assets/t/{}/{}/{}.png";
-    pool_conf.heightmap_cache_path = "/assets/h/{}/{}/{}.png";
+    pool.texture_cache_path = "/assets/t/{}/{}/{}.png";
+    pool.heightmap_cache_path = "/assets/h/{}/{}/{}.png";
 #endif
 
     // create the streamer with all configurations
