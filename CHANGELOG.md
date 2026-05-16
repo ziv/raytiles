@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.5](https://github.com/ziv/raytiles/compare/v0.8.4...v0.8.5) (2026-05-16)
+
+
+### Bug Fixes
+
+* change url configuration format ([#63](https://github.com/ziv/raytiles/issues/63)) ([a262fe3](https://github.com/ziv/raytiles/commit/a262fe3bac0faf493b479adcedf513c31d501f47))
+
 ## [0.8.4](https://github.com/ziv/raytiles/compare/v0.8.3...v0.8.4) (2026-05-16)
 
 
