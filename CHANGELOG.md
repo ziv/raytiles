@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.6](https://github.com/ziv/raytiles/compare/v0.8.5...v0.8.6) (2026-05-16)
+
+
+### Bug Fixes
+
+* align c api with public c++ ones ([b472756](https://github.com/ziv/raytiles/commit/b472756532a67be0ca5cad0795c6612cc4f4cc03))
+* rename configuration var ([b472756](https://github.com/ziv/raytiles/commit/b472756532a67be0ca5cad0795c6612cc4f4cc03))
+* skirt and shaders communication ([b472756](https://github.com/ziv/raytiles/commit/b472756532a67be0ca5cad0795c6612cc4f4cc03))
+
 ## [0.8.5](https://github.com/ziv/raytiles/compare/v0.8.4...v0.8.5) (2026-05-16)
 
 
