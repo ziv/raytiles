@@ -1,126 +1,216 @@
 /// @file craytiles.cpp
-/// Implementation of the C wrapper declared in craytiles.h.
-/// Translates C structs / opaque handles into raytiles::streamer calls.
+/// Implementation of the C wrapper declared in craytiles.h. Translates C
+/// structs / opaque handles into raytiles::streamer + raytiles::renderer calls.
 #include "../include/raytiles/craytiles.h"
 
 #include <algorithm>
 #include <new>
 #include <string>
 #include <utility>
-#include <unordered_map>
 #include <vector>
 
 #include "../include/raytiles/raytiles.h"
 
+// ---------------------------------------------------------------------------
+//  Opaque handle types
+// ---------------------------------------------------------------------------
+
+struct RaytilesStreamer {
+    raytiles::streamer impl;
+
+    RaytilesStreamer(raytiles::world_config w,
+                     raytiles::streaming_config s,
+                     raytiles::rendering_config r,
+                     raytiles::pool_config p)
+        : impl(std::move(w), std::move(s), std::move(r), std::move(p)) {
+    }
+};
+
+// RaytilesRenderer is just an alias for raytiles::renderer at the ABI level;
+// reinterpret_cast through these helpers keeps the public header free of any
+// C++ types.
 namespace {
+    raytiles::renderer *to_cpp(RaytilesRenderer *r) {
+        return reinterpret_cast<raytiles::renderer *>(r);
+    }
+
+    RaytilesRenderer *to_c(raytiles::renderer *r) {
+        return reinterpret_cast<RaytilesRenderer *>(r);
+    }
+
     std::string to_string_or_empty(const char *s) {
         return s ? std::string(s) : std::string();
     }
 }
 
-struct [[maybe_unused]] RaytilesStreamer {
-    raytiles::streamer impl;
-
-    RaytilesStreamer(const raytiles::world_config &w,
-                     const raytiles::streaming_config &s,
-                     const raytiles::rendering_config &r,
-                     const raytiles::pool_config &p)
-        : impl(w, s, r, p) {
-    }
-};
+// ---------------------------------------------------------------------------
+//  Library-owned static storage for per-zoom defaults
+// ---------------------------------------------------------------------------
 
 namespace {
-    // Library-owned static storage for the default per-zoom thresholds.
-    // Populated lazily on the first call to RaytilesConfigDefault() from the
-    // C++ streaming_config defaults, so the two stay in sync automatically.
-    // RaytilesConfigDefault() points its threshold_zooms / threshold_values
-    // pointers at these arrays.
-    struct default_thresholds_storage {
+    struct zoom_map_storage {
         std::vector<int> zooms;
         std::vector<float> values;
     };
 
-    const default_thresholds_storage &default_thresholds() {
-        static const default_thresholds_storage storage = [] {
-            const raytiles::streaming_config s{};
-            default_thresholds_storage out;
-            out.zooms.reserve(s.thresholds.size());
-            out.values.reserve(s.thresholds.size());
-            // sort by zoom so callers iterating the arrays get a stable order
-            std::vector<std::pair<int, float> > entries(s.thresholds.begin(), s.thresholds.end());
-            std::sort(entries.begin(), entries.end(),
-                      [](const auto &a, const auto &b) { return a.first < b.first; });
-            for (const auto &[zoom, value] : entries) {
-                out.zooms.push_back(zoom);
-                out.values.push_back(value);
-            }
-            return out;
-        }();
+    template<typename Map>
+    zoom_map_storage flatten_sorted(const Map &m) {
+        zoom_map_storage out;
+        out.zooms.reserve(m.size());
+        out.values.reserve(m.size());
+        // sort by zoom so callers iterating the arrays get a stable order
+        std::vector<std::pair<int, float> > entries(m.begin(), m.end());
+        std::sort(entries.begin(), entries.end(),
+                  [](const auto &a, const auto &b) { return a.first < b.first; });
+        for (const auto &[zoom, value] : entries) {
+            out.zooms.push_back(zoom);
+            out.values.push_back(value);
+        }
+        return out;
+    }
+
+    const zoom_map_storage &default_thresholds() {
+        static const zoom_map_storage storage =
+                flatten_sorted(raytiles::streaming_config{}.thresholds);
         return storage;
     }
 
-    // Same idea as default_thresholds(), but seeded from world_config::skirt_overlap.
-    const default_thresholds_storage &default_skirt_overlap() {
-        static const default_thresholds_storage storage = [] {
-            const raytiles::world_config w{};
-            default_thresholds_storage out;
-            out.zooms.reserve(w.skirt_overlap.size());
-            out.values.reserve(w.skirt_overlap.size());
-            std::vector<std::pair<int, float> > entries(w.skirt_overlap.begin(), w.skirt_overlap.end());
-            std::sort(entries.begin(), entries.end(),
-                      [](const auto &a, const auto &b) { return a.first < b.first; });
-            for (const auto &[zoom, value] : entries) {
-                out.zooms.push_back(zoom);
-                out.values.push_back(value);
-            }
-            return out;
-        }();
+    const zoom_map_storage &default_skirt_overlap() {
+        static const zoom_map_storage storage =
+                flatten_sorted(raytiles::world_config{}.skirt_overlap);
         return storage;
     }
 }
 
+// ---------------------------------------------------------------------------
+//  C -> C++ struct conversion helpers
+// ---------------------------------------------------------------------------
+
+namespace {
+    raytiles::world_config to_cpp_world(const RaytilesWorldConfig *c) {
+        raytiles::world_config w{};
+        if (!c) return w;
+        w.anchor_x_tile = c->anchor_x_tile;
+        w.anchor_z_tile = c->anchor_z_tile;
+        w.base_zoom = c->base_zoom;
+        w.max_zoom = c->max_zoom;
+        w.base_zoom_tile_size = c->base_zoom_tile_size;
+        w.use_mipmap = c->use_mipmap;
+        w.use_logger = c->use_logger;
+        if (c->skirt_overlap_zooms && c->skirt_overlap_values && c->skirt_overlap_count > 0) {
+            w.skirt_overlap.clear();
+            for (int i = 0; i < c->skirt_overlap_count; ++i) {
+                w.skirt_overlap[c->skirt_overlap_zooms[i]] = c->skirt_overlap_values[i];
+            }
+        }
+        return w;
+    }
+
+    raytiles::streaming_config to_cpp_streaming(const RaytilesStreamingConfig *c) {
+        raytiles::streaming_config s{};
+        if (!c) return s;
+        s.rendering_radius = c->rendering_radius;
+        s.update_distance_sq = c->update_distance_sq;
+        s.update_height = c->update_height;
+        s.upload_budget_sec = c->upload_budget_sec;
+        s.max_uploads_per_frame = c->max_uploads_per_frame;
+        if (c->threshold_zooms && c->threshold_values && c->thresholds_count > 0) {
+            s.thresholds.clear();
+            for (int i = 0; i < c->thresholds_count; ++i) {
+                s.thresholds[c->threshold_zooms[i]] = c->threshold_values[i];
+            }
+        }
+        return s;
+    }
+
+    raytiles::rendering_config to_cpp_rendering(const RaytilesRenderingConfig *c) {
+        raytiles::rendering_config r{};
+        if (!c) return r;
+        r.near_plane = c->near_plane;
+        r.far_plane = c->far_plane;
+        r.fog_start = c->fog_start;
+        r.fog_end = c->fog_end;
+        r.skirt_drop = c->skirt_drop;
+        for (int i = 0; i < 4; ++i) r.fog_color[i] = c->fog_color[i];
+        for (int i = 0; i < 4; ++i) r.ambient_light[i] = c->ambient_light[i];
+        for (int i = 0; i < 3; ++i) r.sun_direction[i] = c->sun_direction[i];
+        r.sun_scale = c->sun_scale;
+        r.height_scale = c->height_scale;
+        r.normals_scale = c->normals_scale;
+        return r;
+    }
+
+    raytiles::pool_config to_cpp_pool(const RaytilesPoolConfig *c) {
+        raytiles::pool_config p{};
+        if (!c) return p;
+        p.download_threads = c->download_threads;
+        p.allow_insecure_tls = c->allow_insecure_tls;
+        p.use_logger = c->use_logger;
+        if (c->texture_cache_path) p.texture_cache_path = c->texture_cache_path;
+        if (c->heightmap_cache_path) p.heightmap_cache_path = c->heightmap_cache_path;
+        if (c->normals_cache_path) p.normals_cache_path = c->normals_cache_path;
+        if (c->texture_url) p.texture_url = c->texture_url;
+        if (c->heightmap_url) p.heightmap_url = c->heightmap_url;
+        if (c->normals_url) p.normals_url = c->normals_url;
+        p.texture_host = to_string_or_empty(c->texture_host);
+        p.texture_url_path = to_string_or_empty(c->texture_url_path);
+        p.heightmap_host = to_string_or_empty(c->heightmap_host);
+        p.heightmap_url_path = to_string_or_empty(c->heightmap_url_path);
+        p.normals_host = to_string_or_empty(c->normals_host);
+        p.normals_url_path = to_string_or_empty(c->normals_url_path);
+        return p;
+    }
+}
+
 extern "C" {
-RaytilesConfig RaytilesConfigDefault(void) {
+
+// ---------------------------------------------------------------------------
+//  Default-initializers
+// ---------------------------------------------------------------------------
+
+RaytilesWorldConfig RaytilesWorldConfigDefault(void) {
     const raytiles::world_config w{};
-    const raytiles::streaming_config s{};
-    constexpr raytiles::rendering_config r{};
-    RaytilesConfig out{};
-    const auto &thresholds = default_thresholds();
-    out.threshold_zooms = thresholds.zooms.data();
-    out.threshold_values = thresholds.values.data();
-    out.thresholds_count = static_cast<int>(thresholds.zooms.size());
+    RaytilesWorldConfig out{};
+    out.anchor_x_tile = w.anchor_x_tile;
+    out.anchor_z_tile = w.anchor_z_tile;
+    out.base_zoom = w.base_zoom;
+    out.max_zoom = w.max_zoom;
+    out.base_zoom_tile_size = w.base_zoom_tile_size;
     const auto &skirt = default_skirt_overlap();
     out.skirt_overlap_zooms = skirt.zooms.data();
     out.skirt_overlap_values = skirt.values.data();
     out.skirt_overlap_count = static_cast<int>(skirt.zooms.size());
-    out.base_zoom = w.base_zoom;
-    out.max_zoom = w.max_zoom;
-    out.base_zoom_tile_size = w.base_zoom_tile_size;
-    out.anchor_x_tile = w.anchor_x_tile;
-    out.anchor_z_tile = w.anchor_z_tile;
     out.use_mipmap = w.use_mipmap;
     out.use_logger = w.use_logger;
+    return out;
+}
+
+RaytilesStreamingConfig RaytilesStreamingConfigDefault(void) {
+    const raytiles::streaming_config s{};
+    RaytilesStreamingConfig out{};
     out.rendering_radius = s.rendering_radius;
+    const auto &thresholds = default_thresholds();
+    out.threshold_zooms = thresholds.zooms.data();
+    out.threshold_values = thresholds.values.data();
+    out.thresholds_count = static_cast<int>(thresholds.zooms.size());
     out.update_distance_sq = s.update_distance_sq;
     out.update_height = s.update_height;
     out.upload_budget_sec = s.upload_budget_sec;
     out.max_uploads_per_frame = s.max_uploads_per_frame;
+    return out;
+}
+
+RaytilesRenderingConfig RaytilesRenderingConfigDefault(void) {
+    constexpr raytiles::rendering_config r{};
+    RaytilesRenderingConfig out{};
     out.near_plane = r.near_plane;
     out.far_plane = r.far_plane;
     out.fog_start = r.fog_start;
     out.fog_end = r.fog_end;
     out.skirt_drop = r.skirt_drop;
-    out.fog_color[0] = r.fog_color[0];
-    out.fog_color[1] = r.fog_color[1];
-    out.fog_color[2] = r.fog_color[2];
-    out.fog_color[3] = r.fog_color[3];
-    out.ambient_light[0] = r.ambient_light[0];
-    out.ambient_light[1] = r.ambient_light[1];
-    out.ambient_light[2] = r.ambient_light[2];
-    out.ambient_light[3] = r.ambient_light[3];
-    out.sun_direction[0] = r.sun_direction[0];
-    out.sun_direction[1] = r.sun_direction[1];
-    out.sun_direction[2] = r.sun_direction[2];
+    for (int i = 0; i < 4; ++i) out.fog_color[i] = r.fog_color[i];
+    for (int i = 0; i < 4; ++i) out.ambient_light[i] = r.ambient_light[i];
+    for (int i = 0; i < 3; ++i) out.sun_direction[i] = r.sun_direction[i];
     out.sun_scale = r.sun_scale;
     out.height_scale = r.height_scale;
     out.normals_scale = r.normals_scale;
@@ -128,6 +218,8 @@ RaytilesConfig RaytilesConfigDefault(void) {
 }
 
 RaytilesPoolConfig RaytilesPoolConfigDefault(void) {
+    // The string fields below are c_str() pointers into the static
+    // pool_config; valid for the lifetime of the process.
     static const raytiles::pool_config d{};
     RaytilesPoolConfig out{};
     out.download_threads = d.download_threads;
@@ -136,6 +228,9 @@ RaytilesPoolConfig RaytilesPoolConfigDefault(void) {
     out.texture_cache_path = d.texture_cache_path.c_str();
     out.heightmap_cache_path = d.heightmap_cache_path.c_str();
     out.normals_cache_path = d.normals_cache_path.c_str();
+    out.texture_url = d.texture_url.c_str();
+    out.heightmap_url = d.heightmap_url.c_str();
+    out.normals_url = d.normals_url.c_str();
     out.texture_host = d.texture_host.c_str();
     out.texture_url_path = d.texture_url_path.c_str();
     out.heightmap_host = d.heightmap_host.c_str();
@@ -145,95 +240,39 @@ RaytilesPoolConfig RaytilesPoolConfigDefault(void) {
     return out;
 }
 
-RaytilesStreamer *RaytilesStreamerCreate(const RaytilesConfig *conf,
-                                         const RaytilesPoolConfig *pool_conf) {
-    if (!conf || !pool_conf) return nullptr;
+// ---------------------------------------------------------------------------
+//  Streamer
+// ---------------------------------------------------------------------------
 
-    raytiles::world_config w{};
-    w.base_zoom = conf->base_zoom;
-    w.max_zoom = conf->max_zoom;
-    w.base_zoom_tile_size = conf->base_zoom_tile_size;
-    w.anchor_x_tile = conf->anchor_x_tile;
-    w.anchor_z_tile = conf->anchor_z_tile;
-    w.use_mipmap = conf->use_mipmap;
-    w.use_logger = conf->use_logger;
-    if (conf->skirt_overlap_zooms && conf->skirt_overlap_values) {
-        w.skirt_overlap.clear();
-        for (int i = 0; i < conf->skirt_overlap_count; ++i) {
-            w.skirt_overlap[conf->skirt_overlap_zooms[i]] = conf->skirt_overlap_values[i];
-        }
-    }
-
-    raytiles::streaming_config s{};
-    s.rendering_radius = conf->rendering_radius;
-    s.update_distance_sq = conf->update_distance_sq;
-    s.update_height = conf->update_height;
-    s.upload_budget_sec = conf->upload_budget_sec;
-    s.max_uploads_per_frame = conf->max_uploads_per_frame;
-    s.thresholds.clear();
-    if (conf->threshold_zooms && conf->threshold_values) {
-        for (int i = 0; i < conf->thresholds_count; ++i) {
-            s.thresholds[conf->threshold_zooms[i]] = conf->threshold_values[i];
-        }
-    }
-
-    raytiles::rendering_config r{};
-    r.near_plane = conf->near_plane;
-    r.far_plane = conf->far_plane;
-    r.fog_start = conf->fog_start;
-    r.fog_end = conf->fog_end;
-    r.skirt_drop = conf->skirt_drop;
-    r.fog_color[0] = conf->fog_color[0];
-    r.fog_color[1] = conf->fog_color[1];
-    r.fog_color[2] = conf->fog_color[2];
-    r.fog_color[3] = conf->fog_color[3];
-    r.ambient_light[0] = conf->ambient_light[0];
-    r.ambient_light[1] = conf->ambient_light[1];
-    r.ambient_light[2] = conf->ambient_light[2];
-    r.ambient_light[3] = conf->ambient_light[3];
-    r.sun_direction[0] = conf->sun_direction[0];
-    r.sun_direction[1] = conf->sun_direction[1];
-    r.sun_direction[2] = conf->sun_direction[2];
-    r.sun_scale = conf->sun_scale;
-    r.height_scale = conf->height_scale;
-    r.normals_scale = conf->normals_scale;
-
-    raytiles::pool_config p{};
-    p.download_threads = pool_conf->download_threads;
-    p.allow_insecure_tls = pool_conf->allow_insecure_tls;
-    p.use_logger = pool_conf->use_logger;
-    p.texture_cache_path = to_string_or_empty(pool_conf->texture_cache_path);
-    p.heightmap_cache_path = to_string_or_empty(pool_conf->heightmap_cache_path);
-    p.normals_cache_path = to_string_or_empty(pool_conf->normals_cache_path);
-    p.texture_host = to_string_or_empty(pool_conf->texture_host);
-    p.texture_url_path = to_string_or_empty(pool_conf->texture_url_path);
-    p.heightmap_host = to_string_or_empty(pool_conf->heightmap_host);
-    p.heightmap_url_path = to_string_or_empty(pool_conf->heightmap_url_path);
-    p.normals_host = to_string_or_empty(pool_conf->normals_host);
-    p.normals_url_path = to_string_or_empty(pool_conf->normals_url_path);
-
+RaytilesStreamer *RaytilesStreamerCreate(const RaytilesWorldConfig *world,
+                                         const RaytilesStreamingConfig *streaming,
+                                         const RaytilesRenderingConfig *rendering,
+                                         const RaytilesPoolConfig *pool) {
     try {
-        return new RaytilesStreamer(w, s, r, p);
+        return new RaytilesStreamer(to_cpp_world(world),
+                                    to_cpp_streaming(streaming),
+                                    to_cpp_rendering(rendering),
+                                    to_cpp_pool(pool));
     } catch (...) {
         return nullptr;
     }
 }
 
-void RaytilesStreamerDestroy(const RaytilesStreamer *streamer) {
+void RaytilesStreamerDestroy(RaytilesStreamer *streamer) {
     delete streamer;
 }
 
-void RaytilesStreamerUpdate(RaytilesStreamer *streamer, Camera3D camera) {
+void RaytilesStreamerUpdate(RaytilesStreamer *streamer, const Camera3D camera) {
     if (!streamer) return;
     streamer->impl.update(camera);
 }
 
-void RaytilesStreamerDraw(RaytilesStreamer *streamer, Camera3D camera) {
+void RaytilesStreamerDraw(RaytilesStreamer *streamer, const Camera3D camera) {
     if (!streamer) return;
     streamer->impl.draw(camera);
 }
 
-void RaytilesStreamerDebug(RaytilesStreamer *streamer, Camera3D camera) {
+void RaytilesStreamerDebug(RaytilesStreamer *streamer, const Camera3D camera) {
     if (!streamer) return;
     streamer->impl.debug(camera);
 }
@@ -243,7 +282,12 @@ void RaytilesStreamerDebug3D(RaytilesStreamer *streamer) {
     streamer->impl.debug_3d();
 }
 
-bool RaytilesStreamerGroundHeight(RaytilesStreamer *streamer,
+RaytilesRenderer *RaytilesStreamerGetRenderer(RaytilesStreamer *streamer) {
+    if (!streamer) return nullptr;
+    return to_c(&streamer->impl.get_renderer());
+}
+
+bool RaytilesStreamerGroundHeight(const RaytilesStreamer *streamer,
                                   const Vector3 position,
                                   float *out_height) {
     if (!streamer) return false;
@@ -253,65 +297,70 @@ bool RaytilesStreamerGroundHeight(RaytilesStreamer *streamer,
     return true;
 }
 
-void RaytilesStreamerSetAmbientLight(RaytilesStreamer *streamer, const Color color) {
-    if (!streamer) return;
-    streamer->impl.get_renderer().set_ambient_light(color);
+// ---------------------------------------------------------------------------
+//  Renderer
+// ---------------------------------------------------------------------------
+
+void RaytilesRendererSetAmbientLight(RaytilesRenderer *renderer, const Color color) {
+    if (!renderer) return;
+    to_cpp(renderer)->set_ambient_light(color);
 }
 
-void RaytilesStreamerSetAmbientLightV4(RaytilesStreamer *streamer, const Vector4 color) {
-    if (!streamer) return;
-    streamer->impl.get_renderer().set_ambient_light(color);
+void RaytilesRendererSetAmbientLightV4(RaytilesRenderer *renderer, const Vector4 color) {
+    if (!renderer) return;
+    to_cpp(renderer)->set_ambient_light(color);
 }
 
-void RaytilesStreamerSetAmbientLightRGBA(RaytilesStreamer *streamer,
+void RaytilesRendererSetAmbientLightRGBA(RaytilesRenderer *renderer,
                                          const float r, const float g, const float b, const float a) {
-    if (!streamer) return;
-    streamer->impl.get_renderer().set_ambient_light(r, g, b, a);
+    if (!renderer) return;
+    to_cpp(renderer)->set_ambient_light(r, g, b, a);
 }
 
-void RaytilesStreamerSetFogColor(RaytilesStreamer *streamer, const Color color) {
-    if (!streamer) return;
-    streamer->impl.get_renderer().set_fog_color(color);
+void RaytilesRendererSetFogColor(RaytilesRenderer *renderer, const Color color) {
+    if (!renderer) return;
+    to_cpp(renderer)->set_fog_color(color);
 }
 
-void RaytilesStreamerSetFogColorV4(RaytilesStreamer *streamer, const Vector4 color) {
-    if (!streamer) return;
-    streamer->impl.get_renderer().set_fog_color(color);
+void RaytilesRendererSetFogColorV4(RaytilesRenderer *renderer, const Vector4 color) {
+    if (!renderer) return;
+    to_cpp(renderer)->set_fog_color(color);
 }
 
-void RaytilesStreamerSetFogColorRGBA(RaytilesStreamer *streamer,
+void RaytilesRendererSetFogColorRGBA(RaytilesRenderer *renderer,
                                      const float r, const float g, const float b, const float a) {
-    if (!streamer) return;
-    streamer->impl.get_renderer().set_fog_color(r, g, b, a);
+    if (!renderer) return;
+    to_cpp(renderer)->set_fog_color(r, g, b, a);
 }
 
-void RaytilesStreamerSetFogStart(RaytilesStreamer *streamer, const float distance) {
-    if (!streamer) return;
-    streamer->impl.get_renderer().set_fog_start(distance);
+void RaytilesRendererSetFogStart(RaytilesRenderer *renderer, const float distance) {
+    if (!renderer) return;
+    to_cpp(renderer)->set_fog_start(distance);
 }
 
-void RaytilesStreamerSetFogEnd(RaytilesStreamer *streamer, const float distance) {
-    if (!streamer) return;
-    streamer->impl.get_renderer().set_fog_end(distance);
+void RaytilesRendererSetFogEnd(RaytilesRenderer *renderer, const float distance) {
+    if (!renderer) return;
+    to_cpp(renderer)->set_fog_end(distance);
 }
 
-void RaytilesStreamerSetHeightScale(RaytilesStreamer *streamer, const float scale) {
-    if (!streamer) return;
-    streamer->impl.get_renderer().set_height_scale(scale);
+void RaytilesRendererSetHeightScale(RaytilesRenderer *renderer, const float scale) {
+    if (!renderer) return;
+    to_cpp(renderer)->set_height_scale(scale);
 }
 
-void RaytilesStreamerSetNormalsScale(RaytilesStreamer *streamer, const float scale) {
-    if (!streamer) return;
-    streamer->impl.get_renderer().set_normals_scale(scale);
+void RaytilesRendererSetNormalsScale(RaytilesRenderer *renderer, const float scale) {
+    if (!renderer) return;
+    to_cpp(renderer)->set_normals_scale(scale);
 }
 
-void RaytilesStreamerSetSunDirection(RaytilesStreamer *streamer, const Vector3 direction) {
-    if (!streamer) return;
-    streamer->impl.get_renderer().set_sun_direction(direction);
+void RaytilesRendererSetSunDirection(RaytilesRenderer *renderer, const Vector3 direction) {
+    if (!renderer) return;
+    to_cpp(renderer)->set_sun_direction(direction);
 }
 
-void RaytilesStreamerSetSunScale(RaytilesStreamer *streamer, const float scale) {
-    if (!streamer) return;
-    streamer->impl.get_renderer().set_sun_scale(scale);
+void RaytilesRendererSetSunScale(RaytilesRenderer *renderer, const float scale) {
+    if (!renderer) return;
+    to_cpp(renderer)->set_sun_scale(scale);
 }
+
 } // extern "C"
