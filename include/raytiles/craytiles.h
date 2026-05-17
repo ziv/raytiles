@@ -242,6 +242,15 @@ void RaytilesStreamerDebug3D(RaytilesStreamer *streamer);
 /// free the returned pointer; its lifetime is tied to `streamer`.
 RaytilesRenderer *RaytilesStreamerGetRenderer(RaytilesStreamer *streamer);
 
+/// Returns true during the initial loading phase (i.e. while at least one
+/// tile required to fill the rendering radius is still being fetched).
+/// Returns false if `streamer` is NULL.
+bool RaytilesStreamerIsLoading(const RaytilesStreamer *streamer);
+
+/// Returns the initial-load progress in `[0, 1]`. Returns 0 if `streamer` is
+/// NULL. Pair with `RaytilesStreamerIsLoading` to drive a splash screen.
+float RaytilesStreamerGetLoading(const RaytilesStreamer *streamer);
+
 /// Samples the terrain altitude (world Y) under `position`, reading the
 /// heightmap pixel at the equivalent UV. O(1) cost.
 ///

@@ -101,6 +101,14 @@ endif ()
 add_executable(demo sandbox/demo.cpp)
 target_link_libraries(demo PRIVATE ${PROJECT_NAME})
 
+# C demo: exercises the C wrapper (craytiles.h)
+add_executable(demo_c sandbox/demo_c.c)
+set_target_properties(demo_c PROPERTIES
+        C_STANDARD 11
+        C_STANDARD_REQUIRED ON
+)
+target_link_libraries(demo_c PRIVATE ${PROJECT_NAME})
+
 # tests
 FetchContent_Declare(
         doctest

@@ -287,6 +287,16 @@ RaytilesRenderer *RaytilesStreamerGetRenderer(RaytilesStreamer *streamer) {
     return to_c(&streamer->impl.get_renderer());
 }
 
+bool RaytilesStreamerIsLoading(const RaytilesStreamer *streamer) {
+    if (!streamer) return false;
+    return streamer->impl.is_loading();
+}
+
+float RaytilesStreamerGetLoading(const RaytilesStreamer *streamer) {
+    if (!streamer) return 0.0f;
+    return streamer->impl.get_loading();
+}
+
 bool RaytilesStreamerGroundHeight(const RaytilesStreamer *streamer,
                                   const Vector3 position,
                                   float *out_height) {
