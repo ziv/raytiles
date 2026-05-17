@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.7](https://github.com/ziv/raytiles/compare/v0.8.6...v0.8.7) (2026-05-17)
+
+
+### Bug Fixes
+
+* skirt overlap configurations ([ec79e37](https://github.com/ziv/raytiles/commit/ec79e37830d72752ef64d2f857d58004ef813828))
+
 ## [0.8.6](https://github.com/ziv/raytiles/compare/v0.8.5...v0.8.6) (2026-05-16)
 
 
