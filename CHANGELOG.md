@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.8](https://github.com/ziv/raytiles/compare/v0.8.7...v0.8.8) (2026-05-17)
+
+
+### Bug Fixes
+
+* add loading indicator ([#72](https://github.com/ziv/raytiles/issues/72)) ([ffdd740](https://github.com/ziv/raytiles/commit/ffdd740c0650e3a34291e6c93233a13b26b5edb3))
+
 ## [0.8.7](https://github.com/ziv/raytiles/compare/v0.8.6...v0.8.7) (2026-05-17)
 
 
