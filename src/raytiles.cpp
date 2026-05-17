@@ -82,6 +82,17 @@ namespace raytiles {
         if (world.use_logger) TraceLog(LOG_INFO, "raytiles streamer initialized");
     }
 
+    bool streamer::is_loading() const {
+        return loading;
+    }
+
+    float streamer::get_loading() const {
+        if (loading_tiles.empty()) return 0.0f;
+        const auto required = static_cast<float>(desired_keys.size());
+        const auto loaded = static_cast<float>(loading_tiles.size());
+
+        return 1 - loaded / required;
+    }
 
     renderer &streamer::get_renderer() {
         return tile_renderer;
@@ -111,6 +122,11 @@ namespace raytiles {
                                               near_plane,
                                               far_plane
         );
+
+        // loading status (initial loading)
+        if (loading && loading_tiles.empty()) {
+            loading = false;
+        }
     }
 
     void streamer::draw(const Camera3D &camera) {

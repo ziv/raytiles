@@ -359,6 +359,11 @@ namespace raytiles {
         /// to shader parameters and debug methods.
         renderer &get_renderer();
 
+        /// Return true for initial loading only
+        [[nodiscard]] bool is_loading() const;
+
+        [[nodiscard]] float get_loading() const;
+
         /// Returns the terrain altitude (Y world-coordinate) under `position`,
         /// sampled from the heightmap pixel at the equivalent UV.
         /// @returns The altitude, or `nullopt` if no loaded tile covers the
@@ -398,6 +403,7 @@ namespace raytiles {
         std::unique_ptr<pool> tile_downloader;
 
         // internal cache
+        bool loading = true;
         int rendered = 0;
         float width = 0.0f;
         float height = 0.0f;

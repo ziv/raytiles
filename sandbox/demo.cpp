@@ -48,27 +48,39 @@ int main() {
     raytiles::pool_config pool_conf;
 
     pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
+    pool_conf.download_threads = 8;
 
     // everest
     // world.anchor_x_tile = 373;
     // world.anchor_z_tile = 214;
-    world.anchor_x_tile = 292;
-    world.anchor_z_tile = 202;
-    world.skirt_overlap = {
-        {9, 1.02f},
-        {10, 1.02f},
-        {11, 1.02f},
-        {12, 1.02f},
-        {13, 1.02f},
-        {14, 1.02f},
-        {15, 1.02f}
-    };
-    rendering.skirt_drop = 1000.0f;
+
+    // scotland
+    world.anchor_x_tile = 248;
+    world.anchor_z_tile = 160;
+    world.base_zoom_tile_size = 43769;
     rendering.height_scale = 1.5f;
+    rendering.skirt_drop = 1000.0f;
+
+    // crete
+    // world.anchor_x_tile = 292;
+    // world.anchor_z_tile = 202;
+    // world.skirt_overlap = {
+    //     {9, 1.02f},
+    //     {10, 1.02f},
+    //     {11, 1.02f},
+    //     {12, 1.02f},
+    //     {13, 1.02f},
+    //     {14, 1.02f},
+    //     {15, 1.02f}
+    // };
+    // rendering.skirt_drop = 1000.0f;
+    // rendering.height_scale = 1.5f;
+    // rendering.fog_start = 40000.0f;
 
 
     raytiles::streamer streamer(world, streaming, rendering, pool_conf);
-    streamer.get_renderer().set_normals_scale(5.0f);
+    raytiles::renderer &r = streamer.get_renderer();
+    r.set_normals_scale(5.0f);
 
     Camera3D camera;
     camera.position = Vector3{2000.0f, 5000.0f, 2000.0f};
@@ -78,45 +90,42 @@ int main() {
     camera.projection = CAMERA_PERSPECTIVE;
 
     FreeCamera f(camera);
-    streamer.get_renderer().set_fog_color(SKYBLUE);
-    streamer.get_renderer().set_ambient_light(Color{200, 200, 200, 255});
+
+    r.set_fog_color(SKYBLUE);
+    r.set_ambient_light(Color{200, 200, 200, 255});
     float sun = 1.0f;
     bool wireframe = true;
     bool labels = true;
 
+    // loading loop
+    for (;;) {
+        streamer.update(camera);
+        if (!streamer.is_loading()) break;
+
+        const auto loading = streamer.get_loading();
+        BeginDrawing();
+        ClearBackground(BLACK);
+        DrawText(TextFormat("Loading... %.1f%%", loading * 100.0f), 350, 350, 50, WHITE);
+        EndDrawing();
+    }
+
 
     while (!WindowShouldClose()) {
         const auto dt = GetFrameTime();
-        f.update(camera, dt);
-
-
-        // auto pilot
-        // flight_progress += GetFrameTime() * flight_speed;
-        // if (flight_progress >= path.size() - 3.0f) {
-        //     flight_progress = 0.0f;
-        // }
-        //
-        // int i = static_cast<int>(flight_progress);
-        // float t = flight_progress - static_cast<float>(i);
-        // camera.position = GetSplinePoint(path[i], path[i + 1], path[i + 2], path[i + 3], t);
-        //
-        // float look_ahead_t = t + 0.2f;
-        // int target_i = i;
-        //
-        // if (look_ahead_t >= 1.0f) {
-        //     look_ahead_t -= 1.0f;
-        //     target_i++;
-        // }
-        //
-        // if (target_i < path.size() - 3) {
-        //     camera.target = GetSplinePoint(path[target_i], path[target_i + 1], path[target_i + 2], path[target_i + 3], look_ahead_t);
-        // }
-
-
-        // UpdateCamera(&camera, CAMERA_ORBITAL);
-
-        streamer.get_renderer().set_sun_direction(Vector3{0.1f, sun, 0.0f});
         streamer.update(camera);
+
+        // if (streamer.is_loading()) {
+        //     const auto loading = streamer.get_loading();
+        //     BeginDrawing();
+        //     ClearBackground(BLACK);
+        //     DrawText(TextFormat("Loading... %.1f%%", loading * 100.0f), 10, 30, 20, WHITE);
+        //     EndDrawing();
+        //     continue;
+        // }
+
+
+        f.update(camera, dt);
+        r.set_sun_direction(Vector3{0.1f, sun, 0.0f});
 
         BeginDrawing();
         ClearBackground(SKYBLUE);
