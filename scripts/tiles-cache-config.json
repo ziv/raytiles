@@ -3,5 +3,7 @@
   "max-zoom": 15,
   "hm-path": "assets/heightmap",
   "nl-path": "assets/normals",
-  "tx-path": "assets/texture"
+  "tx-path": "assets/texture",
+  "concurrency": 16,
+  "retries": 3
 }

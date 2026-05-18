@@ -11,7 +11,9 @@
 // raytiles::pool expects.
 //
 // Existing files are skipped, so this script is safe to re-run / resume.
-// MAPBOX_TOKEN must be set in the environment for the satellite texture.
+//
+// By default, it will download Esri textures.
+// If MAPBOX_TOKEN environment variable is set, it will download Mabox textures.
 //
 import * as process from "node:process";
 import {mkdir, stat, rename, unlink} from "node:fs/promises";
@@ -35,28 +37,20 @@ if (Number.isNaN(baseX) || Number.isNaN(baseY)) {
     process.exit(2);
 }
 
-const token = process.env["MAPBOX_TOKEN"];
-if (!token) {
-    console.error("MAPBOX_TOKEN environment variable is not set.");
-    process.exit(3);
-}
-
+const TOKEN = process.env["MAPBOX_TOKEN"] ?? "";
 const MIN_ZOOM = config["min-zoom"];
 const MAX_ZOOM = config["max-zoom"];
-const CONCURRENCY = 64;
-const RETRIES = 3;
+const CONCURRENCY = config["concurrency"];
+const RETRIES = config["retries"];
 
-/**
- * By default, it configured to support Mapbox maps that require an access token
- * Replace the "tex_url" function with the commented one to use Esri maps
- */
-// const tex_url = (zoom, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/$yx}/${x}`;
-const tex_url = (zoom, x, y) => `https://api.mapbox.com/v4/mapbox.satellite/${zoom}/${x}/${y}.pngraw?access_token=${token}`;
+const noop = () => {};
+const esri_tex_url = (zoom, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${y}/${x}`;
+const mapbox_tex_url = (zoom, x, y) => `https://api.mapbox.com/v4/mapbox.satellite/${zoom}/${x}/${y}.pngraw?access_token=${TOKEN}`;
 const hm_url = (zoom, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${zoom}/${x}/${y}.png`;
 const nl_url = (zoom, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/normal/${zoom}/${x}/${y}.png`;
 
 const layers = [
-    {name: "texture", base: config["tx-path"], url: tex_url},
+    {name: "texture", base: config["tx-path"], url: TOKEN ? mapbox_tex_url : esri_tex_url},
     {name: "heightmap", base: config["hm-path"], url: hm_url},
     {name: "normals", base: config["nl-path"], url: nl_url},
 ];
@@ -82,8 +76,7 @@ async function downloadOne(url, path) {
             const res = await fetch(url);
             if (!res.ok || !res.body) {
                 // drain body to free the connection before retrying
-                await res.body?.cancel().catch(() => {
-                });
+                await res.body?.cancel().catch(noop);
                 throw new Error(`HTTP ${res.status} ${res.statusText}`);
             }
             // stream the response straight to disk, then atomically rename
