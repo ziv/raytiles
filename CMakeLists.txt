@@ -101,6 +101,11 @@ endif ()
 add_executable(demo sandbox/demo.cpp)
 target_link_libraries(demo PRIVATE ${PROJECT_NAME})
 
+# perf baseline harness: default-config streamer, logs initial-load wall-time
+add_executable(baseline sandbox/base_line.cpp)
+target_link_libraries(baseline PRIVATE ${PROJECT_NAME})
+target_link_libraries(baseline PRIVATE  raylib)
+
 # C demo: exercises the C wrapper (craytiles.h)
 add_executable(demo_c sandbox/demo_c.c)
 set_target_properties(demo_c PROPERTIES

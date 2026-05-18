@@ -55,10 +55,31 @@ int main() {
     // world.anchor_z_tile = 214;
 
     // scotland
-    world.anchor_x_tile = 248;
-    world.anchor_z_tile = 160;
-    world.base_zoom_tile_size = 43769;
-    rendering.height_scale = 1.5f;
+    // world.anchor_x_tile = 248;
+    // world.anchor_z_tile = 160;
+    // world.base_zoom_tile_size = 43769;
+    // rendering.height_scale = 1.5f;
+    // rendering.skirt_drop = 1000.0f;
+
+    // The Dolomites
+    // world.anchor_x_tile = 273;
+    // world.anchor_z_tile = 180;
+    // rendering.skirt_drop = 1000.0f;
+
+
+    // The Grand Canyon
+    world.anchor_x_tile = 97;
+    world.anchor_z_tile = 200;
+    rendering.skirt_drop = 1000.0f;
+
+    // Norway
+    world.anchor_x_tile = 265;
+    world.anchor_z_tile = 143;
+    rendering.skirt_drop = 1000.0f;
+
+    // Norway
+    world.anchor_x_tile = 98;
+    world.anchor_z_tile = 186;
     rendering.skirt_drop = 1000.0f;
 
     // crete
