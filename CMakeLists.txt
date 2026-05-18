@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.31)
-project(raytiles VERSION 0.8.9) # x-release-please-version
+project(raytiles VERSION 0.8.10) # x-release-please-version
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

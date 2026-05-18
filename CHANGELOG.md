@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.10](https://github.com/ziv/raytiles/compare/v0.8.9...v0.8.10) (2026-05-18)
+
+
+### Bug Fixes
+
+* add baseline app for mesurements ([aa27e8c](https://github.com/ziv/raytiles/commit/aa27e8c38b6099f161c48d0119a24aac2563bf4a))
+* add script for pre-warm cache, allow fast start ([7d1ab8a](https://github.com/ziv/raytiles/commit/7d1ab8a02ace50e266e34e3735287923620a58bf))
+* add script for pre-warm cache, allow fast start ([#76](https://github.com/ziv/raytiles/issues/76)) ([7d1ab8a](https://github.com/ziv/raytiles/commit/7d1ab8a02ace50e266e34e3735287923620a58bf))
+* baseline ([aa27e8c](https://github.com/ziv/raytiles/commit/aa27e8c38b6099f161c48d0119a24aac2563bf4a))
+* cache script support esri and mapbox ([#80](https://github.com/ziv/raytiles/issues/80)) ([a332af3](https://github.com/ziv/raytiles/commit/a332af3da07b6003713e0070c1751575069a8203))
+* decode png in thread ([#78](https://github.com/ziv/raytiles/issues/78)) ([aa27e8c](https://github.com/ziv/raytiles/commit/aa27e8c38b6099f161c48d0119a24aac2563bf4a))
+* move png decoding to thread ([aa27e8c](https://github.com/ziv/raytiles/commit/aa27e8c38b6099f161c48d0119a24aac2563bf4a))
+* move static methods out of pool class ([#79](https://github.com/ziv/raytiles/issues/79)) ([4781395](https://github.com/ziv/raytiles/commit/4781395f46b8e4b257196130d2c45549a359ca19))
+
 ## [0.8.9](https://github.com/ziv/raytiles/compare/v0.8.8...v0.8.9) (2026-05-17)
 
 
