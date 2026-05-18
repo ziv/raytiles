@@ -45,9 +45,12 @@ open an issue!
 - [Anchors](https://github.com/ziv/raytiles/wiki/Anchors)
 - [Providers](https://github.com/ziv/raytiles/wiki/Providers)
     - [Working with MapBox](https://github.com/ziv/raytiles/wiki/Working-with-Mapbox)
+- [Handling Tiles Gaps](https://github.com/ziv/raytiles/wiki/Handling-Tiles-Gaps)
 - [Caching](https://github.com/ziv/raytiles/wiki/Caching)
 - [Memory Usage](https://github.com/ziv/raytiles/wiki/Memory-Usage)
 - [Configuration](https://github.com/ziv/raytiles/wiki/Configuration)
+
+## Demo & Usage
 
 See [`sandbox/demo.cpp`](./sandbox/demo.cpp) for a full runnable example with input handling.
 
