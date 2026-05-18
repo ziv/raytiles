@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.11](https://github.com/ziv/raytiles/compare/v0.8.10...v0.8.11) (2026-05-18)
+
+
+### Bug Fixes
+
+* relocate near and far config ([#81](https://github.com/ziv/raytiles/issues/81)) ([ac11c5c](https://github.com/ziv/raytiles/commit/ac11c5cac27539f96b084f3f1151341c376e0d82))
+
 ## [0.8.10](https://github.com/ziv/raytiles/compare/v0.8.9...v0.8.10) (2026-05-18)
 
 
