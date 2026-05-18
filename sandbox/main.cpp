@@ -49,6 +49,7 @@ int main() {
 #ifdef __EMSCRIPTEN__
     pool.texture_cache_path = "/assets/t/{}/{}/{}.png";
     pool.heightmap_cache_path = "/assets/h/{}/{}/{}.png";
+    pool.normals_cache_path = "/assets/n/{}/{}/{}.png";
 #endif
 
     // create the streamer with all configurations
