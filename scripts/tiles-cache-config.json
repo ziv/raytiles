@@ -1,0 +1,7 @@
+{
+  "min-zoom": 9,
+  "max-zoom": 15,
+  "hm-path": "assets/heightmap",
+  "nl-path": "assets/normals",
+  "tx-path": "assets/texture"
+}
