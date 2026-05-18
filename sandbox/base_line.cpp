@@ -7,10 +7,12 @@
 // ~2.2sec loading time
 // after moving PNG decoding from main thread:
 // ~1.6sec loading time
+// after downloader refactoring
+// ~1.5sec loading time
 //
 
 int main() {
-    SetTraceLogLevel(LOG_ERROR);
+    SetTraceLogLevel(LOG_WARNING);
 
     InitWindow(800, 600, "raytiles");
     double t = GetTime();

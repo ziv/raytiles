@@ -66,6 +66,92 @@ namespace raytiles {
         return {url.substr(0, path_pos), url.substr(path_pos)};
     }
 
+    // decode a PNG byte buffer into a raylib Image. pixels are allocated
+    // with stb_image's allocator (malloc) which matches raylib's default
+    // RL_FREE, so UnloadImage is the correct deleter on the result.
+    // throws std::runtime_error on decode failure or unsupported channel
+    // count (only 3 / 4 channel inputs are supported, matching the
+    // formats utils::get_height_from_image accepts).
+    static Image decode_png(const std::string &bytes) {
+        int w = 0, h = 0, comp = 0;
+        stbi_uc *data = stbi_load_from_memory(
+            reinterpret_cast<const stbi_uc *>(bytes.data()),
+            static_cast<int>(bytes.size()),
+            &w, &h, &comp, 0);
+        if (!data) throw std::runtime_error("PNG decode failed");
+        if (comp != 3 && comp != 4) {
+            stbi_image_free(data);
+            throw std::runtime_error(std::format("unsupported PNG channel count: {}", comp));
+        }
+        Image img{};
+        img.data = data;
+        img.width = w;
+        img.height = h;
+        img.mipmaps = 1;
+        img.format = (comp == 4) ? PIXELFORMAT_UNCOMPRESSED_R8G8B8A8
+                                 : PIXELFORMAT_UNCOMPRESSED_R8G8B8;
+        return img;
+    }
+
+    static std::string read_file(const std::string &path) {
+        std::ifstream f(path, std::ios::binary);
+        if (!f) {
+            throw std::runtime_error("failed to open cached file: " + path);
+        }
+        std::string out((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        return out;
+    }
+
+#ifdef __EMSCRIPTEN__
+    static std::string fetch(const std::string &url) {
+        std::string result = "";
+        emscripten_fetch_attr_t attr;
+        emscripten_fetch_attr_init(&attr);
+        strcpy(attr.requestMethod, "GET");
+
+        attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY | EMSCRIPTEN_FETCH_SYNCHRONOUS;
+        emscripten_fetch_t *fetch = emscripten_fetch(&attr, url.c_str());
+
+        if (fetch != nullptr) {
+            if (fetch->status == 200) {
+                result = std::string(fetch->data, fetch->numBytes);
+            } else {
+                std::cerr << "Web Download Error: HTTP " << fetch->status << " for URL: " << url << std::endl;
+            }
+            emscripten_fetch_close(fetch);
+        } else {
+            std::cerr << "Emscripten fetch initialization failed for URL: " << url << std::endl;
+        }
+        return result;
+    }
+#else
+    static std::string fetch(httplib::Client &cli, const std::string &url) {
+        auto res = cli.Get(url);
+        if (!res || res->status != 200) {
+            const int status = res ? res->status : -1;
+            const std::string err = res ? std::string{} : httplib::to_string(res.error());
+            throw std::runtime_error(std::format("download failed: {} status={} err={}", url, status, err));
+        }
+        return std::move(res->body);
+    }
+#endif
+
+    static void write_atomic(const std::string &path, const std::string &bytes) {
+        std::filesystem::create_directories(std::filesystem::path(path).parent_path());
+        const std::string tmp_path = path + ".tmp";
+        std::FILE *f = std::fopen(tmp_path.c_str(), "wb");
+        if (!f) {
+            throw std::runtime_error("fopen failed: " + tmp_path);
+        }
+        std::fwrite(bytes.data(), 1, bytes.size(), f);
+        std::fclose(f);
+        std::error_code ec;
+        std::filesystem::rename(tmp_path, path, ec);
+        if (ec) {
+            throw std::runtime_error("rename failed: " + path);
+        }
+    }
+
     // pool of background workers. each job downloads a tile (or reads it from the
     // on-disk cache), decodes the PNG bytes to a raylib Image with stb_image,
     // and resolves a future with that Image. raylib's higher-level API is not
@@ -204,93 +290,6 @@ namespace raytiles {
                     std::lock_guard lock(mtx);
                     in_flight_images.erase(img_job.path);
                 }
-            }
-        }
-
-        // decode a PNG byte buffer into a raylib Image. pixels are allocated
-        // with stb_image's allocator (malloc) which matches raylib's default
-        // RL_FREE, so UnloadImage is the correct deleter on the result.
-        // throws std::runtime_error on decode failure or unsupported channel
-        // count (only 3 / 4 channel inputs are supported, matching the
-        // formats utils::get_height_from_image accepts).
-        static Image decode_png(const std::string &bytes) {
-            int w = 0, h = 0, comp = 0;
-            stbi_uc *data = stbi_load_from_memory(
-                reinterpret_cast<const stbi_uc *>(bytes.data()),
-                static_cast<int>(bytes.size()),
-                &w, &h, &comp, 0);
-            if (!data) throw std::runtime_error("PNG decode failed");
-            if (comp != 3 && comp != 4) {
-                stbi_image_free(data);
-                throw std::runtime_error(std::format("unsupported PNG channel count: {}", comp));
-            }
-            Image img{};
-            img.data = data;
-            img.width = w;
-            img.height = h;
-            img.mipmaps = 1;
-            img.format = (comp == 4) ? PIXELFORMAT_UNCOMPRESSED_R8G8B8A8
-                                     : PIXELFORMAT_UNCOMPRESSED_R8G8B8;
-            return img;
-        }
-
-        static std::string read_file(const std::string &path) {
-            std::ifstream f(path, std::ios::binary);
-            if (!f) {
-                throw std::runtime_error("failed to open cached file: " + path);
-            }
-            std::string out((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-            return out;
-        }
-
-#ifdef __EMSCRIPTEN__
-        static std::string fetch(const std::string &url) {
-            std::string result = "";
-            emscripten_fetch_attr_t attr;
-            emscripten_fetch_attr_init(&attr);
-            strcpy(attr.requestMethod, "GET");
-
-            attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY | EMSCRIPTEN_FETCH_SYNCHRONOUS;
-            emscripten_fetch_t *fetch = emscripten_fetch(&attr, url.c_str());
-
-            if (fetch != nullptr) {
-                if (fetch->status == 200) {
-                    result = std::string(fetch->data, fetch->numBytes);
-                } else {
-                    std::cerr << "Web Download Error: HTTP " << fetch->status << " for URL: " << url << std::endl;
-                }
-                emscripten_fetch_close(fetch);
-            } else {
-                std::cerr << "Emscripten fetch initialization failed for URL: " << url << std::endl;
-            }
-            return result;
-        }
-#else
-
-        static std::string fetch(httplib::Client &cli, const std::string &url) {
-            auto res = cli.Get(url);
-            if (!res || res->status != 200) {
-                const int status = res ? res->status : -1;
-                const std::string err = res ? std::string{} : httplib::to_string(res.error());
-                throw std::runtime_error(std::format("download failed: {} status={} err={}", url, status, err));
-            }
-            return std::move(res->body);
-        }
-#endif
-
-        static void write_atomic(const std::string &path, const std::string &bytes) {
-            std::filesystem::create_directories(std::filesystem::path(path).parent_path());
-            const std::string tmp_path = path + ".tmp";
-            std::FILE *f = std::fopen(tmp_path.c_str(), "wb");
-            if (!f) {
-                throw std::runtime_error("fopen failed: " + tmp_path);
-            }
-            std::fwrite(bytes.data(), 1, bytes.size(), f);
-            std::fclose(f);
-            std::error_code ec;
-            std::filesystem::rename(tmp_path, path, ec);
-            if (ec) {
-                throw std::runtime_error("rename failed: " + path);
             }
         }
 
