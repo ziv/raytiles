@@ -33,7 +33,7 @@ open an issue!
 - Adaptive **LOD** (level-of-detail)
 - **Lights and Shadows** via normal maps
 - Ground-truth **altitude/height queries** for collision and spawning
-- Configurable & providers agnostic
+- Configurable & **providers agnostic**
 - **C++** API & **C** wrapper API
 - Background tile downloading (HTTP + persistent on-disk cache)
 - **Cross-platform** builds for Windows, Linux, and macOS
