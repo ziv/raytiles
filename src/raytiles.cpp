@@ -141,6 +141,7 @@ namespace raytiles {
     }
 
     void streamer::remove_unused_tiles() {
+        // todo instead of erase, mark as deletable with timestamp
         std::erase_if(rendering_tiles, [&](const auto &item) {
             // if it in desired, keep it
             if (desired_keys.contains(item.first)) return false;
@@ -244,6 +245,7 @@ namespace raytiles {
                     build_required(world.base_zoom, current_tile_x + dx, current_tile_z + dz, render_radius_sq);
 
 
+        // todo before spawn, check if is deletable and remove the tag
         // spawn new if not in rendering list
         for (const auto &key: desired_keys)
             if (!rendering_tiles.contains(key) && !loading_tiles.contains(key))
