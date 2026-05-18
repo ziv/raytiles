@@ -54,6 +54,20 @@ open an issue!
 
 See [`sandbox/demo.cpp`](./sandbox/demo.cpp) for a full runnable example with input handling.
 
+## Raytiles Examples
+
+### Rendering Area of Interest
+
+The following example video shows part of the Greek islands, rendered with Mapbox tiles at zoom levels 11 to 14:
+
+https://github.com/user-attachments/assets/0422ffea-654f-4299-8860-23f99d7d98ec
+
+### Lights and Shadows (Sun effect)
+
+This example demonstrates lights and shadows:
+
+https://github.com/user-attachments/assets/6e373cb4-a1fa-4c21-a72a-db2d0bd96a89
+
 ## 3D Tiles
 
 **Why not use 3D Tiles? (Cesium, Google Earth, etc.)**
@@ -80,20 +94,6 @@ but it was eventually dropped in favor of a simpler, lightweight approach better
 Example of the 3D Tiles renderer in action using Google 3D Tiles (with debug data and grid):
 
 ![3D Tiles Renderer](res/example-3dtiles.png)
-
-## Raytiles Examples
-
-### Rendering Area of Interest
-
-The following example video shows part of the Greek islands, rendered with Mapbox tiles at zoom levels 11 to 14:
-
-https://github.com/user-attachments/assets/0422ffea-654f-4299-8860-23f99d7d98ec
-
-### Lights and Shadows (Sun effect)
-
-This example demonstrates lights and shadows:
-
-https://github.com/user-attachments/assets/6e373cb4-a1fa-4c21-a72a-db2d0bd96a89
 
 ---
 
