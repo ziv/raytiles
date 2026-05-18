@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.13](https://github.com/ziv/raytiles/compare/v0.8.12...v0.8.13) (2026-05-18)
+
+
+### Bug Fixes
+
+* move get screen width and height to extract_frustum to support screen resize ([bc247ae](https://github.com/ziv/raytiles/commit/bc247ae9e2fd4eaf23d9bf115dd564c49f842869))
+* performance - reduce is_tile_in_frustum by x3 per frame ([2330691](https://github.com/ziv/raytiles/commit/2330691b011b4a4a2b3f73eeda180e3b5a8689e3))
+* performance use sorted vector in draw to gain GPU early Z ([785b105](https://github.com/ziv/raytiles/commit/785b105d208bae61370619d14b653460d60fa462))
+* remove from rendering_tiles with new condition. erase from loading_tiles commented for now, it should be fix for a race ([f6d6ffe](https://github.com/ziv/raytiles/commit/f6d6ffea2ce0e04b4c15b4240cca7555d3db7d82))
+* replace deleteing loading tiles with cancel the loading ([6388e1a](https://github.com/ziv/raytiles/commit/6388e1aa9c7be27d503a1b3ac6db3921a7257264))
+* split_url unsafe parse ([a391db8](https://github.com/ziv/raytiles/commit/a391db80499dbe218edda34386a5f4a0b11aa84f))
+* split_url unsafe parse ([d57c134](https://github.com/ziv/raytiles/commit/d57c134db51d2c22e923785df3c0017e04032577))
+
 ## [0.8.12](https://github.com/ziv/raytiles/compare/v0.8.11...v0.8.12) (2026-05-18)
 
 
