@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.9](https://github.com/ziv/raytiles/compare/v0.8.8...v0.8.9) (2026-05-17)
+
+
+### Bug Fixes
+
+* add missing API and create c demo application ([962cde5](https://github.com/ziv/raytiles/commit/962cde546d7260fa01fc169211bf474f56ae45cd))
+* re-write the c wrapper ([962cde5](https://github.com/ziv/raytiles/commit/962cde546d7260fa01fc169211bf474f56ae45cd))
+* re-write the c wrapper ([#74](https://github.com/ziv/raytiles/issues/74)) ([962cde5](https://github.com/ziv/raytiles/commit/962cde546d7260fa01fc169211bf474f56ae45cd))
+
 ## [0.8.8](https://github.com/ziv/raytiles/compare/v0.8.7...v0.8.8) (2026-05-17)
 
 
