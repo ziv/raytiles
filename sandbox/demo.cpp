@@ -68,14 +68,14 @@ int main() {
 
 
     // The Grand Canyon
-    world.anchor_x_tile = 97;
-    world.anchor_z_tile = 200;
-    rendering.skirt_drop = 1000.0f;
+    // world.anchor_x_tile = 97;
+    // world.anchor_z_tile = 200;
+    // rendering.skirt_drop = 1000.0f;
 
     // Norway
-    // world.anchor_x_tile = 265;
-    // world.anchor_z_tile = 143;
-    // rendering.skirt_drop = 1000.0f;
+    world.anchor_x_tile = 265;
+    world.anchor_z_tile = 143;
+    rendering.skirt_drop = 1000.0f;
 
     // Grand Teton
     // world.anchor_x_tile = 98;

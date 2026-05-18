@@ -80,7 +80,7 @@ namespace raytiles {
     void renderer::debug_3d(const DebugView &draw_view) {
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
             if (const auto &t = draw_view.tiles.at(key.zoom); utils::is_tile_in_frustum(tile.tx, tile.tz, t.size, draw_view.frustum)) {
-                DrawCubeWires({tile.tx, 0.0f, tile.tz}, t.size, 200.0f, t.size, GREEN);
+                DrawCubeWires({tile.tx, 0.0f, tile.tz}, t.size, 1000.0f, t.size, GREEN);
             }
         }
     }

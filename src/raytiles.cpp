@@ -390,6 +390,20 @@ namespace raytiles {
                 return true;
             }
         }
+
+        // check grandparent. rare, but happens when zoom levels are skipped
+        // due to distance-based loading in a very fast movement.
+        if (key.zoom - 1 > world.base_zoom) {
+            if (contains(key.zoom - 2, key.x >> 2, key.z >> 2)) return true;
+        }
+
+        // check grandchildren. rare, the same reason.
+        // if (key.zoom + 1 < world.max_zoom) {
+        //     const int child_x = key.x * 4;
+        //     const int child_z = key.z * 4;
+        //     // long if or a loop...
+        // }
+
         return false;
     }
 } // namespace raytiles
