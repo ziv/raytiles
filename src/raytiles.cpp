@@ -20,7 +20,6 @@
 #include "downloader.hpp"
 #include "raytiles/detail/tile.hpp"
 #include "raytiles/detail/utils.hpp"
-#include "shaders.hpp"
 
 using namespace std::chrono_literals;
 
@@ -33,11 +32,9 @@ namespace raytiles {
                        streaming_config streaming_conf,
                        rendering_config rendering_conf,
                        pool_config pool_conf)
-        : near_plane(rendering_conf.near_plane), // take from rendering what we need before loosing ownership
-          far_plane(rendering_conf.far_plane),
-          world(std::move(world_conf)),
+        : world(std::move(world_conf)),
           streaming(std::move(streaming_conf)),
-          tile_renderer(std::move(rendering_conf)),
+          tile_renderer(rendering_conf),
           tile_downloader(std::make_unique<pool>(std::move(pool_conf))),
           width(static_cast<float>(GetScreenWidth())),
           height(static_cast<float>(GetScreenHeight())) {
@@ -77,7 +74,7 @@ namespace raytiles {
 
         // todo should be set as part of height?! (i.e. in "process_current_location")
         // set the rendering distance
-        rlSetClipPlanes(near_plane, far_plane);
+        rlSetClipPlanes(streaming.near_plane, streaming.far_plane);
 
         if (world.use_logger) TraceLog(LOG_INFO, "raytiles streamer initialized");
     }
@@ -119,8 +116,8 @@ namespace raytiles {
         last_frustum = utils::extract_frustum(camera,
                                               width,
                                               height,
-                                              near_plane,
-                                              far_plane
+                                              static_cast<float>(streaming.near_plane),
+                                              static_cast<float>(streaming.far_plane)
         );
 
         // loading status (initial loading)

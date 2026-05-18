@@ -118,12 +118,7 @@ namespace raytiles {
         /// Hard cap on tile promotions per frame, on top of `upload_budget_sec`.
         /// Whichever limit is hit first stops the loop.
         int max_uploads_per_frame = 8;
-    };
 
-    /// Rendering / shader-uniform parameters. Every field here is genuinely
-    /// runtime-mutable; most have matching `streamer::set_*` setters that push
-    /// new values to the shader on the next `update()`.
-    struct rendering_config {
         /// Near clip plane (meters) used by the displacement shader for fog and
         /// depth-precision tuning. Match this to your camera setup.
         MetersD near_plane = 1;
@@ -131,7 +126,12 @@ namespace raytiles {
         /// Far clip plane (meters) used by the displacement shader for fog and
         /// depth-precision tuning. Match this to your camera setup.
         MetersD far_plane = 400000;
+    };
 
+    /// Rendering / shader-uniform parameters. Every field here is genuinely
+    /// runtime-mutable; most have matching `streamer::set_*` setters that push
+    /// new values to the shader on the next `update()`.
+    struct rendering_config {
         /// Distance (in meters) at which atmospheric fog starts to fade tiles to
         /// `fog_color`.
         Meters fog_start = 100000.0f;
@@ -212,7 +212,7 @@ namespace raytiles {
 
     class renderer {
     public:
-        explicit renderer(rendering_config conf);
+        explicit renderer(const rendering_config &conf);
 
         int draw(const Vector3 &position, const DebugView &draw_view);
 
@@ -343,25 +343,26 @@ namespace raytiles {
         /// and `streaming_config::max_uploads_per_frame`.
         void update(const Camera3D &camera);
 
-        /// Renders all currently loaded tiles. Must be called between
+        /// Renders all currently loaded tiles in view. Must be called between
         /// `BeginMode3D` / `EndMode3D` with the same camera passed to `update`.
         void draw(const Camera3D &camera);
 
-        /// Draws a 2D HUD with streamer statistics (loaded / loading counts, etc.).
+        /// Draws zoom labels above the tiles.
         /// Call between `BeginDrawing` / `EndDrawing`, after `EndMode3D`.
         void debug(const Camera3D &camera);
 
-        /// Draws 3D debug overlays (tile bounds, LOD seams). Call inside the same
+        /// Draws 3D tile bounds. Call inside the same
         /// `BeginMode3D` / `EndMode3D` block as `draw`.
         void debug_3d();
 
         /// Returns the underlying renderer instance for direct access
-        /// to shader parameters and debug methods.
+        /// to shader parameters.
         renderer &get_renderer();
 
         /// Return true for initial loading only
         [[nodiscard]] bool is_loading() const;
 
+        /// Return loading percents
         [[nodiscard]] float get_loading() const;
 
         /// Returns the terrain altitude (Y world-coordinate) under `position`,
@@ -391,8 +392,8 @@ namespace raytiles {
         [[nodiscard]] bool is_tile_out_of_area(const tile_key &key) const;
 
         // configuration
-        float near_plane;
-        float far_plane;
+        // double near_plane;
+        // double far_plane;
         world_config world;
         streaming_config streaming;
 

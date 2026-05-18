@@ -95,16 +95,16 @@ typedef struct RaytilesStreamingConfig {
 
     /// Hard cap on tile promotions per frame.
     int max_uploads_per_frame;
-} RaytilesStreamingConfig;
 
-/// Rendering / shader-uniform parameters. Mirrors `raytiles::rendering_config`.
-typedef struct RaytilesRenderingConfig {
     /// Near clip plane (meters). Matches the C++ `MetersD` (double).
     double near_plane;
 
     /// Far clip plane (meters).
     double far_plane;
+} RaytilesStreamingConfig;
 
+/// Rendering / shader-uniform parameters. Mirrors `raytiles::rendering_config`.
+typedef struct RaytilesRenderingConfig {
     /// Distance (meters) at which fog begins.
     float fog_start;
 

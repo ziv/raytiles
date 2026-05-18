@@ -114,6 +114,8 @@ namespace {
         s.update_height = c->update_height;
         s.upload_budget_sec = c->upload_budget_sec;
         s.max_uploads_per_frame = c->max_uploads_per_frame;
+        s.near_plane = c->near_plane;
+        s.far_plane = c->far_plane;
         if (c->threshold_zooms && c->threshold_values && c->thresholds_count > 0) {
             s.thresholds.clear();
             for (int i = 0; i < c->thresholds_count; ++i) {
@@ -126,8 +128,6 @@ namespace {
     raytiles::rendering_config to_cpp_rendering(const RaytilesRenderingConfig *c) {
         raytiles::rendering_config r{};
         if (!c) return r;
-        r.near_plane = c->near_plane;
-        r.far_plane = c->far_plane;
         r.fog_start = c->fog_start;
         r.fog_end = c->fog_end;
         r.skirt_drop = c->skirt_drop;
@@ -197,14 +197,14 @@ RaytilesStreamingConfig RaytilesStreamingConfigDefault(void) {
     out.update_height = s.update_height;
     out.upload_budget_sec = s.upload_budget_sec;
     out.max_uploads_per_frame = s.max_uploads_per_frame;
+    out.near_plane = s.near_plane;
+    out.far_plane = s.far_plane;
     return out;
 }
 
 RaytilesRenderingConfig RaytilesRenderingConfigDefault(void) {
     constexpr raytiles::rendering_config r{};
     RaytilesRenderingConfig out{};
-    out.near_plane = r.near_plane;
-    out.far_plane = r.far_plane;
     out.fog_start = r.fog_start;
     out.fog_end = r.fog_end;
     out.skirt_drop = r.skirt_drop;

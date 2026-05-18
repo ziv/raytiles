@@ -4,7 +4,7 @@
 #include "shaders.hpp"
 
 namespace raytiles {
-    renderer::renderer(rendering_config conf) : rendering(std::move(conf)),
+    renderer::renderer(const rendering_config &conf) : rendering(conf),
                                                  displacement_shader(raii::load_shader_from_memory(shaders::vertex_shader, shaders::fragment_shader)) {
         material = raii::material{LoadMaterialDefault()};
         material->shader = *displacement_shader;
