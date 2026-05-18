@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.12](https://github.com/ziv/raytiles/compare/v0.8.11...v0.8.12) (2026-05-18)
+
+
+### Bug Fixes
+
+* add half check for grands ([c410c26](https://github.com/ziv/raytiles/commit/c410c261065dc6064a344f3436364511231bcfdc))
+* add missing config path for emscripten sandbox app ([c410c26](https://github.com/ziv/raytiles/commit/c410c261065dc6064a344f3436364511231bcfdc))
+
 ## [0.8.11](https://github.com/ziv/raytiles/compare/v0.8.10...v0.8.11) (2026-05-18)
 
 
