@@ -1,6 +1,14 @@
 #include "raylib.h"
 #include "raytiles/raytiles.h"
 
+// baseline
+// ----------------------------------------------
+// before moving PNG decoding from main thread:
+// ~2.2sec loading time
+// after moving PNG decoding from main thread:
+// ~1.6sec loading time
+//
+
 int main() {
     SetTraceLogLevel(LOG_ERROR);
 
@@ -33,7 +41,7 @@ int main() {
         EndDrawing();
     }
 
-    TraceLog(LOG_ERROR, "------------------ initial loading took %.2f seconds", GetTime() - t);
+    TraceLog(LOG_WARNING, "------------------ initial loading took %.2f seconds", GetTime() - t);
     CloseWindow();
     return 0;
 }

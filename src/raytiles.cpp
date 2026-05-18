@@ -254,11 +254,12 @@ namespace raytiles {
     }
 
     void streamer::process_loaded_tiles() {
-        // walk loading tiles; for each entry that finished downloading, either promote
-        // it to rendering_tiles or drop it (invalid / no longer desired). entries are
+        // walk loading tiles; for each entry where all three downloads finished, either
+        // promote it to rendering_tiles or drop it (no longer desired). entries are
         // erased immediately on the iterator. uploads are bounded both by a wall-clock
         // budget (to keep the frame steady on slow GPUs) and a hard cap (to keep heavy
-        // single-tile uploads from running away).
+        // single-tile uploads from running away). PNG decode happened off-thread inside
+        // the worker pool, so this loop only does GPU upload + bookkeeping.
         const double frame_start = GetTime();
         int promoted = 0;
 
@@ -273,49 +274,27 @@ namespace raytiles {
                 continue;
             }
 
-            // futures resolved with raw file bytes - decode here on the main thread to
-            // keep raylib calls off the worker threads. take const refs since the
-            // shared_future may be reused by multiple consumers (we don't move-out).
-            // a worker exception (network failure, fopen, etc.) propagates through
-            // .get(); drop the tile so the rest of the world keeps streaming.
-            const std::string *tx_bytes_ptr = nullptr;
-            const std::string *hm_bytes_ptr = nullptr;
-            const std::string *nm_bytes_ptr = nullptr;
+            // futures resolved with already-decoded raylib Image values (POD).
+            // .get() returns a const Image& into the shared_future's storage; the
+            // pixel buffer was malloc'd by stb_image in the worker. we copy the
+            // struct out (cheap, just pointer + ints) and immediately wrap each
+            // copy in raii::image so the buffer is freed by UnloadImage on every
+            // exit path below. the shared_future's residual copy of the Image is
+            // harmless when the loading_tile is erased: Image is a POD with no
+            // destructor, so destroying the shared_future does not double-free.
+            //
+            // a worker exception (network failure, decode failure, etc.) propagates
+            // through .get(); drop the tile and keep streaming the rest.
+            raii::image tex_img{};
+            raii::image height_img{};
+            raii::image normals_img{};
             try {
-                tx_bytes_ptr = &tile.tx_future.get();
-                hm_bytes_ptr = &tile.hm_future.get();
-                nm_bytes_ptr = &tile.nl_future.get();
+                tex_img = raii::image{tile.tx_future.get()};
+                height_img = raii::image{tile.hm_future.get()};
+                normals_img = raii::image{tile.nl_future.get()};
                 if (world.use_logger) TraceLog(LOG_DEBUG, "tile %d/%d/%d loaded", key.zoom, key.x, key.z);
             } catch (const std::exception &e) {
                 TraceLog(LOG_WARNING, "tile %d/%d/%d download failed: %s - dropping", key.zoom, key.x, key.z, e.what());
-                it = loading_tiles.erase(it);
-                continue;
-            }
-            const std::string &tx_bytes = *tx_bytes_ptr;
-            const std::string &hm_bytes = *hm_bytes_ptr;
-            const std::string &nm_bytes = *nm_bytes_ptr;
-
-            // take ownership of the decoded images via RAII; they unload automatically
-            // on every exit path below.
-            raii::image tex_img{LoadImageFromMemory(".png", reinterpret_cast<const unsigned char *>(tx_bytes.data()), static_cast<int>(tx_bytes.size()))};
-            raii::image height_img{LoadImageFromMemory(".png", reinterpret_cast<const unsigned char *>(hm_bytes.data()), static_cast<int>(hm_bytes.size()))};
-            raii::image normals_img{LoadImageFromMemory(".png", reinterpret_cast<const unsigned char *>(nm_bytes.data()), static_cast<int>(nm_bytes.size()))};
-
-            // get specific error what is wrong...
-            bool valid = true;
-            if (!IsImageValid(*tex_img)) {
-                TraceLog(LOG_WARNING, "failed to decode texture tile %d/%d/%d - dropping", key.zoom, key.x, key.z);
-                valid = false;
-            }
-            if (!IsImageValid(*height_img)) {
-                TraceLog(LOG_WARNING, "failed to decode heightmap tile %d/%d/%d - dropping", key.zoom, key.x, key.z);
-                valid = false;
-            }
-            if (!IsImageValid(*normals_img)) {
-                TraceLog(LOG_WARNING, "failed to decode normals tile %d/%d/%d - dropping", key.zoom, key.x, key.z);
-                valid = false;
-            }
-            if (!valid) {
                 it = loading_tiles.erase(it);
                 continue;
             }

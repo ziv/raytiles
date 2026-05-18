@@ -5,6 +5,7 @@
 #include <future>
 #include <string>
 
+#include "raylib.h"
 #include "raii.hpp"
 
 namespace raytiles {
@@ -28,18 +29,25 @@ namespace raytiles {
     };
 
     /// In-flight download record. Holds the three shared_futures (texture,
-    /// heightmap, normals) the worker pool resolves with raw file bytes, plus
-    /// the precomputed world-space center of the tile.
+    /// heightmap, normals) the worker pool resolves with already-decoded
+    /// raylib `Image` structs (pixels malloc'd by stb_image, owned by
+    /// whoever consumes the future). The world-space center of the tile is
+    /// also precomputed.
+    ///
+    /// Image is the raylib POD (data + w/h/mipmaps/format). The pool does
+    /// NOT wrap it in raii::image so the consumer can decide whether to
+    /// adopt it into a raii::image (heightmap path), upload-and-UnloadImage
+    /// (texture / normals path), or UnloadImage on cancellation.
     struct loading_tile {
         float tx;
         float tz;
-        std::shared_future<std::string> tx_future;
-        std::shared_future<std::string> hm_future;
-        std::shared_future<std::string> nl_future;
+        std::shared_future<Image> tx_future;
+        std::shared_future<Image> hm_future;
+        std::shared_future<Image> nl_future;
     };
 
-    /// Fully promoted tile: GPU textures uploaded, heightmap CPU image retained
-    /// for `ground_height()` queries.
+    /// Fully promoted tile: GPU textures uploaded, heightmap CPU image
+    /// retained for `ground_height()` queries.
     struct loaded_tile {
         Meters size;
         float tx;
