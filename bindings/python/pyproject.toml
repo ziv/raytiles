@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "raytiles"
+version = "0.1.0"
+description = "Python binding for the raytiles streaming tile renderer."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "../../license" }
+authors = [{ name = "Ziv Perry" }]
+keywords = ["raytiles", "raylib", "tiles", "terrain", "rendering"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+    "Topic :: Multimedia :: Graphics :: 3D Rendering",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+]
+
+[project.urls]
+Homepage = "https://github.com/ziv/raytiles"
+Source   = "https://github.com/ziv/raytiles"
+Issues   = "https://github.com/ziv/raytiles/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["raytiles*"]
+
+[tool.setuptools.package-data]
+raytiles = ["py.typed"]
