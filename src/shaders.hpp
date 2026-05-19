@@ -99,9 +99,11 @@ void main()
 namespace raytiles::sky_shaders {
     // language=GLSL
     constexpr auto vertex_shader = GLSL_VERSION_HEADER R"glsl(
+
 )glsl";
 
     // language=GLSL
     constexpr auto fragment_shader = GLSL_VERSION_HEADER R"glsl(
+
 )glsl";
 }
