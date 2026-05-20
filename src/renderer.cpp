@@ -1,10 +1,10 @@
 #include <algorithm>
 
 #include "raytiles/raytiles.h"
-#include "raytiles/detail/renderer.h"
-#include "raytiles/detail/raii.hpp"
-#include "raytiles/detail/tile_shader.h"
-#include "raytiles/detail/utils.hpp"
+#include "detail/renderer.h"
+#include "detail/raii.hpp"
+#include "detail/tile_shader.h"
+#include "detail/utils.hpp"
 
 namespace raytiles {
     namespace {

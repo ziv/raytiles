@@ -82,13 +82,6 @@ namespace raytiles {
     };
 }
 
-#include "detail/downloader.h"
-#include "detail/raii.hpp"
-#include "detail/tile.hpp"
-#include "detail/tile_shader.h"
-#include "detail/tiles_manager.h"
-#include "detail/utils.hpp"
-
 namespace raytiles {
     class renderer;
     class tiles_manager;

@@ -1,5 +1,5 @@
 #pragma once
-#include "raytiles/detail/utils.hpp"
+#include "detail/utils.hpp"
 
 namespace raytiles {
     struct tile_shader_options {

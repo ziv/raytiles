@@ -1,5 +1,5 @@
 #include "raytiles/raytiles.h"
-#include "raytiles/detail/downloader.h"
+#include "detail/downloader.h"
 
 #include <cstdio>
 #include <exception>

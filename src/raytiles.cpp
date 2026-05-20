@@ -12,9 +12,9 @@
 #include <optional>
 #include <utility>
 
-#include "raytiles/detail/renderer.h"
-#include "raytiles/detail/tiles_manager.h"
-#include "raytiles/detail/utils.hpp"
+#include "detail/renderer.h"
+#include "detail/tiles_manager.h"
+#include "detail/utils.hpp"
 
 namespace raytiles {
     namespace {

@@ -1,9 +1,9 @@
 #include "raytiles/raytiles.h"
-#include "raytiles/detail/tiles_manager.h"
+#include "detail/tiles_manager.h"
 #include <format>
 #include <ranges>
 #include <utility>
-#include "raytiles/detail/utils.hpp"
+#include "detail/utils.hpp"
 
 
 namespace raytiles {

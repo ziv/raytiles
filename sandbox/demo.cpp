@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <format>
+#include <vector>
 #include <raytiles/raytiles.h>
 #include "fly.h"
 
