@@ -3,6 +3,7 @@
 #include <format>
 #include <ranges>
 #include <utility>
+#include <chrono>
 #include "detail/utils.hpp"
 
 using namespace std::chrono_literals;
