@@ -3,11 +3,11 @@
 /// imagery and heightmap tiles around a moving camera and render it via raylib.
 #ifndef RAYTILES_LIBRARY_H
 #define RAYTILES_LIBRARY_H
+#include <array>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 
 #include "raylib.h"
 
@@ -29,6 +29,22 @@ namespace raytiles {
     using Meters = float;
     using MetersD = double;
     using MetersSq = double;
+
+    /// Lowest zoom level supported by the library. `world_config::base_zoom`
+    /// must be `>= min_supported_zoom`; constructing a streamer with a lower
+    /// `base_zoom` throws `std::runtime_error`.
+    constexpr Zoom min_supported_zoom = 9;
+
+    /// Highest zoom level supported by the library. `world_config::max_zoom`
+    /// must be `<= max_supported_zoom`; constructing a streamer with a higher
+    /// `max_zoom` throws `std::runtime_error`.
+    constexpr Zoom max_supported_zoom = 15;
+
+    /// Number of zoom levels in `[min_supported_zoom, max_supported_zoom]`.
+    /// Sizes the per-zoom arrays `world_config::skirt_overlap` and
+    /// `streaming_config::thresholds`. Slot `i` corresponds to zoom
+    /// `base_zoom + i`; slots beyond `max_zoom - base_zoom` are unused.
+    constexpr std::size_t zoom_levels = max_supported_zoom - min_supported_zoom + 1;
 
     /// A single plane in world space, used for frustum culling. `normal` points
     /// into the volume the plane bounds; `distance` is the plane's offset from
@@ -100,15 +116,14 @@ namespace raytiles {
         /// Lowest level-of-detail zoom that will ever be loaded. Tiles outside the
         /// camera's near radius are kept at this zoom to bound the working set.
         /// Changing this value also requires updating `streaming_config::thresholds`
-        /// and `base_zoom_tile_size`. Note: this library has never been tested
-        /// with a `base_zoom` lower than 9.
-        int base_zoom = 9;
+        /// and `base_zoom_tile_size`. Must be `>= min_supported_zoom`.
+        int base_zoom = min_supported_zoom;
 
         /// Highest level-of-detail zoom available. Tiles directly under the camera
         /// are subdivided up to this zoom.
         /// Changing this value also requires updating `streaming_config::thresholds`.
-        /// 15 is the maximum zoom currently supported.
-        int max_zoom = 15;
+        /// Must be `<= max_supported_zoom` and `>= base_zoom`.
+        int max_zoom = max_supported_zoom;
 
         /// World size (in meters) of one tile at `base_zoom`. Tiles at higher zooms
         /// are scaled by `1 / (1 << (zoom - base_zoom))`.
@@ -116,15 +131,11 @@ namespace raytiles {
 
         /// Per-zoom skirt overlap factors, allowing you to tweak the amount of overlap
         /// (and thus fill rate) at different zoom levels. Baked into generated meshes.
-        /// todo replace with std::array for maximum speed access (index = Zoom - base_zoom)
-        std::unordered_map<Zoom, float> skirt_overlap = {
-            {9, 1.00f},
-            {10, 1.00f},
-            {11, 1.00f},
-            {12, 1.00f},
-            {13, 1.00f},
-            {14, 1.00f},
-            {15, 1.00f}
+        /// Indexed as `skirt_overlap[zoom - base_zoom]`, so slot `i` applies to zoom
+        /// `base_zoom + i`. Only slots `[0, max_zoom - base_zoom]` are read; trailing
+        /// slots are ignored.
+        std::array<float, zoom_levels> skirt_overlap = {
+            1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f
         };
 
         /// Generate trilinear / anisotropic mipmaps for the albedo texture on
@@ -147,17 +158,12 @@ namespace raytiles {
 
         /// Per-zoom distance thresholds (covering `world_config::base_zoom`
         /// through `world_config::max_zoom`). Tuned for performance and to keep
-        /// the resident tile count under 600. If the zoom range changes, this
-        /// map must be updated to match.
-        /// todo replace with std::array for maximum speed access (index = Zoom - base_zoom)
-        std::unordered_map<Zoom, Meters> thresholds = {
-            {9, 100000.0f},
-            {10, 80000.0f},
-            {11, 40000.0f},
-            {12, 20000.0f},
-            {13, 10000.0f},
-            {14, 5000.0f},
-            {15, 2500.0f}
+        /// the resident tile count under 600. Indexed as
+        /// `thresholds[zoom - base_zoom]`, so slot `i` applies to zoom
+        /// `base_zoom + i`. Only slots `[0, max_zoom - base_zoom]` are read;
+        /// trailing slots are ignored.
+        std::array<Meters, zoom_levels> thresholds = {
+            100000.0f, 80000.0f, 40000.0f, 20000.0f, 10000.0f, 5000.0f, 2500.0f
         };
 
         /// Squared XZ distance the camera must travel before the desired-tile set

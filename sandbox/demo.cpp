@@ -93,13 +93,7 @@ int main() {
     // Adjust to fit your scene
     rendering.skirt_drop = 1000.0f;
     world.skirt_overlap = {
-        {9, 1.01f},
-        {10, 1.01f},
-        {11, 1.01f},
-        {12, 1.01f},
-        {13, 1.01f},
-        {14, 1.01f},
-        {15, 1.02f}
+        1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.02f
     };
 
 

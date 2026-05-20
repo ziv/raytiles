@@ -10,8 +10,6 @@
 
 namespace raytiles {
     constexpr float max_world_height = 8848.0f; // Mount Everest height in meters
-    constexpr int max_supported_zoom = 15;
-    constexpr int min_tested_zoom = 9;
     constexpr int min_resolution = 4;
     constexpr int max_resolution = 256;
 

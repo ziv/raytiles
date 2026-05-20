@@ -3,13 +3,14 @@
 /// structs / opaque handles into raytiles::streamer + raytiles::renderer calls.
 #include "../include/raytiles/craytiles.h"
 
-#include <algorithm>
 #include <new>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "../include/raytiles/raytiles.h"
+
+static_assert(RAYTILES_ZOOM_LEVELS == raytiles::zoom_levels,
+              "RAYTILES_ZOOM_LEVELS must match raytiles::zoom_levels");
 
 // ---------------------------------------------------------------------------
 //  Opaque handle types
@@ -33,45 +34,6 @@ namespace {
 }
 
 // ---------------------------------------------------------------------------
-//  Library-owned static storage for per-zoom defaults
-// ---------------------------------------------------------------------------
-
-namespace {
-    struct zoom_map_storage {
-        std::vector<int> zooms;
-        std::vector<float> values;
-    };
-
-    template<typename Map>
-    zoom_map_storage flatten_sorted(const Map &m) {
-        zoom_map_storage out;
-        out.zooms.reserve(m.size());
-        out.values.reserve(m.size());
-        // sort by zoom so callers iterating the arrays get a stable order
-        std::vector<std::pair<int, float> > entries(m.begin(), m.end());
-        std::sort(entries.begin(), entries.end(),
-                  [](const auto &a, const auto &b) { return a.first < b.first; });
-        for (const auto &[zoom, value] : entries) {
-            out.zooms.push_back(zoom);
-            out.values.push_back(value);
-        }
-        return out;
-    }
-
-    const zoom_map_storage &default_thresholds() {
-        static const zoom_map_storage storage =
-                flatten_sorted(raytiles::streaming_config{}.thresholds);
-        return storage;
-    }
-
-    const zoom_map_storage &default_skirt_overlap() {
-        static const zoom_map_storage storage =
-                flatten_sorted(raytiles::world_config{}.skirt_overlap);
-        return storage;
-    }
-}
-
-// ---------------------------------------------------------------------------
 //  C -> C++ struct conversion helpers
 // ---------------------------------------------------------------------------
 
@@ -86,11 +48,8 @@ namespace {
         w.base_zoom_tile_size = c->base_zoom_tile_size;
         w.use_mipmap = c->use_mipmap;
         w.use_logger = c->use_logger;
-        if (c->skirt_overlap_zooms && c->skirt_overlap_values && c->skirt_overlap_count > 0) {
-            w.skirt_overlap.clear();
-            for (int i = 0; i < c->skirt_overlap_count; ++i) {
-                w.skirt_overlap[c->skirt_overlap_zooms[i]] = c->skirt_overlap_values[i];
-            }
+        for (std::size_t i = 0; i < raytiles::zoom_levels; ++i) {
+            w.skirt_overlap[i] = c->skirt_overlap[i];
         }
         return w;
     }
@@ -105,11 +64,8 @@ namespace {
         s.max_uploads_per_frame = c->max_uploads_per_frame;
         s.near_plane = c->near_plane;
         s.far_plane = c->far_plane;
-        if (c->threshold_zooms && c->threshold_values && c->thresholds_count > 0) {
-            s.thresholds.clear();
-            for (int i = 0; i < c->thresholds_count; ++i) {
-                s.thresholds[c->threshold_zooms[i]] = c->threshold_values[i];
-            }
+        for (std::size_t i = 0; i < raytiles::zoom_levels; ++i) {
+            s.thresholds[i] = c->thresholds[i];
         }
         return s;
     }
@@ -165,10 +121,9 @@ RaytilesWorldConfig RaytilesWorldConfigDefault(void) {
     out.base_zoom = w.base_zoom;
     out.max_zoom = w.max_zoom;
     out.base_zoom_tile_size = w.base_zoom_tile_size;
-    const auto &skirt = default_skirt_overlap();
-    out.skirt_overlap_zooms = skirt.zooms.data();
-    out.skirt_overlap_values = skirt.values.data();
-    out.skirt_overlap_count = static_cast<int>(skirt.zooms.size());
+    for (std::size_t i = 0; i < raytiles::zoom_levels; ++i) {
+        out.skirt_overlap[i] = w.skirt_overlap[i];
+    }
     out.use_mipmap = w.use_mipmap;
     out.use_logger = w.use_logger;
     return out;
@@ -178,10 +133,9 @@ RaytilesStreamingConfig RaytilesStreamingConfigDefault(void) {
     const raytiles::streaming_config s{};
     RaytilesStreamingConfig out{};
     out.rendering_radius = s.rendering_radius;
-    const auto &thresholds = default_thresholds();
-    out.threshold_zooms = thresholds.zooms.data();
-    out.threshold_values = thresholds.values.data();
-    out.thresholds_count = static_cast<int>(thresholds.zooms.size());
+    for (std::size_t i = 0; i < raytiles::zoom_levels; ++i) {
+        out.thresholds[i] = s.thresholds[i];
+    }
     out.update_distance_sq = s.update_distance_sq;
     out.update_height = s.update_height;
     out.upload_budget_sec = s.upload_budget_sec;

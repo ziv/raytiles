@@ -15,10 +15,9 @@
 /// Shader-parameter setters are exposed directly on the streamer handle as
 /// `RaytilesStreamerSet*`.
 ///
-/// Per-zoom `std::unordered_map` fields are exposed as parallel arrays
-/// (`*_zooms`, `*_values`, `*_count`). The arrays only need to remain valid
-/// for the duration of the `RaytilesStreamerCreate` call; the C++ side
-/// copies them into the underlying map. NULL arrays mean "use defaults".
+/// Per-zoom `std::array` fields are exposed as fixed-size C arrays of length
+/// `RAYTILES_ZOOM_LEVELS`. Slot `i` applies to zoom `base_zoom + i`; trailing
+/// slots beyond `max_zoom - base_zoom` are ignored.
 ///
 /// String fields in `RaytilesPoolConfig` are `const char*`. NULL is treated as
 /// an empty string. Strings only need to remain valid for the duration of the
@@ -33,6 +32,11 @@
 #define RAYTILES_C_LIBRARY_H
 
 #include "raylib.h"
+
+/// Number of zoom levels in `[9, 15]`. Sizes the per-zoom arrays
+/// `RaytilesWorldConfig::skirt_overlap` and `RaytilesStreamingConfig::thresholds`.
+/// Must match `raytiles::zoom_levels` on the C++ side.
+#define RAYTILES_ZOOM_LEVELS 7
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,12 +62,10 @@ typedef struct RaytilesWorldConfig {
     /// World size (meters) of one tile at `base_zoom`.
     float base_zoom_tile_size;
 
-    /// Per-zoom skirt overlap factors (baked into generated meshes). Parallel
-    /// arrays mirroring `raytiles::world_config::skirt_overlap`. Must cover
-    /// every zoom in `[base_zoom, max_zoom]`. NULL means "use defaults".
-    const int *skirt_overlap_zooms;
-    const float *skirt_overlap_values;
-    int skirt_overlap_count;
+    /// Per-zoom skirt overlap factors (baked into generated meshes). Indexed
+    /// as `skirt_overlap[zoom - base_zoom]`. Mirrors
+    /// `raytiles::world_config::skirt_overlap`.
+    float skirt_overlap[RAYTILES_ZOOM_LEVELS];
 
     /// Generate trilinear / anisotropic mipmaps for the albedo texture.
     bool use_mipmap;
@@ -77,12 +79,10 @@ typedef struct RaytilesStreamingConfig {
     /// Radius of the loaded-tile disc, in `base_zoom` tiles.
     int rendering_radius;
 
-    /// Per-zoom subdivision distance thresholds. Parallel arrays mirroring
-    /// `raytiles::streaming_config::thresholds`. Must cover every zoom in
-    /// `[base_zoom, max_zoom]`. NULL means "use defaults".
-    const int *threshold_zooms;
-    const float *threshold_values;
-    int thresholds_count;
+    /// Per-zoom subdivision distance thresholds. Indexed as
+    /// `thresholds[zoom - base_zoom]`. Mirrors
+    /// `raytiles::streaming_config::thresholds`.
+    float thresholds[RAYTILES_ZOOM_LEVELS];
 
     /// Squared XZ distance the camera must travel to trigger a re-stream.
     /// Type matches the C++ `MetersSq` (double).
@@ -176,13 +176,11 @@ typedef struct RaytilesPoolConfig {
 // ---------------------------------------------------------------------------
 
 /// Returns a `RaytilesWorldConfig` populated with the same defaults as the
-/// C++ `raytiles::world_config{}`. The per-zoom array pointers point at
-/// library-owned static storage valid for the lifetime of the process.
+/// C++ `raytiles::world_config{}`.
 RaytilesWorldConfig RaytilesWorldConfigDefault(void);
 
 /// Returns a `RaytilesStreamingConfig` populated with the same defaults as the
-/// C++ `raytiles::streaming_config{}`. The per-zoom array pointers point at
-/// library-owned static storage valid for the lifetime of the process.
+/// C++ `raytiles::streaming_config{}`.
 RaytilesStreamingConfig RaytilesStreamingConfigDefault(void);
 
 /// Returns a `RaytilesRenderingConfig` populated with the same defaults as

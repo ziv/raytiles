@@ -14,13 +14,14 @@ namespace raytiles {
         : options(std::move(opts)),
           tile_downloader(std::move(pool_conf)) {
         // input validation
-        if (options.max_zoom > max_supported_zoom) {
-            // stop on not supported zoom
-            throw std::runtime_error(std::format("max_zoom {} is not supported; max is {}", options.max_zoom, max_supported_zoom));
+        if (options.base_zoom < min_supported_zoom) {
+            throw std::runtime_error(std::format("base_zoom {} is below min_supported_zoom {}", options.base_zoom, min_supported_zoom));
         }
-        if (options.base_zoom < min_tested_zoom) {
-            // warn on not supported zoom
-            TraceLog(LOG_WARNING, "base_zoom %d is not tested; lowest tested is %d", options.base_zoom, min_tested_zoom);
+        if (options.max_zoom > max_supported_zoom) {
+            throw std::runtime_error(std::format("max_zoom {} is above max_supported_zoom {}", options.max_zoom, max_supported_zoom));
+        }
+        if (options.max_zoom < options.base_zoom) {
+            throw std::runtime_error(std::format("max_zoom {} is below base_zoom {}", options.max_zoom, options.base_zoom));
         }
 
         // construct the tiles map
@@ -29,18 +30,11 @@ namespace raytiles {
         // - mesh
         int res = min_resolution;
         for (int zoom = options.base_zoom; zoom <= options.max_zoom; ++zoom) {
-            if (!options.thresholds.contains(zoom)) {
-                // don't start with missing items
-                throw std::runtime_error(std::format("missing distance threshold for zoom {}", zoom));
-            }
-            if (!options.skirt_overlap.contains(zoom)) {
-                // don't start with missing items
-                throw std::runtime_error(std::format("missing skirt_overlap for zoom {}", zoom));
-            }
+            const auto idx = static_cast<std::size_t>(zoom - options.base_zoom);
             const auto ratio = static_cast<float>(1 << (zoom - options.base_zoom));
             const auto size = options.base_zoom_tile_size / ratio;
-            const auto th = options.thresholds.at(zoom); // safe (see check at the beginning of loop)
-            const auto skirt_factor = options.skirt_overlap.at(zoom); // safe (see check at the beginning of loop)
+            const auto th = options.thresholds[idx];
+            const auto skirt_factor = options.skirt_overlap[idx];
 
             tiles[zoom] = tile_value{
                 size,
