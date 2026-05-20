@@ -5,9 +5,9 @@
 #include <utility>
 #include "detail/utils.hpp"
 
+using namespace std::chrono_literals;
 
 namespace raytiles {
-    using namespace std::chrono_literals;
 
     tiles_manager::tiles_manager(tiles_manager_options opts, pool_config pool_conf)
         : options(std::move(opts)),
