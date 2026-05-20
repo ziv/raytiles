@@ -15,15 +15,6 @@ namespace raytiles {
     constexpr int min_resolution = 4;
     constexpr int max_resolution = 256;
 
-    struct Plane {
-        Vector3 normal;
-        Meters distance;
-    };
-
-    struct Frustum {
-        Plane planes[6];
-    };
-
     struct DebugView {
         Frustum &frustum;
         std::unordered_map<tile_key, loaded_tile> &rendering_tiles;

@@ -10,6 +10,78 @@
 #include <unordered_set>
 
 #include "raylib.h"
+
+#ifndef RAYTILES_TEXTURE_URL
+// the order zoom/y/x is not a mistake, that is the way Esri encoded their URLs
+#define RAYTILES_TEXTURE_URL "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/:zoom:/:y:/:x:"
+#endif
+
+#ifndef RAYTILES_HEIGHTMAP_URL
+#define RAYTILES_HEIGHTMAP_URL "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/:zoom:/:x:/:y:.png"
+#endif
+
+#ifndef RAYTILES_NORMALS_URL
+#define RAYTILES_NORMALS_URL "https://s3.amazonaws.com/elevation-tiles-prod/normal/:zoom:/:x:/:y:.png"
+#endif
+
+namespace raytiles {
+    using Zoom = int;
+    using Meters = float;
+    using MetersD = double;
+    using MetersSq = double;
+
+    /// A single plane in world space, used for frustum culling. `normal` points
+    /// into the volume the plane bounds; `distance` is the plane's offset from
+    /// origin along that normal.
+    struct Plane {
+        Vector3 normal;
+        Meters distance;
+    };
+
+    /// Six-plane view frustum (left/right/bottom/top/near/far).
+    struct Frustum {
+        Plane planes[6];
+    };
+
+    /// Configuration for the background tile download pool. Passed by value to
+    /// the `streamer` constructor.
+    struct pool_config {
+        /// Number of background download workers. Downloads are I/O-bound so it's
+        /// safe to use more threads than CPU cores; 2 is a reasonable default for
+        /// HTTP keep-alive against a single host.
+        int download_threads = 4;
+
+        /// Skip TLS certificate verification for tile downloads. Only useful for
+        /// local proxies; never enable against a real server.
+        bool allow_insecure_tls = false;
+
+        /// Whether the pool's worker threads emit log lines.
+        bool use_logger = false;
+
+        /// On-disk cache path templates, formatted with `{zoom}/{x}/{z}` via
+        /// `std::vformat`. Parent directories are created on demand.
+        std::string texture_cache_path = "assets/texture/{}/{}/{}.png";
+        std::string heightmap_cache_path = "assets/heightmap/{}/{}/{}.png";
+        std::string normals_cache_path = "assets/normals/{}/{}/{}.png";
+
+        /// Provider URL templates. The full request URL is constructed from
+        /// `{zoom}/{x}/{z}` (plus any optional token in the template). Any
+        /// provider following the XYZ (slippy-map) convention works, as long as
+        /// the heightmap provider returns RGB-encoded heightmaps.
+        std::string texture_url = RAYTILES_TEXTURE_URL;
+        std::string texture_host{};
+        std::string texture_url_path{};
+
+        std::string heightmap_url = RAYTILES_HEIGHTMAP_URL;
+        std::string heightmap_host{};
+        std::string heightmap_url_path{};
+
+        std::string normals_url = RAYTILES_NORMALS_URL;
+        std::string normals_host{};
+        std::string normals_url_path{};
+    };
+}
+
 #include "detail/downloader.h"
 #include "detail/raii.hpp"
 #include "detail/tile.hpp"
@@ -309,6 +381,48 @@ namespace raytiles {
         /// @note Each loaded tile keeps its decoded heightmap in CPU RAM (~192KB)
         ///       so this query is a direct pixel read; cost is O(1).
         [[nodiscard]] std::optional<float> ground_height(Vector3 position) const;
+
+        /// @name Shader parameter setters
+        /// Forwarded onto the internal renderer; safe to call any time after
+        /// construction. Take effect on the next `update()`.
+        /// @{
+
+        /// Sets the ambient light color sent to the displacement shader. Use this
+        /// to drive day / night / weather lighting changes.
+        void set_ambient_light(Color color);
+        void set_ambient_light(Vector4 color);
+        void set_ambient_light(float r, float g, float b, float a);
+
+        /// Sets the fog color for distance attenuation. Match this to your sky
+        /// color for a seamless horizon.
+        void set_fog_color(Color color);
+        void set_fog_color(Vector4 color);
+        void set_fog_color(float r, float g, float b, float a);
+
+        /// Sets the fog start distance — the distance from the camera at which
+        /// colors begin to blend with the fog.
+        void set_fog_start(float distance);
+
+        /// Sets the fog end distance — the distance from the camera at which
+        /// colors are fully blended with the fog color.
+        void set_fog_end(float distance);
+
+        /// Sets the heightmap scale factor, which exaggerates or flattens the
+        /// terrain relief (drama factor).
+        void set_height_scale(float scale);
+
+        /// Sets the normals scale factor to increase or reduce lighting contrast.
+        void set_normals_scale(float scale);
+
+        /// Sets the sun direction vector used by the displacement shader's
+        /// lighting calculations.
+        void set_sun_direction(Vector3 direction);
+
+        /// Sets the sun lighting intensity, which controls the contrast between
+        /// lit and shaded areas.
+        void set_sun_scale(float scale);
+
+        /// @}
 
     private:
         // streamer keeps only the streaming-policy bits it actually uses

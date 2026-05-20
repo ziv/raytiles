@@ -13,56 +13,7 @@
 
 #include "raylib.h"
 
-#ifndef RAYTILES_TEXTURE_URL
-// the order zoom/y/x is not a mistake, that is the way Esri encoded their URLs
-#define RAYTILES_TEXTURE_URL "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/:zoom:/:y:/:x:"
-#endif
-
-#ifndef RAYTILES_HEIGHTMAP_URL
-#define RAYTILES_HEIGHTMAP_URL "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/:zoom:/:x:/:y:.png"
-#endif
-
-#ifndef RAYTILES_NORMALS_URL
-#define RAYTILES_NORMALS_URL "https://s3.amazonaws.com/elevation-tiles-prod/normal/:zoom:/:x:/:y:.png"
-#endif
-
 namespace raytiles {
-    struct pool_config {
-        /// Number of background download workers. Downloads are I/O-bound so it's
-        /// safe to use more threads than CPU cores; 2 is a reasonable default for
-        /// HTTP keep-alive against a single host.
-        int download_threads = 4;
-
-        /// Skip TLS certificate verification for tile downloads. Only useful for
-        /// local proxies; never enable against a real server.
-        bool allow_insecure_tls = false;
-
-        /// Whether the pool's worker threads emit log lines.
-        bool use_logger = false;
-
-        /// On-disk cache path templates, formatted with `{zoom}/{x}/{z}` via
-        /// `std::vformat`. Parent directories are created on demand.
-        std::string texture_cache_path = "assets/texture/{}/{}/{}.png";
-        std::string heightmap_cache_path = "assets/heightmap/{}/{}/{}.png";
-        std::string normals_cache_path = "assets/normals/{}/{}/{}.png";
-
-        /// Provider URL templates. The full request URL is constructed from
-        /// `{zoom}/{x}/{z}` (plus any optional token in the template). Any
-        /// provider following the XYZ (slippy-map) convention works, as long as
-        /// the heightmap provider returns RGB-encoded heightmaps.
-        std::string texture_url = RAYTILES_TEXTURE_URL;
-        std::string texture_host{};
-        std::string texture_url_path{};
-
-        std::string heightmap_url = RAYTILES_HEIGHTMAP_URL;
-        std::string heightmap_host{};
-        std::string heightmap_url_path{};
-
-        std::string normals_url = RAYTILES_NORMALS_URL;
-        std::string normals_host{};
-        std::string normals_url_path{};
-    };
-
     // pool of background workers. each job downloads a tile (or reads it from the
     // on-disk cache), decodes the PNG bytes to a raylib Image with stb_image,
     // and resolves a future with that Image. raylib's higher-level API is not

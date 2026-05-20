@@ -9,11 +9,6 @@
 #include "raii.hpp"
 
 namespace raytiles {
-    using Zoom = int;
-    using Meters = float;
-    using MetersD = double;
-    using MetersSq = double;
-
     struct tile_value {
         Meters size;
         MetersSq threshold;

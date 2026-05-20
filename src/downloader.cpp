@@ -1,3 +1,4 @@
+#include "raytiles/raytiles.h"
 #include "raytiles/detail/downloader.h"
 
 #include <cstdio>

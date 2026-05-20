@@ -88,4 +88,17 @@ namespace raytiles {
     void streamer::draw(const Camera3D &camera) {
         rendered = tile_renderer.draw(camera.position, tile_manager.make_debug_view(last_frustum));
     }
+
+    void streamer::set_ambient_light(Color color)                          { tile_renderer.set_ambient_light(color); }
+    void streamer::set_ambient_light(Vector4 color)                        { tile_renderer.set_ambient_light(color); }
+    void streamer::set_ambient_light(float r, float g, float b, float a)   { tile_renderer.set_ambient_light(r, g, b, a); }
+    void streamer::set_fog_color(Color color)                              { tile_renderer.set_fog_color(color); }
+    void streamer::set_fog_color(Vector4 color)                            { tile_renderer.set_fog_color(color); }
+    void streamer::set_fog_color(float r, float g, float b, float a)       { tile_renderer.set_fog_color(r, g, b, a); }
+    void streamer::set_fog_start(float distance)                           { tile_renderer.set_fog_start(distance); }
+    void streamer::set_fog_end(float distance)                             { tile_renderer.set_fog_end(distance); }
+    void streamer::set_height_scale(float scale)                           { tile_renderer.set_height_scale(scale); }
+    void streamer::set_normals_scale(float scale)                          { tile_renderer.set_normals_scale(scale); }
+    void streamer::set_sun_direction(Vector3 direction)                    { tile_renderer.set_sun_direction(direction); }
+    void streamer::set_sun_scale(float scale)                              { tile_renderer.set_sun_scale(scale); }
 } // namespace raytiles

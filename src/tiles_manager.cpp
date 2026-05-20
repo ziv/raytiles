@@ -1,3 +1,4 @@
+#include "raytiles/raytiles.h"
 #include "raytiles/detail/tiles_manager.h"
 #include <format>
 #include <ranges>

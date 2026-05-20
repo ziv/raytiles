@@ -1,3 +1,4 @@
+#include "raytiles/raytiles.h"
 #include "raytiles/detail/tile_shader.h"
 #include "shaders.hpp"
 
