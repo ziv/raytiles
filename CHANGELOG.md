@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.9.0](https://github.com/ziv/raytiles/compare/v0.8.13...v0.9.0) (2026-05-20)
+
+
+### Features
+
+* all headers removed ([904b42f](https://github.com/ziv/raytiles/commit/904b42f45c22c704436e6e3041ac3f90cbdc624c))
+* encapsulte tile shader ([904b42f](https://github.com/ziv/raytiles/commit/904b42f45c22c704436e6e3041ac3f90cbdc624c))
+* refactor done, public API cleaned ([904b42f](https://github.com/ziv/raytiles/commit/904b42f45c22c704436e6e3041ac3f90cbdc624c))
+* refactoring public api ([#89](https://github.com/ziv/raytiles/issues/89)) ([904b42f](https://github.com/ziv/raytiles/commit/904b42f45c22c704436e6e3041ac3f90cbdc624c))
+* split downloader ([904b42f](https://github.com/ziv/raytiles/commit/904b42f45c22c704436e6e3041ac3f90cbdc624c))
+* tile manager ([904b42f](https://github.com/ziv/raytiles/commit/904b42f45c22c704436e6e3041ac3f90cbdc624c))
+* use tile shader in renderer ([904b42f](https://github.com/ziv/raytiles/commit/904b42f45c22c704436e6e3041ac3f90cbdc624c))
+
+
+### Bug Fixes
+
+* add () operator for underlying shader ([904b42f](https://github.com/ziv/raytiles/commit/904b42f45c22c704436e6e3041ac3f90cbdc624c))
+* add configuration for binding ([ac848f1](https://github.com/ziv/raytiles/commit/ac848f1c60819128fd00cca02508407854a3c03a))
+* add missing chrono for windows ([904b42f](https://github.com/ziv/raytiles/commit/904b42f45c22c704436e6e3041ac3f90cbdc624c))
+* missing include ([904b42f](https://github.com/ziv/raytiles/commit/904b42f45c22c704436e6e3041ac3f90cbdc624c))
+* remove chrone literals ([904b42f](https://github.com/ziv/raytiles/commit/904b42f45c22c704436e6e3041ac3f90cbdc624c))
+* remove if from glsl ([22a3a3f](https://github.com/ziv/raytiles/commit/22a3a3f56e28fe213647b240b746331d8fa1673d))
+* remvoe uisng chrono_literals out of namespace raytiles ([904b42f](https://github.com/ziv/raytiles/commit/904b42f45c22c704436e6e3041ac3f90cbdc624c))
+* restore chrono literals ([904b42f](https://github.com/ziv/raytiles/commit/904b42f45c22c704436e6e3041ac3f90cbdc624c))
+
 ## [0.8.13](https://github.com/ziv/raytiles/compare/v0.8.12...v0.8.13) (2026-05-18)
 
 
