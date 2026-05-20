@@ -41,6 +41,8 @@ add_library(${PROJECT_NAME}
         src/shaders.hpp
         src/tile_shader.cpp
         include/raytiles/detail/tile_shader.h
+        src/tiles_manager.cpp
+        src/tiles_manager.h
 )
 
 target_include_directories(${PROJECT_NAME}

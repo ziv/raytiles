@@ -69,6 +69,10 @@ namespace raytiles::utils {
         return std::sqrt(distance_sq_to_tile(position, tile, tile_size));
     }
 
+    inline MetersSq calculate_horizon(const Vector3 &position) {
+        const auto d = horizon_ratio * std::max(position.y, 1.0f);
+        return d * d;
+    }
 
     /// Get height from image based on https://registry.opendata.aws/terrain-tiles/
     inline Meters get_height_from_image(const Image &img, int x, int y) {
@@ -115,7 +119,7 @@ namespace raytiles::utils {
 
         auto [m0, m4, m8, m12, m1, m5, m9, m13, m2, m6, m10, m14, m3, m7, m11, m15] = MatrixMultiply(view, proj);
 
-        Frustum frustum;
+        Frustum frustum{};
         // left
         frustum.planes[0].normal.x = m3 + m0;
         frustum.planes[0].normal.y = m7 + m4;
