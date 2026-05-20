@@ -6,7 +6,7 @@
 #include <chrono>
 #include "detail/utils.hpp"
 
-using namespace std::chrono_literals;
+// using namespace std::chrono_literals;
 
 namespace raytiles {
 
@@ -167,9 +167,9 @@ namespace raytiles {
             auto &[key, tile] = *it;
 
             // all three futures must be ready
-            if (tile.tx_future.wait_for(0s) != std::future_status::ready ||
-                tile.hm_future.wait_for(0s) != std::future_status::ready ||
-                tile.nl_future.wait_for(0s) != std::future_status::ready) {
+            if (tile.tx_future.wait_for(std::chrono::seconds::zero()) != std::future_status::ready ||
+                tile.hm_future.wait_for(std::chrono::seconds::zero()) != std::future_status::ready ||
+                tile.nl_future.wait_for(std::chrono::seconds::zero()) != std::future_status::ready) {
                 ++it;
                 continue;
             }
