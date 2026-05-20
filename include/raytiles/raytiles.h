@@ -308,42 +308,42 @@ namespace raytiles {
 
         /// Sets the ambient light color sent to the displacement shader. Use this
         /// to drive day / night / weather lighting changes.
-        void set_ambient_light(Color color);
+        void set_ambient_light(Color color) const;
 
-        void set_ambient_light(Vector4 color);
+        void set_ambient_light(Vector4 color) const;
 
-        void set_ambient_light(float r, float g, float b, float a);
+        void set_ambient_light(float r, float g, float b, float a) const;
 
         /// Sets the fog color for distance attenuation. Match this to your sky
         /// color for a seamless horizon.
-        void set_fog_color(Color color);
+        void set_fog_color(Color color) const;
 
-        void set_fog_color(Vector4 color);
+        void set_fog_color(Vector4 color) const;
 
-        void set_fog_color(float r, float g, float b, float a);
+        void set_fog_color(float r, float g, float b, float a) const;
 
         /// Sets the fog start distance — the distance from the camera at which
         /// colors begin to blend with the fog.
-        void set_fog_start(float distance);
+        void set_fog_start(float distance) const;
 
         /// Sets the fog end distance — the distance from the camera at which
         /// colors are fully blended with the fog color.
-        void set_fog_end(float distance);
+        void set_fog_end(float distance) const;
 
         /// Sets the heightmap scale factor, which exaggerates or flattens the
         /// terrain relief (drama factor).
-        void set_height_scale(float scale);
+        void set_height_scale(float scale) const;
 
         /// Sets the normals scale factor to increase or reduce lighting contrast.
-        void set_normals_scale(float scale);
+        void set_normals_scale(float scale) const;
 
         /// Sets the sun direction vector used by the displacement shader's
         /// lighting calculations.
-        void set_sun_direction(Vector3 direction);
+        void set_sun_direction(Vector3 direction) const;
 
         /// Sets the sun lighting intensity, which controls the contrast between
         /// lit and shaded areas.
-        void set_sun_scale(float scale);
+        void set_sun_scale(float scale) const;
 
         /// @}
 
