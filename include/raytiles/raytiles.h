@@ -90,6 +90,9 @@ namespace raytiles {
 #include "detail/utils.hpp"
 
 namespace raytiles {
+    class renderer;
+    class tiles_manager;
+
     /// World topology / geometry parameters. Everything in this struct is
     /// effectively immutable once a `streamer` exists: changing any field
     /// requires rebuilding meshes, re-uploading textures, or re-anchoring the
@@ -233,82 +236,6 @@ namespace raytiles {
         float normals_scale = 1.0f;
     };
 
-    class renderer {
-    public:
-        explicit renderer(const rendering_config &conf);
-
-        int draw(const Vector3 &position, const DebugView &draw_view);
-
-        /// Draws a 2D HUD with streamer statistics (loaded / loading counts, etc.)
-        /// and zoom labels above the tiles
-        /// Call between `BeginDrawing` / `EndDrawing`, after `EndMode3D`.
-        static void debug(const Camera3D &camera, const DebugView &draw_view);
-
-        /// Draws 3D debug overlays (tile bounds). Call inside the same
-        /// `BeginMode3D` / `EndMode3D` block as `draw`.
-        static void debug_3d(const DebugView &draw_view);
-
-        /// Sets the ambient light color sent to the displacement shader. Use this
-        /// to drive day / night / weather lighting changes.
-        void set_ambient_light(Color color);
-
-        /// Sets the ambient light color sent to the displacement shader. Use this
-        /// to drive day / night / weather lighting changes.
-        void set_ambient_light(Vector4 color);
-
-        /// Sets the ambient light color sent to the displacement shader. Use this
-        /// to drive day / night / weather lighting changes.
-        void set_ambient_light(float r, float g, float b, float a);
-
-        /// Sets the fog color for distance attenuation. Match this to your sky
-        /// color for a seamless horizon.
-        void set_fog_color(Color color);
-
-        /// Sets the fog color for distance attenuation. Match this to your sky
-        /// color for a seamless horizon.
-        void set_fog_color(Vector4 color);
-
-        /// Sets the fog color for distance attenuation. Match this to your sky
-        /// color for a seamless horizon.
-        void set_fog_color(float r, float g, float b, float a);
-
-        /// Sets the fog start distance — the distance from the camera at which
-        /// colors begin to blend with the fog.
-        void set_fog_start(float distance);
-
-        /// Sets the fog end distance — the distance from the camera at which
-        /// colors are fully blended with the fog color.
-        void set_fog_end(float distance);
-
-        /// Sets the heightmap scale factor, which exaggerates or flattens the
-        /// terrain relief (drama factor).
-        void set_height_scale(float scale);
-
-        /// Sets the normals scale factor to increase or reduce lighting contrast.
-        void set_normals_scale(float scale);
-
-        /// Sets the sun direction vector used by the displacement shader's
-        /// lighting calculations.
-        void set_sun_direction(Vector3 direction);
-
-        /// Sets the sun lighting intensity, which controls the contrast between
-        /// lit and shaded areas.
-        void set_sun_scale(float scale);
-
-    private:
-        struct DrawEntry {
-            float dist_sq; // squared XZ distance from camera, used as sort key
-            const tile_key *key; // non-owning, points into draw_view.rendering_tiles
-            const loaded_tile *tile; // non-owning, same
-            const tile_value *tv; // non-owning, points into draw_view.tiles
-        };
-
-        std::vector<DrawEntry> draw_order_{};
-
-        tile_shader shader_;
-        raii::material material{};
-    };
-
     /// Per-frame driver that maintains the working set of tiles around a camera
     /// and renders them. One streamer manages one world; create more if you need
     /// independent worlds.
@@ -327,8 +254,7 @@ namespace raytiles {
     /// @endcode
     ///
     /// All raylib resources are owned via RAII; destruction is safe and complete.
-    /// Neither copyable nor movable (the underlying download pool holds a
-    /// `std::mutex`, which propagates non-movability up the ownership chain).
+    /// Movable but not copyable.
     class streamer {
     public:
         /// @param world_conf
@@ -349,9 +275,9 @@ namespace raytiles {
 
         streamer &operator=(const streamer &) = delete;
 
-        streamer(streamer &&) = delete;
+        streamer(streamer &&) noexcept;
 
-        streamer &operator=(streamer &&) = delete;
+        streamer &operator=(streamer &&) noexcept;
 
         /// Updates the desired tile set based on the camera and promotes any
         /// finished downloads into renderable GPU resources. Cheap to call every
@@ -362,10 +288,6 @@ namespace raytiles {
         /// Renders all currently loaded tiles in view. Must be called between
         /// `BeginMode3D` / `EndMode3D` with the same camera passed to `update`.
         void draw(const Camera3D &camera);
-
-        /// Returns the underlying renderer instance for direct access
-        /// to shader parameters.
-        renderer &get_renderer();
 
         /// Return true for initial loading only
         [[nodiscard]] bool is_loading() const;
@@ -390,13 +312,17 @@ namespace raytiles {
         /// Sets the ambient light color sent to the displacement shader. Use this
         /// to drive day / night / weather lighting changes.
         void set_ambient_light(Color color);
+
         void set_ambient_light(Vector4 color);
+
         void set_ambient_light(float r, float g, float b, float a);
 
         /// Sets the fog color for distance attenuation. Match this to your sky
         /// color for a seamless horizon.
         void set_fog_color(Color color);
+
         void set_fog_color(Vector4 color);
+
         void set_fog_color(float r, float g, float b, float a);
 
         /// Sets the fog start distance — the distance from the camera at which
@@ -430,8 +356,8 @@ namespace raytiles {
         // lifecycle state lives in `tile_manager`.
         streaming_config streaming;
 
-        renderer tile_renderer;
-        tiles_manager tile_manager;
+        std::unique_ptr<renderer> tile_renderer;
+        std::unique_ptr<tiles_manager> tile_manager;
 
         int rendered = 0;
 

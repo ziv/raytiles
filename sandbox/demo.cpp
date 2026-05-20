@@ -104,8 +104,7 @@ int main() {
 
 
     raytiles::streamer streamer(world, streaming, rendering, pool_conf);
-    raytiles::renderer &r = streamer.get_renderer();
-    // r.set_normals_scale(5.0f);
+    // streamer.set_normals_scale(5.0f);
 
     Camera3D camera;
     camera.position = Vector3{2000.0f, 5000.0f, 2000.0f};
@@ -120,8 +119,8 @@ int main() {
     Model tie = LoadModel("res/tie/scene.gltf");
     // x_wing.transform = MatrixMultiply(MatrixRotateX(10.0f * DEG2RAD), MatrixRotateY(15.0f * DEG2RAD));
 
-    r.set_fog_color(SKYBLUE);
-    // r.set_ambient_light(Color{200, 200, 200, 255});
+    streamer.set_fog_color(SKYBLUE);
+    // streamer.set_ambient_light(Color{200, 200, 200, 255});
     float sun = 1.0f;
     bool wireframe = true;
     bool labels = true;

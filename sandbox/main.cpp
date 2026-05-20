@@ -54,7 +54,7 @@ int main() {
 
     // create the streamer with all configurations
     raytiles::streamer streamer(world, streaming, rendering, pool);
-    streamer.get_renderer().set_fog_color(SKYBLUE);
+    streamer.set_fog_color(SKYBLUE);
 
     Camera3D camera;
     camera.position = Vector3{3000.0f, 5000.0f, 3000.0f};

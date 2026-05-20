@@ -24,10 +24,9 @@ int main(void) {
         return 1;
     }
 
-    RaytilesRenderer *renderer = RaytilesStreamerGetRenderer(streamer);
-    RaytilesRendererSetFogColor(renderer, SKYBLUE);
-    RaytilesRendererSetAmbientLight(renderer, (Color){200, 200, 200, 255});
-    RaytilesRendererSetSunDirection(renderer, (Vector3){0.1f, 1.0f, 0.1f});
+    RaytilesStreamerSetFogColor(streamer, SKYBLUE);
+    RaytilesStreamerSetAmbientLight(streamer, (Color){200, 200, 200, 255});
+    RaytilesStreamerSetSunDirection(streamer, (Vector3){0.1f, 1.0f, 0.1f});
 
     Camera3D camera = {
         .position = {2000.0f, 5000.0f, 2000.0f},

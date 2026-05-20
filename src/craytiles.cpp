@@ -26,18 +26,7 @@ struct RaytilesStreamer {
     }
 };
 
-// RaytilesRenderer is just an alias for raytiles::renderer at the ABI level;
-// reinterpret_cast through these helpers keeps the public header free of any
-// C++ types.
 namespace {
-    raytiles::renderer *to_cpp(RaytilesRenderer *r) {
-        return reinterpret_cast<raytiles::renderer *>(r);
-    }
-
-    RaytilesRenderer *to_c(raytiles::renderer *r) {
-        return reinterpret_cast<RaytilesRenderer *>(r);
-    }
-
     std::string to_string_or_empty(const char *s) {
         return s ? std::string(s) : std::string();
     }
@@ -272,11 +261,6 @@ void RaytilesStreamerDraw(RaytilesStreamer *streamer, const Camera3D camera) {
     streamer->impl.draw(camera);
 }
 
-RaytilesRenderer *RaytilesStreamerGetRenderer(RaytilesStreamer *streamer) {
-    if (!streamer) return nullptr;
-    return to_c(&streamer->impl.get_renderer());
-}
-
 bool RaytilesStreamerIsLoading(const RaytilesStreamer *streamer) {
     if (!streamer) return false;
     return streamer->impl.is_loading();
@@ -298,69 +282,69 @@ bool RaytilesStreamerGroundHeight(const RaytilesStreamer *streamer,
 }
 
 // ---------------------------------------------------------------------------
-//  Renderer
+//  Shader parameter setters
 // ---------------------------------------------------------------------------
 
-void RaytilesRendererSetAmbientLight(RaytilesRenderer *renderer, const Color color) {
-    if (!renderer) return;
-    to_cpp(renderer)->set_ambient_light(color);
+void RaytilesStreamerSetAmbientLight(RaytilesStreamer *streamer, const Color color) {
+    if (!streamer) return;
+    streamer->impl.set_ambient_light(color);
 }
 
-void RaytilesRendererSetAmbientLightV4(RaytilesRenderer *renderer, const Vector4 color) {
-    if (!renderer) return;
-    to_cpp(renderer)->set_ambient_light(color);
+void RaytilesStreamerSetAmbientLightV4(RaytilesStreamer *streamer, const Vector4 color) {
+    if (!streamer) return;
+    streamer->impl.set_ambient_light(color);
 }
 
-void RaytilesRendererSetAmbientLightRGBA(RaytilesRenderer *renderer,
+void RaytilesStreamerSetAmbientLightRGBA(RaytilesStreamer *streamer,
                                          const float r, const float g, const float b, const float a) {
-    if (!renderer) return;
-    to_cpp(renderer)->set_ambient_light(r, g, b, a);
+    if (!streamer) return;
+    streamer->impl.set_ambient_light(r, g, b, a);
 }
 
-void RaytilesRendererSetFogColor(RaytilesRenderer *renderer, const Color color) {
-    if (!renderer) return;
-    to_cpp(renderer)->set_fog_color(color);
+void RaytilesStreamerSetFogColor(RaytilesStreamer *streamer, const Color color) {
+    if (!streamer) return;
+    streamer->impl.set_fog_color(color);
 }
 
-void RaytilesRendererSetFogColorV4(RaytilesRenderer *renderer, const Vector4 color) {
-    if (!renderer) return;
-    to_cpp(renderer)->set_fog_color(color);
+void RaytilesStreamerSetFogColorV4(RaytilesStreamer *streamer, const Vector4 color) {
+    if (!streamer) return;
+    streamer->impl.set_fog_color(color);
 }
 
-void RaytilesRendererSetFogColorRGBA(RaytilesRenderer *renderer,
+void RaytilesStreamerSetFogColorRGBA(RaytilesStreamer *streamer,
                                      const float r, const float g, const float b, const float a) {
-    if (!renderer) return;
-    to_cpp(renderer)->set_fog_color(r, g, b, a);
+    if (!streamer) return;
+    streamer->impl.set_fog_color(r, g, b, a);
 }
 
-void RaytilesRendererSetFogStart(RaytilesRenderer *renderer, const float distance) {
-    if (!renderer) return;
-    to_cpp(renderer)->set_fog_start(distance);
+void RaytilesStreamerSetFogStart(RaytilesStreamer *streamer, const float distance) {
+    if (!streamer) return;
+    streamer->impl.set_fog_start(distance);
 }
 
-void RaytilesRendererSetFogEnd(RaytilesRenderer *renderer, const float distance) {
-    if (!renderer) return;
-    to_cpp(renderer)->set_fog_end(distance);
+void RaytilesStreamerSetFogEnd(RaytilesStreamer *streamer, const float distance) {
+    if (!streamer) return;
+    streamer->impl.set_fog_end(distance);
 }
 
-void RaytilesRendererSetHeightScale(RaytilesRenderer *renderer, const float scale) {
-    if (!renderer) return;
-    to_cpp(renderer)->set_height_scale(scale);
+void RaytilesStreamerSetHeightScale(RaytilesStreamer *streamer, const float scale) {
+    if (!streamer) return;
+    streamer->impl.set_height_scale(scale);
 }
 
-void RaytilesRendererSetNormalsScale(RaytilesRenderer *renderer, const float scale) {
-    if (!renderer) return;
-    to_cpp(renderer)->set_normals_scale(scale);
+void RaytilesStreamerSetNormalsScale(RaytilesStreamer *streamer, const float scale) {
+    if (!streamer) return;
+    streamer->impl.set_normals_scale(scale);
 }
 
-void RaytilesRendererSetSunDirection(RaytilesRenderer *renderer, const Vector3 direction) {
-    if (!renderer) return;
-    to_cpp(renderer)->set_sun_direction(direction);
+void RaytilesStreamerSetSunDirection(RaytilesStreamer *streamer, const Vector3 direction) {
+    if (!streamer) return;
+    streamer->impl.set_sun_direction(direction);
 }
 
-void RaytilesRendererSetSunScale(RaytilesRenderer *renderer, const float scale) {
-    if (!renderer) return;
-    to_cpp(renderer)->set_sun_scale(scale);
+void RaytilesStreamerSetSunScale(RaytilesStreamer *streamer, const float scale) {
+    if (!streamer) return;
+    streamer->impl.set_sun_scale(scale);
 }
 
 } // extern "C"

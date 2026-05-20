@@ -8,9 +8,12 @@
 #include "raymath.h"
 #include "rlgl.h"
 #include <cmath>
+#include <memory>
 #include <optional>
 #include <utility>
 
+#include "raytiles/detail/renderer.h"
+#include "raytiles/detail/tiles_manager.h"
 #include "raytiles/detail/utils.hpp"
 
 namespace raytiles {
@@ -37,44 +40,42 @@ namespace raytiles {
         }
     } // namespace
 
-    streamer::~streamer() = default;
-
     streamer::streamer(world_config world_conf,
                        streaming_config streaming_conf,
                        rendering_config rendering_conf,
                        pool_config pool_conf)
         : streaming(std::move(streaming_conf)),
-          tile_renderer(rendering_conf),
-          tile_manager(make_tiles_manager_options(world_conf, streaming), std::move(pool_conf)) {
+          tile_renderer(std::make_unique<renderer>(rendering_conf)),
+          tile_manager(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming), std::move(pool_conf))) {
         // set the rendering distance
         rlSetClipPlanes(streaming.near_plane, streaming.far_plane);
     }
 
+    streamer::~streamer() = default;
+    streamer::streamer(streamer &&) noexcept = default;
+    streamer &streamer::operator=(streamer &&) noexcept = default;
+
     bool streamer::is_loading() const {
-        return tile_manager.is_loading();
+        return tile_manager->is_loading();
     }
 
     float streamer::get_loading() const {
-        return tile_manager.get_loading();
+        return tile_manager->get_loading();
     }
 
-    renderer &streamer::get_renderer() {
-        return tile_renderer;
-    }
-
-    std::optional<float> streamer::ground_height(Vector3 position) const {
-        return tile_manager.ground_height(position);
+    std::optional<float> streamer::ground_height(const Vector3 position) const {
+        return tile_manager->ground_height(position);
     }
 
     void streamer::update(const Camera3D &camera) {
         const auto position = camera.position;
 
-        tile_manager.pre_process(position);
+        tile_manager->pre_process(position);
 
         if (Vector2DistanceSqr({position.x, position.z}, {last_position.x, last_position.z}) > streaming.update_distance_sq ||
             std::fabs(position.y - last_position.y) > streaming.update_height) {
             last_position = position;
-            tile_manager.process(position);
+            tile_manager->process(position);
         }
 
         last_frustum = utils::extract_frustum(camera,
@@ -82,23 +83,23 @@ namespace raytiles {
                                               static_cast<float>(streaming.far_plane)
         );
 
-        tile_manager.post_process(last_frustum);
+        tile_manager->post_process(last_frustum);
     }
 
     void streamer::draw(const Camera3D &camera) {
-        rendered = tile_renderer.draw(camera.position, tile_manager.make_debug_view(last_frustum));
+        rendered = tile_renderer->draw(camera.position, tile_manager->make_debug_view(last_frustum));
     }
 
-    void streamer::set_ambient_light(Color color)                          { tile_renderer.set_ambient_light(color); }
-    void streamer::set_ambient_light(Vector4 color)                        { tile_renderer.set_ambient_light(color); }
-    void streamer::set_ambient_light(float r, float g, float b, float a)   { tile_renderer.set_ambient_light(r, g, b, a); }
-    void streamer::set_fog_color(Color color)                              { tile_renderer.set_fog_color(color); }
-    void streamer::set_fog_color(Vector4 color)                            { tile_renderer.set_fog_color(color); }
-    void streamer::set_fog_color(float r, float g, float b, float a)       { tile_renderer.set_fog_color(r, g, b, a); }
-    void streamer::set_fog_start(float distance)                           { tile_renderer.set_fog_start(distance); }
-    void streamer::set_fog_end(float distance)                             { tile_renderer.set_fog_end(distance); }
-    void streamer::set_height_scale(float scale)                           { tile_renderer.set_height_scale(scale); }
-    void streamer::set_normals_scale(float scale)                          { tile_renderer.set_normals_scale(scale); }
-    void streamer::set_sun_direction(Vector3 direction)                    { tile_renderer.set_sun_direction(direction); }
-    void streamer::set_sun_scale(float scale)                              { tile_renderer.set_sun_scale(scale); }
+    void streamer::set_ambient_light(const Color color)                                            { tile_renderer->set_ambient_light(color); }
+    void streamer::set_ambient_light(const Vector4 color)                                          { tile_renderer->set_ambient_light(color); }
+    void streamer::set_ambient_light(const float r, const float g, const float b, const float a)  { tile_renderer->set_ambient_light(r, g, b, a); }
+    void streamer::set_fog_color(const Color color)                                                { tile_renderer->set_fog_color(color); }
+    void streamer::set_fog_color(const Vector4 color)                                              { tile_renderer->set_fog_color(color); }
+    void streamer::set_fog_color(const float r, const float g, const float b, const float a)      { tile_renderer->set_fog_color(r, g, b, a); }
+    void streamer::set_fog_start(const float distance)                                             { tile_renderer->set_fog_start(distance); }
+    void streamer::set_fog_end(const float distance)                                               { tile_renderer->set_fog_end(distance); }
+    void streamer::set_height_scale(const float scale)                                             { tile_renderer->set_height_scale(scale); }
+    void streamer::set_normals_scale(const float scale)                                            { tile_renderer->set_normals_scale(scale); }
+    void streamer::set_sun_direction(const Vector3 direction)                                      { tile_renderer->set_sun_direction(direction); }
+    void streamer::set_sun_scale(const float scale)                                                { tile_renderer->set_sun_scale(scale); }
 } // namespace raytiles

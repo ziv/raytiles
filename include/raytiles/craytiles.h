@@ -11,8 +11,9 @@
 ///   - `raytiles::pool_config`      -> `RaytilesPoolConfig`
 ///                                     (default: `RaytilesPoolConfigDefault()`)
 ///   - `raytiles::streamer`         -> opaque `RaytilesStreamer*`
-///   - `raytiles::renderer`         -> opaque `RaytilesRenderer*`, obtained via
-///                                     `RaytilesStreamerGetRenderer`
+///
+/// Shader-parameter setters are exposed directly on the streamer handle as
+/// `RaytilesStreamerSet*`.
 ///
 /// Per-zoom `std::unordered_map` fields are exposed as parallel arrays
 /// (`*_zooms`, `*_values`, `*_count`). The arrays only need to remain valid
@@ -201,10 +202,6 @@ RaytilesPoolConfig RaytilesPoolConfigDefault(void);
 /// freed with `RaytilesStreamerDestroy`.
 typedef struct RaytilesStreamer RaytilesStreamer;
 
-/// Opaque renderer handle. Non-owning view onto the streamer's renderer;
-/// obtained via `RaytilesStreamerGetRenderer`. Do not free.
-typedef struct RaytilesRenderer RaytilesRenderer;
-
 /// Creates a streamer. Requires a live raylib GL context (`InitWindow` first).
 /// Any of the config pointers may be NULL to use the corresponding C++ default
 /// (equivalent to passing `RaytilesXxxConfigDefault()`). The structs (and any
@@ -228,11 +225,6 @@ void RaytilesStreamerUpdate(RaytilesStreamer *streamer, Camera3D camera);
 /// `EndMode3D` with the same camera passed to `RaytilesStreamerUpdate`.
 void RaytilesStreamerDraw(RaytilesStreamer *streamer, Camera3D camera);
 
-/// Returns a non-owning handle to the streamer's renderer for direct access
-/// to shader-parameter setters. Returns NULL if `streamer` is NULL. Do not
-/// free the returned pointer; its lifetime is tied to `streamer`.
-RaytilesRenderer *RaytilesStreamerGetRenderer(RaytilesStreamer *streamer);
-
 /// Returns true during the initial loading phase (i.e. while at least one
 /// tile required to fill the rendering radius is still being fetched).
 /// Returns false if `streamer` is NULL.
@@ -254,47 +246,47 @@ bool RaytilesStreamerGroundHeight(const RaytilesStreamer *streamer,
                                   float *out_height);
 
 // ---------------------------------------------------------------------------
-//  Renderer
+//  Shader parameter setters
 // ---------------------------------------------------------------------------
 
 /// Sets the ambient light color sent to the displacement shader. Use this to
 /// drive day / night / weather lighting changes.
 /// Three variants mirror the C++ overloads: `Color` (8-bit per channel),
 /// `Vector4` (normalized 0..1 floats), and explicit float RGBA components.
-void RaytilesRendererSetAmbientLight(RaytilesRenderer *renderer, Color color);
-void RaytilesRendererSetAmbientLightV4(RaytilesRenderer *renderer, Vector4 color);
-void RaytilesRendererSetAmbientLightRGBA(RaytilesRenderer *renderer,
+void RaytilesStreamerSetAmbientLight(RaytilesStreamer *streamer, Color color);
+void RaytilesStreamerSetAmbientLightV4(RaytilesStreamer *streamer, Vector4 color);
+void RaytilesStreamerSetAmbientLightRGBA(RaytilesStreamer *streamer,
                                          float r, float g, float b, float a);
 
 /// Sets the fog color for distance attenuation. Match this to your sky color
 /// for a seamless horizon.
 /// Three variants mirror the C++ overloads: `Color` (8-bit per channel),
 /// `Vector4` (normalized 0..1 floats), and explicit float RGBA components.
-void RaytilesRendererSetFogColor(RaytilesRenderer *renderer, Color color);
-void RaytilesRendererSetFogColorV4(RaytilesRenderer *renderer, Vector4 color);
-void RaytilesRendererSetFogColorRGBA(RaytilesRenderer *renderer,
+void RaytilesStreamerSetFogColor(RaytilesStreamer *streamer, Color color);
+void RaytilesStreamerSetFogColorV4(RaytilesStreamer *streamer, Vector4 color);
+void RaytilesStreamerSetFogColorRGBA(RaytilesStreamer *streamer,
                                      float r, float g, float b, float a);
 
 /// Sets the distance (meters) at which fog begins blending in.
-void RaytilesRendererSetFogStart(RaytilesRenderer *renderer, float distance);
+void RaytilesStreamerSetFogStart(RaytilesStreamer *streamer, float distance);
 
 /// Sets the distance (meters) at which fog reaches full opacity.
-void RaytilesRendererSetFogEnd(RaytilesRenderer *renderer, float distance);
+void RaytilesStreamerSetFogEnd(RaytilesStreamer *streamer, float distance);
 
 /// Sets the heightmap multiplier (drama factor) used by the vertex shader.
-void RaytilesRendererSetHeightScale(RaytilesRenderer *renderer, float scale);
+void RaytilesStreamerSetHeightScale(RaytilesStreamer *streamer, float scale);
 
 /// Sets the normals multiplier used by the fragment shader. Higher values
 /// produce stronger lighting contrast.
-void RaytilesRendererSetNormalsScale(RaytilesRenderer *renderer, float scale);
+void RaytilesStreamerSetNormalsScale(RaytilesStreamer *streamer, float scale);
 
 /// Sets the sun direction vector used by the fragment shader's lighting.
 /// The shader normalizes the vector internally; magnitude is irrelevant.
-void RaytilesRendererSetSunDirection(RaytilesRenderer *renderer, Vector3 direction);
+void RaytilesStreamerSetSunDirection(RaytilesStreamer *streamer, Vector3 direction);
 
 /// Sets the sun lighting intensity, controlling contrast between lit and
 /// shaded slopes.
-void RaytilesRendererSetSunScale(RaytilesRenderer *renderer, float scale);
+void RaytilesStreamerSetSunScale(RaytilesStreamer *streamer, float scale);
 
 #ifdef __cplusplus
 } // extern "C"
