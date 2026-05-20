@@ -272,16 +272,6 @@ void RaytilesStreamerDraw(RaytilesStreamer *streamer, const Camera3D camera) {
     streamer->impl.draw(camera);
 }
 
-void RaytilesStreamerDebug(RaytilesStreamer *streamer, const Camera3D camera) {
-    if (!streamer) return;
-    streamer->impl.debug(camera);
-}
-
-void RaytilesStreamerDebug3D(RaytilesStreamer *streamer) {
-    if (!streamer) return;
-    streamer->impl.debug_3d();
-}
-
 RaytilesRenderer *RaytilesStreamerGetRenderer(RaytilesStreamer *streamer) {
     if (!streamer) return nullptr;
     return to_c(&streamer->impl.get_renderer());

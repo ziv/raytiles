@@ -228,15 +228,6 @@ void RaytilesStreamerUpdate(RaytilesStreamer *streamer, Camera3D camera);
 /// `EndMode3D` with the same camera passed to `RaytilesStreamerUpdate`.
 void RaytilesStreamerDraw(RaytilesStreamer *streamer, Camera3D camera);
 
-/// Draws a 2D HUD with streamer statistics (loaded / loading counts, etc.)
-/// and zoom labels above the tiles. Call between `BeginDrawing` /
-/// `EndDrawing`, after `EndMode3D`.
-void RaytilesStreamerDebug(RaytilesStreamer *streamer, Camera3D camera);
-
-/// Draws 3D debug overlays (tile bounds). Call inside the same
-/// `BeginMode3D` / `EndMode3D` block as `RaytilesStreamerDraw`.
-void RaytilesStreamerDebug3D(RaytilesStreamer *streamer);
-
 /// Returns a non-owning handle to the streamer's renderer for direct access
 /// to shader-parameter setters. Returns NULL if `streamer` is NULL. Do not
 /// free the returned pointer; its lifetime is tied to `streamer`.

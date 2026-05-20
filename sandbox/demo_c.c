@@ -58,10 +58,8 @@ int main(void) {
 
         BeginMode3D(camera);
         RaytilesStreamerDraw(streamer, camera);
-        RaytilesStreamerDebug3D(streamer);
         EndMode3D();
 
-        RaytilesStreamerDebug(streamer, camera);
         DrawText("raytiles C demo - ESC to quit", 10, 570, 20, RAYWHITE);
         EndDrawing();
     }

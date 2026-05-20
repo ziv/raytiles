@@ -291,14 +291,6 @@ namespace raytiles {
         /// `BeginMode3D` / `EndMode3D` with the same camera passed to `update`.
         void draw(const Camera3D &camera);
 
-        /// Draws zoom labels above the tiles.
-        /// Call between `BeginDrawing` / `EndDrawing`, after `EndMode3D`.
-        void debug(const Camera3D &camera);
-
-        /// Draws 3D tile bounds. Call inside the same
-        /// `BeginMode3D` / `EndMode3D` block as `draw`.
-        void debug_3d();
-
         /// Returns the underlying renderer instance for direct access
         /// to shader parameters.
         renderer &get_renderer();
