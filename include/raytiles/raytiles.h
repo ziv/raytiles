@@ -10,24 +10,12 @@
 #include <unordered_set>
 
 #include "raylib.h"
+#include "detail/downloader.h"
 #include "detail/raii.hpp"
 #include "detail/tile.hpp"
 #include "detail/tile_shader.h"
+#include "detail/tiles_manager.h"
 #include "detail/utils.hpp"
-
-#ifndef RAYTILES_TEXTURE_URL
-// the order zoom/y/x is not a mistake, that is the way Esri encoded their URLs
-#define RAYTILES_TEXTURE_URL "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/:zoom:/:y:/:x:"
-#endif
-
-#ifndef RAYTILES_HEIGHTMAP_URL
-#define RAYTILES_HEIGHTMAP_URL "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/:zoom:/:x:/:y:.png"
-#endif
-
-#ifndef RAYTILES_NORMALS_URL
-#define RAYTILES_NORMALS_URL "https://s3.amazonaws.com/elevation-tiles-prod/normal/:zoom:/:x:/:y:.png"
-#endif
-
 
 namespace raytiles {
     /// World topology / geometry parameters. Everything in this struct is
@@ -171,46 +159,6 @@ namespace raytiles {
         float normals_scale = 1.0f;
     };
 
-    struct pool_config {
-        /// Number of background download workers. Downloads are I/O-bound so it's
-        /// safe to use more threads than CPU cores; 2 is a reasonable default for
-        /// HTTP keep-alive against a single host.
-        int download_threads = 4;
-
-        /// Skip TLS certificate verification for tile downloads. Only useful for
-        /// local proxies; never enable against a real server.
-        bool allow_insecure_tls = false;
-
-        /// Whether the pool's worker threads emit log lines.
-        bool use_logger = false;
-
-        /// On-disk cache path templates, formatted with `{zoom}/{x}/{z}` via
-        /// `std::vformat`. Parent directories are created on demand.
-        std::string texture_cache_path = "assets/texture/{}/{}/{}.png";
-        std::string heightmap_cache_path = "assets/heightmap/{}/{}/{}.png";
-        std::string normals_cache_path = "assets/normals/{}/{}/{}.png";
-
-        /// Provider URL templates. The full request URL is constructed from
-        /// `{zoom}/{x}/{z}` (plus any optional token in the template). Any
-        /// provider following the XYZ (slippy-map) convention works, as long as
-        /// the heightmap provider returns RGB-encoded heightmaps.
-        std::string texture_url = RAYTILES_TEXTURE_URL;
-        std::string texture_host{};
-        std::string texture_url_path{};
-
-        std::string heightmap_url = RAYTILES_HEIGHTMAP_URL;
-        std::string heightmap_host{};
-        std::string heightmap_url_path{};
-
-        std::string normals_url = RAYTILES_NORMALS_URL;
-        std::string normals_host{};
-        std::string normals_url_path{};
-    };
-
-    // forward-declared so the public header doesn't drag httplib in via
-    // downloader.h. defined in include/raytiles/detail/downloader.h.
-    class pool;
-
     class renderer {
     public:
         explicit renderer(const rendering_config &conf);
@@ -305,7 +253,8 @@ namespace raytiles {
     /// @endcode
     ///
     /// All raylib resources are owned via RAII; destruction is safe and complete.
-    /// Movable but not copyable.
+    /// Neither copyable nor movable (the underlying download pool holds a
+    /// `std::mutex`, which propagates non-movability up the ownership chain).
     class streamer {
     public:
         /// @param world_conf
@@ -326,7 +275,9 @@ namespace raytiles {
 
         streamer &operator=(const streamer &) = delete;
 
-        streamer(streamer &&) noexcept;
+        streamer(streamer &&) = delete;
+
+        streamer &operator=(streamer &&) = delete;
 
         /// Updates the desired tile set based on the camera and promotes any
         /// finished downloads into renderable GPU resources. Cheap to call every
@@ -382,35 +333,19 @@ namespace raytiles {
 
         [[nodiscard]] bool is_tile_out_of_area(const tile_key &key) const;
 
-        // configuration
-        // double near_plane;
-        // double far_plane;
-        world_config world;
+        // streamer keeps only the streaming-policy bits it actually uses
+        // (update gating, near/far for frustum extraction). All tile
+        // lifecycle state lives in `tile_manager`.
         streaming_config streaming;
 
-        // exposed in the public header (part of the API)
         renderer tile_renderer;
-        // held by unique_ptr so the public header can forward-declare `pool`
-        // and keep httplib out of every consumer's translation unit.
-        std::unique_ptr<pool> tile_downloader;
+        tiles_manager tile_manager;
 
-        // internal cache
-        bool loading = true;
         int rendered = 0;
 
         // update every frame
         Vector3 last_position = {-9999.9f, -9999.9f, -9999.9f};
         Frustum last_frustum{};
-
-        // desired_keys is updated under condition
-        // the maps auto built/evicted every frame
-        std::unordered_set<tile_key> desired_keys;
-        std::unordered_map<tile_key, loading_tile> loading_tiles;
-        std::unordered_map<tile_key, loaded_tile> rendering_tiles;
-
-        // metadata about tiles by their zoom
-        // todo replace with fixed size array of std::array, there is a lot of acess to this map
-        std::unordered_map<Zoom, tile_value> tiles;
     };
 } // namespace raytiles
 
