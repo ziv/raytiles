@@ -45,6 +45,11 @@ namespace raytiles {
     public:
         explicit tile_shader(const tile_shader_options &opts = {});
 
+        /// Returns the underlying raylib `Shader` handle. Use this when you
+        /// need to bind the shader to a `Material` or pass it to a raylib
+        /// drawing call directly.
+        const Shader &operator()() const noexcept { return *shader; }
+
         /// Pushes the current camera world-space position to the shader. Call
         /// this once per frame before drawing; the displacement shader uses it
         /// for fog falloff and per-vertex distance attenuation.
@@ -103,7 +108,6 @@ namespace raytiles {
         /// contrast. Higher values look bumpier but can produce lighting
         /// artifacts if the normals become too steep.
         tile_shader &set_normals_scale(float scale);
-
     private:
         // current option values, mirrored to the GPU on each setter call
         tile_shader_options options;
