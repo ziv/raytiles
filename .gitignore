@@ -5,7 +5,7 @@
 /cmake-build-web-release
 /cmake-build-binding
 /build_bindings
-/assets
+/.cache
 /tmp
 .DS_Store
 .github/copilot-instructions.md

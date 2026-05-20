@@ -76,9 +76,9 @@ namespace raytiles {
 
         /// On-disk cache path templates, formatted with `{zoom}/{x}/{z}` via
         /// `std::vformat`. Parent directories are created on demand.
-        std::string texture_cache_path = "assets/texture/{}/{}/{}.png";
-        std::string heightmap_cache_path = "assets/heightmap/{}/{}/{}.png";
-        std::string normals_cache_path = "assets/normals/{}/{}/{}.png";
+        std::string texture_cache_path = ".cache/texture/{}/{}/{}.png";
+        std::string heightmap_cache_path = ".cache/heightmap/{}/{}/{}.png";
+        std::string normals_cache_path = ".cache/normals/{}/{}/{}.png";
 
         /// Provider URL templates. The full request URL is constructed from
         /// `{zoom}/{x}/{z}` (plus any optional token in the template). Any
