@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/ziv/raytiles/compare/v0.9.0...v0.9.1) (2026-05-20)
+
+
+### Bug Fixes
+
+* replace maps with fixed sized array with direct access ([#90](https://github.com/ziv/raytiles/issues/90)) ([2006c9b](https://github.com/ziv/raytiles/commit/2006c9b303999a8bf9d2aa50cb3df175b7792ad7))
+
 ## [0.9.0](https://github.com/ziv/raytiles/compare/v0.8.13...v0.9.0) (2026-05-20)
 
 
