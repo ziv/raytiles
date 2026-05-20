@@ -208,7 +208,7 @@ namespace raytiles {
     };
 
     // forward-declared so the public header doesn't drag httplib in via
-    // downloader.hpp. defined in src/downloader.hpp.
+    // downloader.h. defined in include/raytiles/detail/downloader.h.
     class pool;
 
     class renderer {

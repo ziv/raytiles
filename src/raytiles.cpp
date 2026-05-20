@@ -19,7 +19,7 @@
 #include <vector>
 #include <ranges>
 
-#include "downloader.hpp"
+#include "raytiles/detail/downloader.h"
 #include "raytiles/detail/tile.hpp"
 #include "raytiles/detail/utils.hpp"
 

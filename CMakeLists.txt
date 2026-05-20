@@ -37,7 +37,8 @@ add_library(${PROJECT_NAME}
         src/raytiles.cpp
         src/craytiles.cpp
         src/renderer.cpp
-        src/downloader.hpp
+        include/raytiles/detail/downloader.h
+        src/downloader.cpp
         src/shaders.hpp
         src/tile_shader.cpp
         include/raytiles/detail/tile_shader.h
