@@ -12,7 +12,7 @@
 #include <optional>
 #include <utility>
 
-#include "detail/renderer.h"
+#include "detail/tiles_renderer.h"
 #include "detail/tiles_manager.h"
 #include "detail/utils.hpp"
 
@@ -45,7 +45,7 @@ namespace raytiles {
                        rendering_config rendering_conf,
                        pool_config pool_conf)
         : streaming(std::move(streaming_conf)),
-          tile_renderer(std::make_unique<renderer>(rendering_conf)),
+          tile_renderer(std::make_unique<tiles_renderer>(rendering_conf)),
           tile_manager(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming), std::move(pool_conf))) {
         // set the rendering distance
         rlSetClipPlanes(streaming.near_plane, streaming.far_plane);

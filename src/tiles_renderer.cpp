@@ -1,7 +1,7 @@
 #include <algorithm>
 
 #include "raytiles/raytiles.h"
-#include "detail/renderer.h"
+#include "detail/tiles_renderer.h"
 #include "detail/raii.hpp"
 #include "detail/tile_shader.h"
 #include "detail/utils.hpp"
@@ -25,12 +25,12 @@ namespace raytiles {
         }
     }
 
-    renderer::renderer(const rendering_config &conf) : shader_(make_shader_options(conf)) {
+    tiles_renderer::tiles_renderer(const rendering_config &conf) : shader_(make_shader_options(conf)) {
         material = raii::material{LoadMaterialDefault()};
         material->shader = shader_();
     }
 
-    int renderer::draw(const Vector3 &position, const DebugView &draw_view) {
+    int tiles_renderer::draw(const Vector3 &position, const DebugView &draw_view) {
         shader_.set_camera_location(position);
 
         // collecting and sorting tiles by distance from camera to gain GPU early-Z
@@ -62,7 +62,7 @@ namespace raytiles {
         return rendered;
     }
 
-    void renderer::debug_3d(const DebugView &draw_view) {
+    void tiles_renderer::debug_3d(const DebugView &draw_view) {
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
             if (tile.in_frustum_this_frame) {
                 const auto &t = draw_view.tiles.at(key.zoom);
@@ -71,7 +71,7 @@ namespace raytiles {
         }
     }
 
-    void renderer::debug(const Camera3D &camera, const DebugView &draw_view) {
+    void tiles_renderer::debug(const Camera3D &camera, const DebugView &draw_view) {
         const auto width = static_cast<float>(GetScreenWidth());
         const auto height = static_cast<float>(GetScreenHeight());
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
@@ -84,51 +84,51 @@ namespace raytiles {
         }
     }
 
-    void renderer::set_ambient_light(const float r, const float g, const float b, const float a) {
+    void tiles_renderer::set_ambient_light(const float r, const float g, const float b, const float a) {
         shader_.set_ambient_light(r, g, b, a);
     }
 
-    void renderer::set_ambient_light(const Color color) {
+    void tiles_renderer::set_ambient_light(const Color color) {
         shader_.set_ambient_light(color);
     }
 
-    void renderer::set_ambient_light(const Vector4 color) {
+    void tiles_renderer::set_ambient_light(const Vector4 color) {
         shader_.set_ambient_light(color);
     }
 
-    void renderer::set_fog_color(const float r, const float g, const float b, const float a) {
+    void tiles_renderer::set_fog_color(const float r, const float g, const float b, const float a) {
         shader_.set_fog_color(r, g, b, a);
     }
 
-    void renderer::set_fog_color(const Color color) {
+    void tiles_renderer::set_fog_color(const Color color) {
         shader_.set_fog_color(color);
     }
 
-    void renderer::set_fog_color(const Vector4 color) {
+    void tiles_renderer::set_fog_color(const Vector4 color) {
         shader_.set_fog_color(color);
     }
 
-    void renderer::set_fog_start(const float distance) {
+    void tiles_renderer::set_fog_start(const float distance) {
         shader_.set_fog_start(distance);
     }
 
-    void renderer::set_fog_end(const float distance) {
+    void tiles_renderer::set_fog_end(const float distance) {
         shader_.set_fog_end(distance);
     }
 
-    void renderer::set_sun_direction(const Vector3 direction) {
+    void tiles_renderer::set_sun_direction(const Vector3 direction) {
         shader_.set_sun_direction(direction);
     }
 
-    void renderer::set_sun_scale(const float scale) {
+    void tiles_renderer::set_sun_scale(const float scale) {
         shader_.set_sun_scale(scale);
     }
 
-    void renderer::set_height_scale(const float scale) {
+    void tiles_renderer::set_height_scale(const float scale) {
         shader_.set_height_scale(scale);
     }
 
-    void renderer::set_normals_scale(const float scale) {
+    void tiles_renderer::set_normals_scale(const float scale) {
         shader_.set_normals_scale(scale);
     }
 }

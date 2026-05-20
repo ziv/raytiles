@@ -96,11 +96,6 @@ namespace raytiles {
         std::string normals_host{};
         std::string normals_url_path{};
     };
-}
-
-namespace raytiles {
-    class renderer;
-    class tiles_manager;
 
     /// World topology / geometry parameters. Everything in this struct is
     /// effectively immutable once a `streamer` exists: changing any field
@@ -235,6 +230,9 @@ namespace raytiles {
         float normals_scale = 1.0f;
     };
 
+    class tiles_renderer;
+    class tiles_manager;
+
     /// Per-frame driver that maintains the working set of tiles around a camera
     /// and renders them. One streamer manages one world; create more if you need
     /// independent worlds.
@@ -355,7 +353,7 @@ namespace raytiles {
         // lifecycle state lives in `tile_manager`.
         streaming_config streaming;
 
-        std::unique_ptr<renderer> tile_renderer;
+        std::unique_ptr<tiles_renderer> tile_renderer;
         std::unique_ptr<tiles_manager> tile_manager;
 
         int rendered = 0;

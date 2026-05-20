@@ -2,6 +2,8 @@
 #include <format>
 #include <vector>
 #include <raytiles/raytiles.h>
+
+#include "advanced-fly.hpp"
 #include "fly.h"
 
 static std::string required_env(const char *name, std::string_view label) {
@@ -108,7 +110,8 @@ int main() {
     camera.fovy = 60.0f;
     camera.projection = CAMERA_PERSPECTIVE;
 
-    FreeCamera f(camera);
+    // FreeCamera f(camera);
+    free_camera::AdvancedFreeCamera adv_f{};
 
     // Model x_wing = LoadModel("res/x-wing/scene.gltf");
     Model tie = LoadModel("res/tie/scene.gltf");
@@ -177,7 +180,8 @@ int main() {
 
 
         if (!crashed) {
-            f.update(camera, dt);
+            // f.update(camera, dt);
+            adv_f.update(camera, dt);
         }
 
         //r.set_sun_direction(Vector3{0.1f, sun, 0.0f});

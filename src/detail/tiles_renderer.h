@@ -11,9 +11,9 @@
 namespace raytiles {
     struct rendering_config;
 
-    class renderer {
+    class tiles_renderer {
     public:
-        explicit renderer(const rendering_config &conf);
+        explicit tiles_renderer(const rendering_config &conf);
 
         int draw(const Vector3 &position, const DebugView &draw_view);
 
@@ -28,50 +28,50 @@ namespace raytiles {
 
         /// Sets the ambient light color sent to the displacement shader. Use this
         /// to drive day / night / weather lighting changes.
-        void set_ambient_light(const Color color);
+        void set_ambient_light(Color color);
 
         /// Sets the ambient light color sent to the displacement shader. Use this
         /// to drive day / night / weather lighting changes.
-        void set_ambient_light(const Vector4 color);
+        void set_ambient_light(Vector4 color);
 
         /// Sets the ambient light color sent to the displacement shader. Use this
         /// to drive day / night / weather lighting changes.
-        void set_ambient_light(const float r, const float g, const float b, const float a);
+        void set_ambient_light(float r, float g, float b, float a);
 
         /// Sets the fog color for distance attenuation. Match this to your sky
         /// color for a seamless horizon.
-        void set_fog_color(const Color color);
+        void set_fog_color(Color color);
 
         /// Sets the fog color for distance attenuation. Match this to your sky
         /// color for a seamless horizon.
-        void set_fog_color(const Vector4 color);
+        void set_fog_color(Vector4 color);
 
         /// Sets the fog color for distance attenuation. Match this to your sky
         /// color for a seamless horizon.
-        void set_fog_color(const float r, const float g, const float b, const float a);
+        void set_fog_color(float r, float g, float b, float a);
 
         /// Sets the fog start distance — the distance from the camera at which
         /// colors begin to blend with the fog.
-        void set_fog_start(const float distance);
+        void set_fog_start(float distance);
 
         /// Sets the fog end distance — the distance from the camera at which
         /// colors are fully blended with the fog color.
-        void set_fog_end(const float distance);
+        void set_fog_end(float distance);
 
         /// Sets the heightmap scale factor, which exaggerates or flattens the
         /// terrain relief (drama factor).
-        void set_height_scale(const float scale);
+        void set_height_scale(float scale);
 
         /// Sets the normals scale factor to increase or reduce lighting contrast.
-        void set_normals_scale(const float scale);
+        void set_normals_scale(float scale);
 
         /// Sets the sun direction vector used by the displacement shader's
         /// lighting calculations.
-        void set_sun_direction(const Vector3 direction);
+        void set_sun_direction(Vector3 direction);
 
         /// Sets the sun lighting intensity, which controls the contrast between
         /// lit and shaded areas.
-        void set_sun_scale(const float scale);
+        void set_sun_scale(float scale);
 
     private:
         struct DrawEntry {
