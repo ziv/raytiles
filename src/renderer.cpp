@@ -32,8 +32,7 @@ namespace raytiles {
     int renderer::draw(const Vector3 &position, const DebugView &draw_view) {
         shader_.set_camera_location(position);
 
-        // collecting and sorting tiles by distance from camera to
-        // gain GPU early-Z
+        // collecting and sorting tiles by distance from camera to gain GPU early-Z
         // it cheaper than rendering by iterating unordered map -> poor early-Z
         draw_order_.clear();
         draw_order_.reserve(draw_view.rendering_tiles.size());
