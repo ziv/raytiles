@@ -1,6 +1,8 @@
 #pragma once
 #include <cmath>
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "raylib.h"
 #include "raymath.h"
