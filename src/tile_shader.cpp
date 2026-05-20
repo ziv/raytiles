@@ -1,4 +1,4 @@
-#include "tile_shader.h"
+#include "raytiles/detail/tile_shader.h"
 #include "shaders.hpp"
 
 namespace raytiles {

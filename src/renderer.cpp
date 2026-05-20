@@ -2,69 +2,35 @@
 
 #include "raytiles/raytiles.h"
 #include "raytiles/detail/raii.hpp"
+#include "raytiles/detail/tile_shader.h"
 #include "raytiles/detail/utils.hpp"
-#include "shaders.hpp"
 
 namespace raytiles {
-    renderer::renderer(const rendering_config &conf) : rendering(conf),
-                                                       displacement_shader(raii::load_shader_from_memory(shaders::vertex_shader, shaders::fragment_shader)) {
-        material = raii::material{LoadMaterialDefault()};
-        material->shader = *displacement_shader;
-
-        // cache shaders locations
-        cam_pos_loc = GetShaderLocation(*displacement_shader, "cameraPosition");
-        ambient_loc = GetShaderLocation(*displacement_shader, "ambientLight");
-        fog_color_loc = GetShaderLocation(*displacement_shader, "fogColor");
-        tex_albedo_loc = GetShaderLocation(*displacement_shader, "texture0");
-        tex_height_loc = GetShaderLocation(*displacement_shader, "heightMap");
-        tex_normal_loc = GetShaderLocation(*displacement_shader, "normalMap");
-        sun_dir_loc = GetShaderLocation(*displacement_shader, "sunDir");
-        sun_scale_loc = GetShaderLocation(*displacement_shader, "sunScale");
-        height_scale_loc = GetShaderLocation(*displacement_shader, "heightScale");
-        normal_scale_loc = GetShaderLocation(*displacement_shader, "normalScale");
-        fog_start_loc = GetShaderLocation(*displacement_shader, "fogStart");
-        fog_end_loc = GetShaderLocation(*displacement_shader, "fogEnd");
-        skirt_drop = GetShaderLocation(*displacement_shader, "skirtDrop");
-
-        // validate all slots populated
-        if (-1 == cam_pos_loc ||
-            -1 == ambient_loc ||
-            -1 == fog_color_loc ||
-            -1 == tex_albedo_loc ||
-            -1 == tex_height_loc ||
-            -1 == tex_normal_loc ||
-            -1 == sun_dir_loc ||
-            -1 == sun_scale_loc ||
-            -1 == height_scale_loc ||
-            -1 == normal_scale_loc ||
-            -1 == fog_start_loc ||
-            -1 == fog_end_loc
-            // -1 == skirt_drop
-        ) {
-            throw std::runtime_error("failed to get shader locations");
+    namespace {
+        // Translate `rendering_config` (public API) into `tile_shader_options`
+        // (shader-side mirror). Field-for-field copy.
+        tile_shader_options make_shader_options(const rendering_config &conf) {
+            tile_shader_options opts;
+            opts.fog_start = conf.fog_start;
+            opts.fog_end = conf.fog_end;
+            opts.skirt_drop = conf.skirt_drop;
+            for (int i = 0; i < 4; ++i) opts.fog_color[i] = conf.fog_color[i];
+            for (int i = 0; i < 4; ++i) opts.ambient_light[i] = conf.ambient_light[i];
+            for (int i = 0; i < 3; ++i) opts.sun_direction[i] = conf.sun_direction[i];
+            opts.sun_scale = conf.sun_scale;
+            opts.height_scale = conf.height_scale;
+            opts.normals_scale = conf.normals_scale;
+            return opts;
         }
+    }
 
-        // define the slots used with the model
-        // we hack the SHADER_LOC_MAP_ROUGHNESS to be used as the heightmap input
-        displacement_shader->locs[SHADER_LOC_MAP_ALBEDO] = tex_albedo_loc;
-        displacement_shader->locs[SHADER_LOC_MAP_ROUGHNESS] = tex_height_loc;
-        displacement_shader->locs[SHADER_LOC_MAP_NORMAL] = tex_normal_loc;
-
-        // todo should we move those into dynamically changed list? (worth the performance impact?)
-        SetShaderValue(*displacement_shader, height_scale_loc, &rendering.height_scale, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*displacement_shader, normal_scale_loc, &rendering.normals_scale, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*displacement_shader, fog_start_loc, &rendering.fog_start, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*displacement_shader, fog_end_loc, &rendering.fog_end, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*displacement_shader, sun_scale_loc, &rendering.sun_scale, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*displacement_shader, skirt_drop, &rendering.skirt_drop, SHADER_UNIFORM_FLOAT);
-
-        update_shader_uniforms();
+    renderer::renderer(const rendering_config &conf) : shader_(make_shader_options(conf)) {
+        material = raii::material{LoadMaterialDefault()};
+        material->shader = shader_();
     }
 
     int renderer::draw(const Vector3 &position, const DebugView &draw_view) {
-        SetShaderValue(*displacement_shader, cam_pos_loc, &position, SHADER_UNIFORM_VEC3);
-        // todo should be lazy, call on "set_*"
-        // update_shader_uniforms();
+        shader_.set_camera_location(position);
 
         // collecting and sorting tiles by distance from camera to
         // gain GPU early-Z
@@ -93,18 +59,6 @@ namespace raytiles {
             DrawMesh(*e.tv->mesh, *material, MatrixTranslate(e.tile->tx, 0.0f, e.tile->tz));
             ++rendered;
         }
-        // for (const auto &[key, tile]: draw_view.rendering_tiles) {
-        //     if (tile.in_frustum_this_frame) {
-        //         const auto &t = draw_view.tiles.at(key.zoom);
-        //
-        //         material->maps[MATERIAL_MAP_ALBEDO].texture = *tile.tx_texture;
-        //         material->maps[MATERIAL_MAP_ROUGHNESS].texture = *tile.hm_texture;
-        //         material->maps[MATERIAL_MAP_NORMAL].texture = *tile.nl_texture;
-        //
-        //         DrawMesh(*t.mesh, *material, MatrixTranslate(tile.tx, 0.0f, tile.tz));
-        //         ++rendered;
-        //     }
-        // }
         return rendered;
     }
 
@@ -130,88 +84,51 @@ namespace raytiles {
         }
     }
 
-    void renderer::update_shader_uniforms() {
-        // set the ambient color (weather/day/night/...)
-        SetShaderValue(*displacement_shader, ambient_loc, rendering.ambient_light, SHADER_UNIFORM_VEC4);
-        // set the fog color (to match the sky)
-        SetShaderValue(*displacement_shader, fog_color_loc, rendering.fog_color, SHADER_UNIFORM_VEC4);
-        // set the sun direction
-        SetShaderValue(*displacement_shader, sun_dir_loc, rendering.sun_direction, SHADER_UNIFORM_VEC3);
-    }
-
     void renderer::set_ambient_light(const float r, const float g, const float b, const float a) {
-        rendering.ambient_light[0] = r;
-        rendering.ambient_light[1] = g;
-        rendering.ambient_light[2] = b;
-        rendering.ambient_light[3] = a;
-        SetShaderValue(*displacement_shader, ambient_loc, rendering.ambient_light, SHADER_UNIFORM_VEC4);
+        shader_.set_ambient_light(r, g, b, a);
     }
 
     void renderer::set_ambient_light(const Color color) {
-        set_ambient_light(static_cast<float>(color.r) / 255.0f,
-                          static_cast<float>(color.g) / 255.0f,
-                          static_cast<float>(color.b) / 255.0f,
-                          static_cast<float>(color.a) / 255.0f
-        );
+        shader_.set_ambient_light(color);
     }
 
     void renderer::set_ambient_light(const Vector4 color) {
-        set_ambient_light(color.x, color.y, color.z, color.w);
+        shader_.set_ambient_light(color);
     }
 
     void renderer::set_fog_color(const float r, const float g, const float b, const float a) {
-        rendering.fog_color[0] = r;
-        rendering.fog_color[1] = g;
-        rendering.fog_color[2] = b;
-        rendering.fog_color[3] = a;
-        SetShaderValue(*displacement_shader, fog_color_loc, rendering.fog_color, SHADER_UNIFORM_VEC4);
+        shader_.set_fog_color(r, g, b, a);
     }
 
     void renderer::set_fog_color(const Color color) {
-        set_fog_color(static_cast<float>(color.r) / 255.0f,
-                      static_cast<float>(color.g) / 255.0f,
-                      static_cast<float>(color.b) / 255.0f,
-                      static_cast<float>(color.a) / 255.0f);
+        shader_.set_fog_color(color);
     }
 
     void renderer::set_fog_color(const Vector4 color) {
-        set_fog_color(color.x, color.y, color.z, color.w);
+        shader_.set_fog_color(color);
     }
 
     void renderer::set_fog_start(const float distance) {
-        rendering.fog_start = distance;
-        SetShaderValue(*displacement_shader, fog_start_loc, &rendering.fog_start, SHADER_UNIFORM_FLOAT);
+        shader_.set_fog_start(distance);
     }
 
     void renderer::set_fog_end(const float distance) {
-        rendering.fog_end = distance;
-
-        SetShaderValue(*displacement_shader, fog_end_loc, &rendering.fog_end, SHADER_UNIFORM_FLOAT);
+        shader_.set_fog_end(distance);
     }
 
     void renderer::set_sun_direction(const Vector3 direction) {
-        rendering.sun_direction[0] = direction.x;
-        rendering.sun_direction[1] = direction.y;
-        rendering.sun_direction[2] = direction.z;
-
-        SetShaderValue(*displacement_shader, sun_dir_loc, rendering.sun_direction, SHADER_UNIFORM_VEC3);
+        shader_.set_sun_direction(direction);
     }
 
     void renderer::set_sun_scale(const float scale) {
-        rendering.sun_scale = scale;
-
-        SetShaderValue(*displacement_shader, sun_scale_loc, &rendering.sun_scale, SHADER_UNIFORM_FLOAT);
+        shader_.set_sun_scale(scale);
     }
 
     void renderer::set_height_scale(const float scale) {
-        rendering.height_scale = scale;
-
-        SetShaderValue(*displacement_shader, height_scale_loc, &rendering.height_scale, SHADER_UNIFORM_FLOAT);
+        shader_.set_height_scale(scale);
     }
 
     void renderer::set_normals_scale(const float scale) {
-        rendering.normals_scale = scale;
-
-        SetShaderValue(*displacement_shader, normal_scale_loc, &rendering.normals_scale, SHADER_UNIFORM_FLOAT);
+        shader_.set_normals_scale(scale);
     }
 }

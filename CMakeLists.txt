@@ -40,7 +40,7 @@ add_library(${PROJECT_NAME}
         src/downloader.hpp
         src/shaders.hpp
         src/tile_shader.cpp
-        src/tile_shader.h
+        include/raytiles/detail/tile_shader.h
 )
 
 target_include_directories(${PROJECT_NAME}

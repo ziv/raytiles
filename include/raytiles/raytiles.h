@@ -12,6 +12,7 @@
 #include "raylib.h"
 #include "detail/raii.hpp"
 #include "detail/tile.hpp"
+#include "detail/tile_shader.h"
 #include "detail/utils.hpp"
 
 #ifndef RAYTILES_TEXTURE_URL
@@ -280,28 +281,10 @@ namespace raytiles {
             const tile_value *tv; // non-owning, points into draw_view.tiles
         };
 
-        void update_shader_uniforms();
-
         std::vector<DrawEntry> draw_order_{};
-        rendering_config rendering;
 
-        raii::shader displacement_shader;
+        tile_shader shader_;
         raii::material material{};
-
-        // shaders slots locations
-        int cam_pos_loc = -1;
-        int ambient_loc = -1;
-        int fog_color_loc = -1;
-        int tex_albedo_loc = -1;
-        int tex_height_loc = -1;
-        int tex_normal_loc = -1;
-        int sun_dir_loc = -1;
-        int sun_scale_loc = -1;
-        int height_scale_loc = -1;
-        int normal_scale_loc = -1;
-        int fog_start_loc = -1;
-        int fog_end_loc = -1;
-        int skirt_drop = -1;
     };
 
     /// Per-frame driver that maintains the working set of tiles around a camera
