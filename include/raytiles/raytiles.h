@@ -48,6 +48,7 @@ namespace raytiles {
 
         /// Per-zoom skirt overlap factors, allowing you to tweak the amount of overlap
         /// (and thus fill rate) at different zoom levels. Baked into generated meshes.
+        /// todo replace with std::array for maximum speed access (index = Zoom - base_zoom)
         std::unordered_map<Zoom, float> skirt_overlap = {
             {9, 1.00f},
             {10, 1.00f},
@@ -80,6 +81,7 @@ namespace raytiles {
         /// through `world_config::max_zoom`). Tuned for performance and to keep
         /// the resident tile count under 600. If the zoom range changes, this
         /// map must be updated to match.
+        /// todo replace with std::array for maximum speed access (index = Zoom - base_zoom)
         std::unordered_map<Zoom, Meters> thresholds = {
             {9, 100000.0f},
             {10, 80000.0f},
@@ -317,22 +319,6 @@ namespace raytiles {
         [[nodiscard]] std::optional<float> ground_height(Vector3 position) const;
 
     private:
-        void build_required(Zoom zoom, int tx, int tz, float render_radius_sq);
-
-        void process_loaded_tiles();
-
-        void process_current_location();
-
-        void remove_unused_tiles();
-
-        [[nodiscard]] loading_tile spawn(const tile_key &tile) const;
-
-        [[nodiscard]] MetersSq calculate_horizon() const;
-
-        [[nodiscard]] bool is_tile_covered(const tile_key &key) const;
-
-        [[nodiscard]] bool is_tile_out_of_area(const tile_key &key) const;
-
         // streamer keeps only the streaming-policy bits it actually uses
         // (update gating, near/far for frustum extraction). All tile
         // lifecycle state lives in `tile_manager`.

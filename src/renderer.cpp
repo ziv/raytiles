@@ -38,13 +38,13 @@ namespace raytiles {
         draw_order_.reserve(draw_view.rendering_tiles.size());
 
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
-            const auto &t = draw_view.tiles.at(key.zoom);
             if (!tile.in_frustum_this_frame) continue;
+            const auto it = draw_view.tiles.find(key.zoom);
 
             const float dx = tile.tx - position.x;
             const float dz = tile.tz - position.z;
             const float dist_sq = dx * dx + dz * dz; // XZ is enough; ignore Y for sorting
-            draw_order_.push_back({dist_sq, &key, &tile, &t});
+            draw_order_.push_back({dist_sq, &key, &tile, &it->second});
         }
 
         std::ranges::sort(draw_order_,

@@ -28,7 +28,7 @@ namespace raytiles {
         Frustum &frustum;
         std::unordered_map<tile_key, loaded_tile> &rendering_tiles;
         std::unordered_map<Zoom, tile_value> &tiles;
-        std::unordered_set<tile_key> desired_keys;
+        std::unordered_set<tile_key> &desired_keys;
     };
 }
 

@@ -92,10 +92,7 @@ namespace raytiles {
     void streamer::debug(const Camera3D &camera) {
         auto view = tile_manager.make_debug_view(last_frustum);
         renderer::debug(camera, view);
-        DrawText(TextFormat("loaded=%zu  loading=%zu needed=%zu",
-                            view.rendering_tiles.size(),
-                            tile_manager.loading_count(),
-                            view.desired_keys.size()),
+        DrawText(TextFormat("loaded=%zu  loading=%zu needed=%zu", view.rendering_tiles.size(), tile_manager.loading_count(), view.desired_keys.size()),
                  10, 10, 20, WHITE);
         DrawText(TextFormat("rendered=%d", rendered), 10, 40, 20, WHITE);
     }
