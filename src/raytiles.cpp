@@ -72,12 +72,15 @@ namespace raytiles {
     streamer::streamer(world_config world_conf,
                        streaming_config streaming_conf,
                        rendering_config rendering_conf,
-                       const pool_config& pool_conf)
-        : streaming(std::move(streaming_conf)),
+                       const pool_config &pool_conf)
+        : near_plane(static_cast<float>(streaming_conf.near_plane)),
+          far_plane(static_cast<float>(streaming_conf.far_plane)),
+          update_distance_sq(streaming_conf.update_distance_sq),
+          // streaming(std::move(streaming_conf)),
           tile_renderer(std::make_unique<tiles_renderer>(rendering_conf)),
-          tile_manager(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming), make_pool_options(pool_conf))) {
+          tile_manager(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming_conf), make_pool_options(pool_conf))) {
         // set the rendering distance
-        rlSetClipPlanes(streaming.near_plane, streaming.far_plane);
+        rlSetClipPlanes(streaming_conf.near_plane, streaming_conf.far_plane);
     }
 
     streamer::~streamer() = default;
@@ -103,16 +106,12 @@ namespace raytiles {
 
         tile_manager->pre_process(position);
 
-        if (Vector2DistanceSqr({position.x, position.z}, {last_position.x, last_position.z}) > streaming.update_distance_sq ||
-            std::fabs(position.y - last_position.y) > streaming.update_height) {
+        if (Vector3DistanceSqr(position, last_position) > update_distance_sq) {
             last_position = position;
             tile_manager->process(position);
         }
 
-        last_frustum = utils::extract_frustum(camera,
-                                              static_cast<float>(streaming.near_plane),
-                                              static_cast<float>(streaming.far_plane)
-        );
+        last_frustum = utils::extract_frustum(camera, near_plane, far_plane);
 
         tile_manager->post_process(last_frustum);
     }

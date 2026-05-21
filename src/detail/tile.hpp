@@ -11,7 +11,7 @@
 namespace raytiles {
     struct tile_value {
         Meters size;
-        MetersSq threshold;
+        MetersDSq threshold;
         raii::mesh mesh;
     };
 

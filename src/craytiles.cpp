@@ -41,7 +41,6 @@ namespace {
         w.max_zoom = c->max_zoom;
         w.base_zoom_tile_size = c->base_zoom_tile_size;
         w.use_mipmap = c->use_mipmap;
-        w.use_logger = c->use_logger;
         for (std::size_t i = 0; i < raytiles::zoom_levels; ++i) {
             w.skirt_overlap[i] = c->skirt_overlap[i];
         }
@@ -52,8 +51,7 @@ namespace {
         raytiles::streaming_config s{};
         if (!c) return s;
         s.rendering_radius = c->rendering_radius;
-        s.update_distance_sq = c->update_distance_sq;
-        s.update_height = c->update_height;
+        s.update_distance_sq = c->update_height;
         s.upload_budget_sec = c->upload_budget_sec;
         s.max_uploads_per_frame = c->max_uploads_per_frame;
         s.near_plane = c->near_plane;
@@ -112,7 +110,6 @@ RaytilesWorldConfig RaytilesWorldConfigDefault(void) {
         out.skirt_overlap[i] = w.skirt_overlap[i];
     }
     out.use_mipmap = w.use_mipmap;
-    out.use_logger = w.use_logger;
     return out;
 }
 
@@ -123,8 +120,7 @@ RaytilesStreamingConfig RaytilesStreamingConfigDefault(void) {
     for (std::size_t i = 0; i < raytiles::zoom_levels; ++i) {
         out.thresholds[i] = s.thresholds[i];
     }
-    out.update_distance_sq = s.update_distance_sq;
-    out.update_height = s.update_height;
+    out.update_height = s.update_distance_sq;
     out.upload_budget_sec = s.upload_budget_sec;
     out.max_uploads_per_frame = s.max_uploads_per_frame;
     out.near_plane = s.near_plane;

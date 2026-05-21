@@ -27,8 +27,9 @@
 namespace raytiles {
     using Zoom = int;
     using Meters = float;
+    using MetersSq = float;
     using MetersD = double;
-    using MetersSq = double;
+    using MetersDSq = double;
 
     /// Lowest zoom level supported by the library. `world_config::base_zoom`
     /// must be `>= min_supported_zoom`; constructing a streamer with a lower
@@ -101,17 +102,17 @@ namespace raytiles {
         /// camera's near radius are kept at this zoom to bound the working set.
         /// Changing this value also requires updating `streaming_config::thresholds`
         /// and `base_zoom_tile_size`. Must be `>= min_supported_zoom`.
-        int base_zoom = min_supported_zoom;
+        Zoom base_zoom = min_supported_zoom;
 
         /// Highest level-of-detail zoom available. Tiles directly under the camera
         /// are subdivided up to this zoom.
         /// Changing this value also requires updating `streaming_config::thresholds`.
         /// Must be `<= max_supported_zoom` and `>= base_zoom`.
-        int max_zoom = max_supported_zoom;
+        Zoom max_zoom = max_supported_zoom;
 
         /// World size (in meters) of one tile at `base_zoom`. Tiles at higher zooms
         /// are scaled by `1 / (1 << (zoom - base_zoom))`.
-        float base_zoom_tile_size = 66400.0f;
+        Meters base_zoom_tile_size = 66400.0f;
 
         /// Per-zoom skirt overlap factors, allowing you to tweak the amount of overlap
         /// (and thus fill rate) at different zoom levels. Baked into generated meshes.
@@ -125,10 +126,6 @@ namespace raytiles {
         /// Generate trilinear / anisotropic mipmaps for the albedo texture on
         /// upload. Strongly recommended; avoids shimmering at distance.
         bool use_mipmap = true;
-
-        /// Whether to emit log lines from the streamer. Logs from the main
-        /// thread/process are routed through raylib's `TraceLog`.
-        bool use_logger = false;
     };
 
     /// Tile-streaming parameters. Governs *which* tiles are kept resident and
@@ -150,15 +147,11 @@ namespace raytiles {
             100000.0f, 80000.0f, 40000.0f, 20000.0f, 10000.0f, 5000.0f, 2500.0f
         };
 
-        /// Squared XZ distance the camera must travel before the desired-tile set
-        /// is recomputed. Keep this large enough that small movements don't churn
+        /// Distance delta (in meters) that triggers a desired-set recomputation.
+        /// Keep this large enough that small movements don't churn
         /// the working set.
-        MetersSq update_distance_sq = 1000.0f * 1000.0f;
+        MetersSq update_distance_sq = 500.0f * 500.0f;
 
-        /// Altitude delta (in meters) that triggers a desired-set recomputation,
-        /// independent of `update_distance_sq`. Lets you stream new LODs as you
-        /// climb or descend without horizontal motion.
-        Meters update_height = 500.0f;
 
         /// Wall-clock budget (in seconds) per frame for promoting downloaded tiles
         /// into GPU resources. Caps the cost of a single bursty frame.
@@ -253,7 +246,7 @@ namespace raytiles {
         explicit streamer(world_config world_conf = {},
                           streaming_config streaming_conf = {},
                           rendering_config rendering_conf = {},
-                          const pool_config& pool_conf = {});
+                          const pool_config &pool_conf = {});
 
         ~streamer();
 
@@ -340,7 +333,10 @@ namespace raytiles {
         // streamer keeps only the streaming-policy bits it actually uses
         // (update gating, near/far for frustum extraction). All tile
         // lifecycle state lives in `tile_manager`.
-        streaming_config streaming;
+        // streaming_config streaming;
+        float near_plane;
+        float far_plane;
+        float update_distance_sq;
 
         std::unique_ptr<tiles_renderer> tile_renderer;
         std::unique_ptr<tiles_manager> tile_manager;
