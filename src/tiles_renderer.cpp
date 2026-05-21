@@ -41,8 +41,8 @@ namespace raytiles {
         draw_order_.clear();
         draw_order_.reserve(draw_view.rendering_tiles.size());
 
-        const double off_x = static_cast<double>(world_offset.x);
-        const double off_z = static_cast<double>(world_offset.z);
+        const auto off_x = static_cast<double>(world_offset.x);
+        const auto off_z = static_cast<double>(world_offset.z);
 
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
             if (!tile.in_frustum_this_frame) continue;
