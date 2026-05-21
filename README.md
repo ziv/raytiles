@@ -1,7 +1,7 @@
 # Raytiles
 
 <div align="center">
-    <img src="res/logo.png" alt="logo" width="300"/>
+    <img src="res/logo.png" alt="logo" width="150"/>
     <br />
     <strong>3D geospatial engine for raylib</strong>
     <br />
