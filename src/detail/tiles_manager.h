@@ -95,7 +95,9 @@ namespace raytiles {
 
         /// Post-process tiles.
         /// Should be called evry frame and after "process".
-        void post_process(const Frustum &frustum);
+        /// @param world_offset Maps absolute tile coords to user space (the
+        ///                     `frustum`'s frame) via `user = absolute + offset`.
+        void post_process(const Frustum &frustum, const Vector3 &world_offset);
 
         /// Bundles internal state into a `DebugView` for the renderer's draw /
         /// debug paths. The returned view borrows references to this manager's

@@ -15,16 +15,16 @@ namespace raytiles {
     public:
         explicit tiles_renderer(const rendering_config &conf);
 
-        int draw(const Vector3 &position, const DataView &draw_view);
+        int draw(const Vector3 &position, const Vector3 &world_offset, const DataView &draw_view);
 
         /// Draws a 2D HUD with streamer statistics (loaded / loading counts, etc.)
         /// and zoom labels above the tiles
         /// Call between `BeginDrawing` / `EndDrawing`, after `EndMode3D`.
-        static void debug(const Camera3D &camera, const DataView &draw_view);
+        static void debug(const Camera3D &camera, const Vector3 &world_offset, const DataView &draw_view);
 
         /// Draws 3D debug overlays (tile bounds). Call inside the same
         /// `BeginMode3D` / `EndMode3D` block as `draw`.
-        static void debug_3d(const DataView &draw_view);
+        static void debug_3d(const Vector3 &world_offset, const DataView &draw_view);
 
         /// Sets the ambient light color sent to the displacement shader. Use this
         /// to drive day / night / weather lighting changes.

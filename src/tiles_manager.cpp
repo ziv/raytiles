@@ -132,9 +132,13 @@ namespace raytiles {
         process_current_location(position);
     }
 
-    void tiles_manager::post_process(const Frustum &frustum) {
+    void tiles_manager::post_process(const Frustum &frustum, const Vector3 &world_offset) {
         for (auto &tile: rendering_tiles | std::views::values) {
-            tile.in_frustum_this_frame = utils::is_tile_in_frustum(static_cast<float>(tile.tx), static_cast<float>(tile.tz), tile.size, frustum);
+            // Shift absolute tile center into user space before testing
+            // against the user-space frustum.
+            const float user_x = static_cast<float>(tile.tx + static_cast<double>(world_offset.x));
+            const float user_z = static_cast<float>(tile.tz + static_cast<double>(world_offset.z));
+            tile.in_frustum_this_frame = utils::is_tile_in_frustum(user_x, user_z, tile.size, frustum);
         }
         // first time the loading list is empty, means we finished loading
         if (loading && loading_tiles.empty()) {

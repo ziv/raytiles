@@ -261,11 +261,21 @@ namespace raytiles {
         /// Updates the desired tile set based on the camera and promotes any
         /// finished downloads into renderable GPU resources. Cheap to call every
         /// frame.
-        void update(const Camera3D &camera);
+        ///
+        /// @param camera        Camera in user space (i.e. `camera.position` is
+        ///                      whatever frame your game uses; typically near
+        ///                      the origin to keep float precision tight).
+        /// @param world_offset  Vector that maps user space to absolute world
+        ///                      space via `absolute = user - offset`. Default
+        ///                      `{0,0,0}` means user space *is* absolute space
+        ///                      (no shifting). Must match the value passed to
+        ///                      `draw` in the same frame.
+        void update(const Camera3D &camera, Vector3 world_offset = {0, 0, 0});
 
         /// Renders all currently loaded tiles in view. Must be called between
-        /// `BeginMode3D` / `EndMode3D` with the same camera passed to `update`.
-        void draw(const Camera3D &camera);
+        /// `BeginMode3D` / `EndMode3D` with the same camera and `world_offset`
+        /// passed to `update`.
+        void draw(const Camera3D &camera, Vector3 world_offset = {0, 0, 0});
 
         /// Return true for initial loading only
         [[nodiscard]] bool is_loading() const;
@@ -275,12 +285,16 @@ namespace raytiles {
 
         /// Returns the terrain altitude (Y world-coordinate) under `position`,
         /// sampled from the heightmap pixel at the equivalent UV.
+        /// @param position     Query point in user space (`absolute = user - offset`).
+        /// @param world_offset Same convention as `update` / `draw`. Default
+        ///                     `{0,0,0}` (no shifting).
         /// @returns The altitude, or `nullopt` if no loaded tile covers the
         ///          queried XZ point. Callers should generally fall back to a
         ///          previous frame's value or to 0 when nullopt is returned.
         /// @note Each loaded tile keeps its decoded heightmap in CPU RAM (~192KB)
         ///       so this query is a direct pixel read; cost is O(1).
-        [[nodiscard]] std::optional<float> ground_height(Vector3 position) const;
+        [[nodiscard]] std::optional<float> ground_height(Vector3 position,
+                                                         Vector3 world_offset = {0, 0, 0}) const;
 
         /// @name Shader parameter setters
         /// Forwarded onto the internal renderer; safe to call any time after

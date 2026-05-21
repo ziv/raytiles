@@ -97,25 +97,33 @@ namespace raytiles {
         return tile_manager->get_loading();
     }
 
-    std::optional<float> streamer::ground_height(const Vector3 position) const {
-        return tile_manager->ground_height(position);
+    std::optional<float> streamer::ground_height(const Vector3 position, const Vector3 world_offset) const {
+        return tile_manager->ground_height(Vector3Subtract(position, world_offset));
     }
 
-    void streamer::update(const Camera3D &camera) {
-        tile_manager->pre_process(camera.position);
+    void streamer::update(const Camera3D &camera, const Vector3 world_offset) {
+        // Convert camera position from user space to absolute world space.
+        // Internal pipeline (tile_manager) operates in absolute space because
+        // tile coordinates (tile.tx, tile.tz) are stored absolute.
+        const Vector3 abs_position = Vector3Subtract(camera.position, world_offset);
 
-        if (Vector3DistanceSqr(camera.position, last_position) > update_distance_sq) {
-            last_position = camera.position;
-            tile_manager->process(camera.position);
+        tile_manager->pre_process(abs_position);
+
+        if (Vector3DistanceSqr(abs_position, last_position) > update_distance_sq) {
+            last_position = abs_position;
+            tile_manager->process(abs_position);
         }
 
+        // Frustum is built from the user-space camera (small floats) and is
+        // therefore in user space. post_process shifts each tile to user space
+        // (tile.tx + offset.x) before the in-frustum test.
         last_frustum = utils::extract_frustum(camera, near_plane, far_plane);
 
-        tile_manager->post_process(last_frustum);
+        tile_manager->post_process(last_frustum, world_offset);
     }
 
-    void streamer::draw(const Camera3D &camera) {
-        rendered = tile_renderer->draw(camera.position, tile_manager->make_debug_view(last_frustum));
+    void streamer::draw(const Camera3D &camera, const Vector3 world_offset) {
+        rendered = tile_renderer->draw(camera.position, world_offset, tile_manager->make_debug_view(last_frustum));
     }
 
     void streamer::set_ambient_light(const Color color) const { tile_renderer->set_ambient_light(color); }
