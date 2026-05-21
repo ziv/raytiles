@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/ziv/raytiles/compare/v0.10.1...v0.11.0) (2026-05-21)
+
+
+### Features
+
+* fix the cmakelists to not include raylib on consumer ([0c9706c](https://github.com/ziv/raytiles/commit/0c9706c81c974a64cae0b0213bfd9a3c9e7c5cf0))
+
 ## [0.10.1](https://github.com/ziv/raytiles/compare/v0.10.0...v0.10.1) (2026-05-21)
 
 
