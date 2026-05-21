@@ -30,53 +30,37 @@ namespace raytiles {
         material->shader = shader_();
     }
 
-    int tiles_renderer::draw(const Vector3 &position, const Vector3 &world_offset, const DataView &draw_view) {
+    int tiles_renderer::draw(const Vector3 &position, const Vector3 &world_offset, const data_view &draw_view) {
         // position is in user space; the shader fragment-distance term lives
         // in user space as well (vertices are submitted post-MatrixTranslate
         // with user-space coords), so this is the correct frame.
         shader_.set_camera_location(position);
 
-        // collecting and sorting tiles by distance from camera to gain GPU early-Z
-        // it cheaper than rendering by iterating unordered map -> poor early-Z
-        draw_order_.clear();
-        draw_order_.reserve(draw_view.rendering_tiles.size());
-
         const auto off_x = static_cast<double>(world_offset.x);
         const auto off_z = static_cast<double>(world_offset.z);
 
-        for (const auto &[key, tile]: draw_view.rendering_tiles) {
+        int rendered = 0;
+        for (auto &[key, tile]: draw_view.rendering_tiles) {
             if (!tile.in_frustum_this_frame) continue;
             const auto it = draw_view.tiles.find(key.zoom);
 
-            // Shift absolute tile center into user space, then sort in user
-            // space against the user-space camera. The double->float cast
-            // happens after the (huge - huge) cancels into a small delta.
-            const double dx = tile.tx + off_x - static_cast<double>(position.x);
-            const double dz = tile.tz + off_z - static_cast<double>(position.z);
-            const auto dist_sq = static_cast<float>(dx * dx + dz * dz); // XZ is enough; ignore Y for sorting
-            draw_order_.push_back({dist_sq, &key, &tile, &it->second});
-        }
+            material->maps[MATERIAL_MAP_ALBEDO].texture = *tile.tx_texture;
+            material->maps[MATERIAL_MAP_ROUGHNESS].texture = *tile.hm_texture;
+            material->maps[MATERIAL_MAP_NORMAL].texture = *tile.nl_texture;
 
-        std::ranges::sort(draw_order_,
-                          [](const auto &a, const auto &b) { return a.dist_sq < b.dist_sq; });
-
-        for (const auto &e: draw_order_) {
-            material->maps[MATERIAL_MAP_ALBEDO].texture = *e.tile->tx_texture;
-            material->maps[MATERIAL_MAP_ROUGHNESS].texture = *e.tile->hm_texture;
-            material->maps[MATERIAL_MAP_NORMAL].texture = *e.tile->nl_texture;
             // Convert absolute tile center into user space for raylib's
             // float-only matrix pipeline. Keep the addition in double so the
             // huge-tile-coord + huge-offset cancellation happens at full
             // precision before the float cast.
-            const auto user_tx = static_cast<float>(e.tile->tx + off_x);
-            const auto user_tz = static_cast<float>(e.tile->tz + off_z);
-            DrawMesh(*e.tv->mesh, *material,
-                     MatrixTranslate(user_tx, 0.0f, user_tz));
+            const auto user_tx = static_cast<float>(tile.tx + off_x);
+            const auto user_tz = static_cast<float>(tile.tz + off_z);
+            DrawMesh(*it->second.mesh, *material, MatrixTranslate(user_tx, 0.0f, user_tz));
+            ++rendered;
         }
-        return static_cast<int>(draw_order_.size());
+        return rendered;
     }
 
-    void tiles_renderer::debug_3d(const Vector3 &world_offset, const DataView &draw_view) {
+    void tiles_renderer::debug_3d(const Vector3 &world_offset, const data_view &draw_view) {
         const auto off_x = static_cast<double>(world_offset.x);
         const auto off_z = static_cast<double>(world_offset.z);
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
@@ -89,7 +73,7 @@ namespace raytiles {
         }
     }
 
-    void tiles_renderer::debug(const Camera3D &camera, const Vector3 &world_offset, const DataView &draw_view) {
+    void tiles_renderer::debug(const Camera3D &camera, const Vector3 &world_offset, const data_view &draw_view) {
         const auto width = static_cast<float>(GetScreenWidth());
         const auto height = static_cast<float>(GetScreenHeight());
         const auto off_x = static_cast<double>(world_offset.x);

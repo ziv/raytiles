@@ -146,8 +146,8 @@ namespace raytiles {
         }
     }
 
-    DataView tiles_manager::make_debug_view(Frustum &frustum) {
-        return DataView{frustum, rendering_tiles, tiles, desired_keys};
+    data_view tiles_manager::make_debug_view(Frustum &frustum) {
+        return data_view{frustum, rendering_tiles, tiles, desired_keys};
     }
 
     void tiles_manager::process_loaded_tiles() {

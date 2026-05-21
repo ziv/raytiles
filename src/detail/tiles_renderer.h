@@ -15,16 +15,16 @@ namespace raytiles {
     public:
         explicit tiles_renderer(const rendering_config &conf);
 
-        int draw(const Vector3 &position, const Vector3 &world_offset, const DataView &draw_view);
+        int draw(const Vector3 &position, const Vector3 &world_offset, const data_view &draw_view);
 
         /// Draws a 2D HUD with streamer statistics (loaded / loading counts, etc.)
         /// and zoom labels above the tiles
         /// Call between `BeginDrawing` / `EndDrawing`, after `EndMode3D`.
-        static void debug(const Camera3D &camera, const Vector3 &world_offset, const DataView &draw_view);
+        static void debug(const Camera3D &camera, const Vector3 &world_offset, const data_view &draw_view);
 
         /// Draws 3D debug overlays (tile bounds). Call inside the same
         /// `BeginMode3D` / `EndMode3D` block as `draw`.
-        static void debug_3d(const Vector3 &world_offset, const DataView &draw_view);
+        static void debug_3d(const Vector3 &world_offset, const data_view &draw_view);
 
         /// Sets the ambient light color sent to the displacement shader. Use this
         /// to drive day / night / weather lighting changes.
@@ -74,14 +74,12 @@ namespace raytiles {
         void set_sun_scale(float scale);
 
     private:
-        struct DrawEntry {
+        struct draw_entry {
             float dist_sq; // squared XZ distance from camera, used as sort key
             const tile_key *key; // non-owning, points into draw_view.rendering_tiles
             const loaded_tile *tile; // non-owning, same
             const tile_value *tv; // non-owning, points into draw_view.tiles
         };
-
-        std::vector<DrawEntry> draw_order_{};
 
         tile_shader shader_;
         raii::material material{};

@@ -102,7 +102,7 @@ namespace raytiles {
         /// Bundles internal state into a `DebugView` for the renderer's draw /
         /// debug paths. The returned view borrows references to this manager's
         /// internal maps; do not retain it beyond the current frame.
-        [[nodiscard]] DataView make_debug_view(Frustum &frustum);
+        [[nodiscard]] data_view make_debug_view(Frustum &frustum);
 
     private:
         void process_loaded_tiles();
