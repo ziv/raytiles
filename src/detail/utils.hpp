@@ -13,7 +13,7 @@ namespace raytiles {
     constexpr int min_resolution = 4;
     constexpr int max_resolution = 256;
 
-    struct DebugView {
+    struct DataView {
         Frustum &frustum;
         std::unordered_map<tile_key, loaded_tile> &rendering_tiles;
         std::unordered_map<Zoom, tile_value> &tiles;

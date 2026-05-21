@@ -30,7 +30,7 @@ namespace raytiles {
         material->shader = shader_();
     }
 
-    int tiles_renderer::draw(const Vector3 &position, const DebugView &draw_view) {
+    int tiles_renderer::draw(const Vector3 &position, const DataView &draw_view) {
         shader_.set_camera_location(position);
 
         // collecting and sorting tiles by distance from camera to gain GPU early-Z
@@ -51,18 +51,16 @@ namespace raytiles {
         std::ranges::sort(draw_order_,
                           [](const auto &a, const auto &b) { return a.dist_sq < b.dist_sq; });
 
-        int rendered = 0;
         for (const auto &e: draw_order_) {
             material->maps[MATERIAL_MAP_ALBEDO].texture = *e.tile->tx_texture;
             material->maps[MATERIAL_MAP_ROUGHNESS].texture = *e.tile->hm_texture;
             material->maps[MATERIAL_MAP_NORMAL].texture = *e.tile->nl_texture;
             DrawMesh(*e.tv->mesh, *material, MatrixTranslate(e.tile->tx, 0.0f, e.tile->tz));
-            ++rendered;
         }
-        return rendered;
+        return static_cast<int>(draw_order_.size());
     }
 
-    void tiles_renderer::debug_3d(const DebugView &draw_view) {
+    void tiles_renderer::debug_3d(const DataView &draw_view) {
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
             if (tile.in_frustum_this_frame) {
                 const auto &t = draw_view.tiles.at(key.zoom);
@@ -71,7 +69,7 @@ namespace raytiles {
         }
     }
 
-    void tiles_renderer::debug(const Camera3D &camera, const DebugView &draw_view) {
+    void tiles_renderer::debug(const Camera3D &camera, const DataView &draw_view) {
         const auto width = static_cast<float>(GetScreenWidth());
         const auto height = static_cast<float>(GetScreenHeight());
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
