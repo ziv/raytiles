@@ -27,12 +27,6 @@ struct RaytilesStreamer {
     }
 };
 
-namespace {
-    std::string to_string_or_empty(const char *s) {
-        return s ? std::string(s) : std::string();
-    }
-}
-
 // ---------------------------------------------------------------------------
 //  C -> C++ struct conversion helpers
 // ---------------------------------------------------------------------------
@@ -90,19 +84,12 @@ namespace {
         if (!c) return p;
         p.download_threads = c->download_threads;
         p.allow_insecure_tls = c->allow_insecure_tls;
-        p.use_logger = c->use_logger;
         if (c->texture_cache_path) p.texture_cache_path = c->texture_cache_path;
         if (c->heightmap_cache_path) p.heightmap_cache_path = c->heightmap_cache_path;
         if (c->normals_cache_path) p.normals_cache_path = c->normals_cache_path;
         if (c->texture_url) p.texture_url = c->texture_url;
         if (c->heightmap_url) p.heightmap_url = c->heightmap_url;
         if (c->normals_url) p.normals_url = c->normals_url;
-        p.texture_host = to_string_or_empty(c->texture_host);
-        p.texture_url_path = to_string_or_empty(c->texture_url_path);
-        p.heightmap_host = to_string_or_empty(c->heightmap_host);
-        p.heightmap_url_path = to_string_or_empty(c->heightmap_url_path);
-        p.normals_host = to_string_or_empty(c->normals_host);
-        p.normals_url_path = to_string_or_empty(c->normals_url_path);
         return p;
     }
 }
@@ -167,19 +154,12 @@ RaytilesPoolConfig RaytilesPoolConfigDefault(void) {
     RaytilesPoolConfig out{};
     out.download_threads = d.download_threads;
     out.allow_insecure_tls = d.allow_insecure_tls;
-    out.use_logger = d.use_logger;
     out.texture_cache_path = d.texture_cache_path.c_str();
     out.heightmap_cache_path = d.heightmap_cache_path.c_str();
     out.normals_cache_path = d.normals_cache_path.c_str();
     out.texture_url = d.texture_url.c_str();
     out.heightmap_url = d.heightmap_url.c_str();
     out.normals_url = d.normals_url.c_str();
-    out.texture_host = d.texture_host.c_str();
-    out.texture_url_path = d.texture_url_path.c_str();
-    out.heightmap_host = d.heightmap_host.c_str();
-    out.heightmap_url_path = d.heightmap_url_path.c_str();
-    out.normals_host = d.normals_host.c_str();
-    out.normals_url_path = d.normals_url_path.c_str();
     return out;
 }
 

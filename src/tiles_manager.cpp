@@ -9,10 +9,9 @@
 using namespace std::chrono_literals;
 
 namespace raytiles {
-
-    tiles_manager::tiles_manager(tiles_manager_options opts, pool_config pool_conf)
+    tiles_manager::tiles_manager(tiles_manager_options opts, pool_options pool_opts)
         : options(std::move(opts)),
-          tile_downloader(std::move(pool_conf)) {
+          tile_downloader(std::move(pool_opts)) {
         // input validation
         if (options.base_zoom < min_supported_zoom) {
             throw std::runtime_error(std::format("base_zoom {} is below min_supported_zoom {}", options.base_zoom, min_supported_zoom));

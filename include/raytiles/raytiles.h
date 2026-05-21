@@ -71,9 +71,6 @@ namespace raytiles {
         /// local proxies; never enable against a real server.
         bool allow_insecure_tls = false;
 
-        /// Whether the pool's worker threads emit log lines.
-        bool use_logger = false;
-
         /// On-disk cache path templates, formatted with `{zoom}/{x}/{z}` via
         /// `std::vformat`. Parent directories are created on demand.
         std::string texture_cache_path = ".cache/texture/{}/{}/{}.png";
@@ -85,16 +82,8 @@ namespace raytiles {
         /// provider following the XYZ (slippy-map) convention works, as long as
         /// the heightmap provider returns RGB-encoded heightmaps.
         std::string texture_url = RAYTILES_TEXTURE_URL;
-        std::string texture_host{};
-        std::string texture_url_path{};
-
         std::string heightmap_url = RAYTILES_HEIGHTMAP_URL;
-        std::string heightmap_host{};
-        std::string heightmap_url_path{};
-
         std::string normals_url = RAYTILES_NORMALS_URL;
-        std::string normals_host{};
-        std::string normals_url_path{};
     };
 
     /// World topology / geometry parameters. Everything in this struct is
@@ -264,7 +253,7 @@ namespace raytiles {
         explicit streamer(world_config world_conf = {},
                           streaming_config streaming_conf = {},
                           rendering_config rendering_conf = {},
-                          pool_config pool_conf = {});
+                          const pool_config& pool_conf = {});
 
         ~streamer();
 

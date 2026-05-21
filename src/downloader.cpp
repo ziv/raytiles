@@ -51,16 +51,6 @@ namespace raytiles {
             return url;
         }
 
-        std::pair<std::string, std::string> split_url(const std::string &url) {
-            const auto scheme = url.find("://");
-            if (scheme == std::string::npos) throw std::runtime_error("invalid url (no scheme): " + url);
-
-            const auto path_pos = url.find('/', scheme + 3);
-            if (path_pos == std::string::npos) return {url, "/"};
-
-            return {url.substr(0, path_pos), url.substr(path_pos)};
-        }
-
         // decode a PNG byte buffer into a raylib Image. pixels are allocated
         // with stb_image's allocator (malloc) which matches raylib's default
         // RL_FREE, so UnloadImage is the correct deleter on the result.
@@ -160,7 +150,7 @@ namespace raytiles {
     } // namespace
 
     void pool::log_line(const std::string_view level, const std::string_view msg) const {
-        if (!config.use_logger) return;
+        // if (!config.use_logger) return;
         static std::mutex log_mtx;
         std::lock_guard lock(log_mtx);
         std::fprintf(stderr, "[%.*s] %.*s\n", static_cast<int>(level.size()), level.data(), static_cast<int>(msg.size()), msg.data());
@@ -168,7 +158,7 @@ namespace raytiles {
     }
 
     std::string pool::get_host(const request_type type) const {
-        return type == TEXTURE ? config.texture_host : type == HEIGHTMAP ? config.heightmap_host : config.normals_host;
+        return type == TEXTURE ? options.texture_host : type == HEIGHTMAP ? options.heightmap_host : options.normals_host;
     }
 
     void pool::worker_loop(const std::stop_token &st) {
@@ -217,7 +207,7 @@ namespace raytiles {
                     auto body = fetch(host + img_job.url);
 #else
                     // todo do we need to destroy the hosts when done?
-                    if (!clients.contains(host)) clients.try_emplace(host, create_client(host, config.allow_insecure_tls));
+                    if (!clients.contains(host)) clients.try_emplace(host, create_client(host, options.allow_insecure_tls));
                     auto body = fetch(clients.at(host), img_job.url);
 #endif
 
@@ -249,25 +239,11 @@ namespace raytiles {
         }
     }
 
-    pool::pool(pool_config conf)
-        : config(std::move(conf)) {
-        // normalize configuration
-        // take the URLs and split them to 2 parts, the host part and path part
-        // todo input validation (FOR EVERYTHING)
-        auto [texture_host, texture_path] = split_url(config.texture_url);
-        config.texture_host = std::move(texture_host);
-        config.texture_url_path = std::move(texture_path);
+    pool::pool(pool_options opts)
+        : options(std::move(opts)) {
 
-        auto [heightmap_host, heightmap_path] = split_url(config.heightmap_url);
-        config.heightmap_host = std::move(heightmap_host);
-        config.heightmap_url_path = std::move(heightmap_path);
-
-        auto [normals_host, normals_path] = split_url(config.normals_url);
-        config.normals_host = std::move(normals_host);
-        config.normals_url_path = std::move(normals_path);
-
-        workers.reserve(config.download_threads);
-        for (int i = 0; i < config.download_threads; ++i) workers.emplace_back([this](const std::stop_token &st) { worker_loop(st); });
+        workers.reserve(options.download_threads);
+        for (int i = 0; i < options.download_threads; ++i) workers.emplace_back([this](const std::stop_token &st) { worker_loop(st); });
     }
 
     pool::~pool() {
@@ -284,15 +260,15 @@ namespace raytiles {
     }
 
     void pool::cancel_texture(int zoom, int x, int y) {
-        cancel_load(std::vformat(config.texture_cache_path, std::make_format_args(zoom, x, y)));
+        cancel_load(std::vformat(options.texture_cache_path, std::make_format_args(zoom, x, y)));
     }
 
     void pool::cancel_heightmap(int zoom, int x, int y) {
-        cancel_load(std::vformat(config.heightmap_cache_path, std::make_format_args(zoom, x, y)));
+        cancel_load(std::vformat(options.heightmap_cache_path, std::make_format_args(zoom, x, y)));
     }
 
     void pool::cancel_normals(int zoom, int x, int y) {
-        cancel_load(std::vformat(config.normals_cache_path, std::make_format_args(zoom, x, y)));
+        cancel_load(std::vformat(options.normals_cache_path, std::make_format_args(zoom, x, y)));
     }
 
     void pool::cancel(const int zoom, const int x, const int y) {
@@ -318,17 +294,17 @@ namespace raytiles {
     }
 
     std::shared_future<Image> pool::enqueue_texture(int zoom, int x, int y) {
-        const auto path = std::vformat(config.texture_cache_path, std::make_format_args(zoom, x, y));
-        return enqueue_and_load(path, get_url(config.texture_url_path, zoom, x, y), TEXTURE);
+        const auto path = std::vformat(options.texture_cache_path, std::make_format_args(zoom, x, y));
+        return enqueue_and_load(path, get_url(options.texture_url_path, zoom, x, y), TEXTURE);
     }
 
     std::shared_future<Image> pool::enqueue_heightmap(int zoom, int x, int y) {
-        const auto path = std::vformat(config.heightmap_cache_path, std::make_format_args(zoom, x, y));
-        return enqueue_and_load(path, get_url(config.heightmap_url_path, zoom, x, y), HEIGHTMAP);
+        const auto path = std::vformat(options.heightmap_cache_path, std::make_format_args(zoom, x, y));
+        return enqueue_and_load(path, get_url(options.heightmap_url_path, zoom, x, y), HEIGHTMAP);
     }
 
     std::shared_future<Image> pool::enqueue_normals(int zoom, int x, int y) {
-        const auto path = std::vformat(config.normals_cache_path, std::make_format_args(zoom, x, y));
-        return enqueue_and_load(path, get_url(config.normals_url_path, zoom, x, y), NORMALS);
+        const auto path = std::vformat(options.normals_cache_path, std::make_format_args(zoom, x, y));
+        return enqueue_and_load(path, get_url(options.normals_url_path, zoom, x, y), NORMALS);
     }
 } // namespace raytiles
