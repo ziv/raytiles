@@ -69,7 +69,7 @@ namespace raytiles {
 
         // tiny thread-safe logger: serializes writes to stderr behind a single mutex
         // so log lines never interleave. used in workers in place of TraceLog.
-        void log_line(std::string_view level, std::string_view msg) const;
+        void log_line(std::string_view level, std::string_view msg) ;
 
         [[nodiscard]] std::string get_host(request_type type) const;
 

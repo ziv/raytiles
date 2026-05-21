@@ -1,4 +1,3 @@
-#include "raytiles/raytiles.h"
 #include "detail/downloader.h"
 
 #include <cstdio>
@@ -149,8 +148,7 @@ namespace raytiles {
         }
     } // namespace
 
-    void pool::log_line(const std::string_view level, const std::string_view msg) const {
-        // if (!config.use_logger) return;
+    void pool::log_line(const std::string_view level, const std::string_view msg) {
         static std::mutex log_mtx;
         std::lock_guard lock(log_mtx);
         std::fprintf(stderr, "[%.*s] %.*s\n", static_cast<int>(level.size()), level.data(), static_cast<int>(msg.size()), msg.data());

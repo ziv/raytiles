@@ -67,7 +67,7 @@ struct std::hash<raytiles::tile_key> {
         const auto x32 = static_cast<std::uint64_t>(static_cast<std::uint32_t>(key.x));
         const auto y32 = static_cast<std::uint64_t>(static_cast<std::uint32_t>(key.z));
 
-        std::uint64_t h = (z32 << 60) ^ (x32 << 30) ^ y32;
+        std::uint64_t h = z32 << 60 ^ x32 << 30 ^ y32;
 
         // SplitMix64 finalizer — strong avalanche, no loops.
         h ^= h >> 30;
@@ -76,6 +76,6 @@ struct std::hash<raytiles::tile_key> {
         h *= 0x94d049bb133111ebULL;
         h ^= h >> 31;
 
-        return static_cast<std::size_t>(h);
+        return h;
     }
 };
