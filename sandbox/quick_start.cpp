@@ -52,7 +52,7 @@ int main() {
         // 7.
         // render the tiles around
         // the camera in 3D mode
-        streamer.draw(camera);
+        streamer.draw();
         EndMode3D();
         EndDrawing();
     }

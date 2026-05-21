@@ -61,7 +61,7 @@ int main(void) {
         ClearBackground(SKYBLUE);
 
         BeginMode3D(camera);
-        RaytilesStreamerDraw(streamer, camera, world_offset);
+        RaytilesStreamerDraw(streamer);
         EndMode3D();
 
         DrawText("raytiles C demo - ESC to quit", 10, 570, 20, RAYWHITE);

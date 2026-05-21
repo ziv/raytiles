@@ -155,7 +155,6 @@ int main() {
 
     while (!WindowShouldClose()) {
         const auto dt = GetFrameTime();
-        streamer.update(camera, world_offset);
 
         if (auto_pilot && !crashed) {
             float step_time = 5.0f;
@@ -226,9 +225,13 @@ int main() {
         rebase_axis('x', camera.position.x, camera.target.x, world_offset.x);
         rebase_axis('z', camera.position.z, camera.target.z, world_offset.z);
 
+        // Frame inputs are now stable for this frame -> hand them to the
+        // streamer once. draw() and ground_height() will reuse these values.
+        streamer.update(camera, world_offset);
+
         //r.set_sun_direction(Vector3{0.1f, sun, 0.0f});
 
-        const auto h = streamer.ground_height(camera.position, world_offset).value_or(0.0f);
+        const auto h = streamer.ground_height(camera.position).value_or(0.0f);
         if (h > camera.position.y) crashed = true;
 
         BeginDrawing();
@@ -236,7 +239,7 @@ int main() {
 
         BeginMode3D(camera);
         // draw the world around the camera
-        streamer.draw(camera, world_offset);
+        streamer.draw();
         const Vector3 model_pos = Vector3Add(camera.position, Vector3Scale(forward, 50.0f));
 
         DrawModelEx(tie, model_pos, rotationAxis, angle, {2.0f, 2.0f, 2.0f}, WHITE);

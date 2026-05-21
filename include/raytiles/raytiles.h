@@ -223,14 +223,25 @@ namespace raytiles {
     /// @code
     ///   raytiles::streamer s(world, streaming, rendering, pool_conf);
     ///   while (!WindowShouldClose()) {
-    ///     s.update(camera);
+    ///     // 1. apply your large-world rebase (if any) so camera and
+    ///     //    world_offset agree on the *current* frame.
+    ///     // 2. hand them to the streamer once via update().
+    ///     s.update(camera, world_offset);
     ///     BeginDrawing();
     ///     BeginMode3D(camera);
-    ///     s.draw(camera);
+    ///     // draw / ground_height reuse the camera + offset cached by update().
+    ///     s.draw();
     ///     EndMode3D();
     ///     EndDrawing();
     ///   }
     /// @endcode
+    ///
+    /// **Frame contract.** `update()` is the single point of truth for the
+    /// camera and `world_offset` of the current frame. `draw()` and
+    /// `ground_height()` reuse those values — no need (and no way) to pass
+    /// them again. Always call `update()` once per frame, *after* applying
+    /// any large-world rebase, *before* `draw()` and any `ground_height()`
+    /// queries.
     ///
     /// All raylib resources are owned via RAII; destruction is safe and complete.
     /// Movable but not copyable.
@@ -262,20 +273,24 @@ namespace raytiles {
         /// finished downloads into renderable GPU resources. Cheap to call every
         /// frame.
         ///
+        /// Caches `camera` and `world_offset` for use by the matching `draw()`
+        /// and `ground_height()` calls. Call once per frame, after applying any
+        /// large-world rebase to your scene, before any `draw()` /
+        /// `ground_height()` calls.
+        ///
         /// @param camera        Camera in user space (i.e. `camera.position` is
         ///                      whatever frame your game uses; typically near
         ///                      the origin to keep float precision tight).
         /// @param world_offset  Vector that maps user space to absolute world
         ///                      space via `absolute = user - offset`. Default
         ///                      `{0,0,0}` means user space *is* absolute space
-        ///                      (no shifting). Must match the value passed to
-        ///                      `draw` in the same frame.
+        ///                      (no shifting).
         void update(const Camera3D &camera, Vector3 world_offset = {0, 0, 0});
 
         /// Renders all currently loaded tiles in view. Must be called between
-        /// `BeginMode3D` / `EndMode3D` with the same camera and `world_offset`
-        /// passed to `update`.
-        void draw(const Camera3D &camera, Vector3 world_offset = {0, 0, 0});
+        /// `BeginMode3D` / `EndMode3D` after `update()` in the same frame.
+        /// Reuses the camera and `world_offset` cached by `update()`.
+        void draw();
 
         /// Return true for initial loading only
         [[nodiscard]] bool is_loading() const;
@@ -285,16 +300,16 @@ namespace raytiles {
 
         /// Returns the terrain altitude (Y world-coordinate) under `position`,
         /// sampled from the heightmap pixel at the equivalent UV.
-        /// @param position     Query point in user space (`absolute = user - offset`).
-        /// @param world_offset Same convention as `update` / `draw`. Default
-        ///                     `{0,0,0}` (no shifting).
+        /// @param position     Query point in user space. Internally combined
+        ///                     with the `world_offset` cached by the most
+        ///                     recent `update()` to recover absolute coords
+        ///                     for the tile lookup.
         /// @returns The altitude, or `nullopt` if no loaded tile covers the
         ///          queried XZ point. Callers should generally fall back to a
         ///          previous frame's value or to 0 when nullopt is returned.
         /// @note Each loaded tile keeps its decoded heightmap in CPU RAM (~192KB)
         ///       so this query is a direct pixel read; cost is O(1).
-        [[nodiscard]] std::optional<float> ground_height(Vector3 position,
-                                                         Vector3 world_offset = {0, 0, 0}) const;
+        [[nodiscard]] std::optional<float> ground_height(Vector3 position) const;
 
         /// @name Shader parameter setters
         /// Forwarded onto the internal renderer; safe to call any time after
@@ -359,6 +374,13 @@ namespace raytiles {
         // update every frame
         Vector3 last_position = {-9999.9f, -9999.9f, -9999.9f};
         Frustum last_frustum{};
+
+        // Cached current-frame inputs from update(); read by draw() and
+        // ground_height(). Convention: cached_camera_.position is in user
+        // space, cached_world_offset_ maps user → absolute via
+        // absolute = user - offset.
+        Camera3D cached_camera_{};
+        Vector3 cached_world_offset_ = {0.0f, 0.0f, 0.0f};
     };
 } // namespace raytiles
 

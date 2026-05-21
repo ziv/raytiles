@@ -74,7 +74,7 @@ int main() {
 
         BeginMode3D(camera);
         // draw the world around the camera
-        streamer.draw(camera);
+        streamer.draw();
         EndMode3D();
         EndDrawing();
 

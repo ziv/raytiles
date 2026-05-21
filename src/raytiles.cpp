@@ -97,11 +97,16 @@ namespace raytiles {
         return tile_manager->get_loading();
     }
 
-    std::optional<float> streamer::ground_height(const Vector3 position, const Vector3 world_offset) const {
-        return tile_manager->ground_height(Vector3Subtract(position, world_offset));
+    std::optional<float> streamer::ground_height(const Vector3 position) const {
+        return tile_manager->ground_height(Vector3Subtract(position, cached_world_offset_));
     }
 
     void streamer::update(const Camera3D &camera, const Vector3 world_offset) {
+        // Cache for draw() and ground_height(); they are forbidden to take
+        // these as args (single source of truth = update()).
+        cached_camera_ = camera;
+        cached_world_offset_ = world_offset;
+
         // Convert camera position from user space to absolute world space.
         // Internal pipeline (tile_manager) operates in absolute space because
         // tile coordinates (tile.tx, tile.tz) are stored absolute.
@@ -122,8 +127,9 @@ namespace raytiles {
         tile_manager->post_process(last_frustum, world_offset);
     }
 
-    void streamer::draw(const Camera3D &camera, const Vector3 world_offset) {
-        rendered = tile_renderer->draw(camera.position, world_offset, tile_manager->make_debug_view(last_frustum));
+    void streamer::draw() {
+        rendered = tile_renderer->draw(cached_camera_.position, cached_world_offset_,
+                                       tile_manager->make_debug_view(last_frustum));
     }
 
     void streamer::set_ambient_light(const Color color) const { tile_renderer->set_ambient_light(color); }
