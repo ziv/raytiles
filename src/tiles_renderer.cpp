@@ -51,8 +51,8 @@ namespace raytiles {
             // Shift absolute tile center into user space, then sort in user
             // space against the user-space camera. The double->float cast
             // happens after the (huge - huge) cancels into a small delta.
-            const double dx = (tile.tx + off_x) - static_cast<double>(position.x);
-            const double dz = (tile.tz + off_z) - static_cast<double>(position.z);
+            const double dx = tile.tx + off_x - static_cast<double>(position.x);
+            const double dz = tile.tz + off_z - static_cast<double>(position.z);
             const auto dist_sq = static_cast<float>(dx * dx + dz * dz); // XZ is enough; ignore Y for sorting
             draw_order_.push_back({dist_sq, &key, &tile, &it->second});
         }
@@ -68,8 +68,8 @@ namespace raytiles {
             // float-only matrix pipeline. Keep the addition in double so the
             // huge-tile-coord + huge-offset cancellation happens at full
             // precision before the float cast.
-            const float user_tx = static_cast<float>(e.tile->tx + off_x);
-            const float user_tz = static_cast<float>(e.tile->tz + off_z);
+            const auto user_tx = static_cast<float>(e.tile->tx + off_x);
+            const auto user_tz = static_cast<float>(e.tile->tz + off_z);
             DrawMesh(*e.tv->mesh, *material,
                      MatrixTranslate(user_tx, 0.0f, user_tz));
         }
@@ -77,13 +77,13 @@ namespace raytiles {
     }
 
     void tiles_renderer::debug_3d(const Vector3 &world_offset, const DataView &draw_view) {
-        const double off_x = static_cast<double>(world_offset.x);
-        const double off_z = static_cast<double>(world_offset.z);
+        const auto off_x = static_cast<double>(world_offset.x);
+        const auto off_z = static_cast<double>(world_offset.z);
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
             if (tile.in_frustum_this_frame) {
                 const auto &t = draw_view.tiles.at(key.zoom);
-                const float user_x = static_cast<float>(tile.tx + off_x);
-                const float user_z = static_cast<float>(tile.tz + off_z);
+                const auto user_x = static_cast<float>(tile.tx + off_x);
+                const auto user_z = static_cast<float>(tile.tz + off_z);
                 DrawCubeWires({user_x, 0.0f, user_z}, t.size, 1000.0f, t.size, GREEN);
             }
         }
@@ -92,12 +92,12 @@ namespace raytiles {
     void tiles_renderer::debug(const Camera3D &camera, const Vector3 &world_offset, const DataView &draw_view) {
         const auto width = static_cast<float>(GetScreenWidth());
         const auto height = static_cast<float>(GetScreenHeight());
-        const double off_x = static_cast<double>(world_offset.x);
-        const double off_z = static_cast<double>(world_offset.z);
+        const auto off_x = static_cast<double>(world_offset.x);
+        const auto off_z = static_cast<double>(world_offset.z);
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
             if (tile.in_frustum_this_frame) {
-                const float user_x = static_cast<float>(tile.tx + off_x);
-                const float user_z = static_cast<float>(tile.tz + off_z);
+                const auto user_x = static_cast<float>(tile.tx + off_x);
+                const auto user_z = static_cast<float>(tile.tz + off_z);
                 const auto [x, y] = GetWorldToScreen({user_x, 0.0f, user_z}, camera);
                 if (x < 0 || x > width || y < 0 || y > height) continue;
 
