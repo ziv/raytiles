@@ -217,11 +217,17 @@ void RaytilesStreamerDestroy(RaytilesStreamer *streamer);
 /// downloads into GPU resources. Cheap to call every frame; internally
 /// rate-limited by `RaytilesStreamingConfig::upload_budget_sec` and
 /// `max_uploads_per_frame`.
-void RaytilesStreamerUpdate(RaytilesStreamer *streamer, Camera3D camera);
+///
+/// `worldOffset` implements large-world shifting: pass `(Vector3){0}` to
+/// disable. The convention is `absolute = camera.position - worldOffset`,
+/// equivalently `camera.position = absolute + worldOffset`. See
+/// `raytiles::streamer::update` for the full contract.
+void RaytilesStreamerUpdate(RaytilesStreamer *streamer, Camera3D camera, Vector3 worldOffset);
 
 /// Renders all currently loaded tiles. Call between `BeginMode3D` /
-/// `EndMode3D` with the same camera passed to `RaytilesStreamerUpdate`.
-void RaytilesStreamerDraw(RaytilesStreamer *streamer, Camera3D camera);
+/// `EndMode3D` with the same camera and `worldOffset` passed to
+/// `RaytilesStreamerUpdate`.
+void RaytilesStreamerDraw(RaytilesStreamer *streamer, Camera3D camera, Vector3 worldOffset);
 
 /// Returns true during the initial loading phase (i.e. while at least one
 /// tile required to fill the rendering radius is still being fetched).
@@ -235,12 +241,16 @@ float RaytilesStreamerGetLoading(const RaytilesStreamer *streamer);
 /// Samples the terrain altitude (world Y) under `position`, reading the
 /// heightmap pixel at the equivalent UV. O(1) cost.
 ///
+/// `position` is in user space; `worldOffset` is the same offset passed to
+/// `RaytilesStreamerUpdate` (see that function's docs for the convention).
+///
 /// On success, writes the altitude to `*out_height` and returns true.
 /// Returns false if no loaded tile covers the queried XZ point or if
 /// `streamer` is NULL; `*out_height` is left untouched. `out_height` may be
 /// NULL if the caller only wants to test for coverage.
 bool RaytilesStreamerGroundHeight(const RaytilesStreamer *streamer,
                                   Vector3 position,
+                                  Vector3 worldOffset,
                                   float *out_height);
 
 // ---------------------------------------------------------------------------

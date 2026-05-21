@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdio>
 #include <format>
 #include <vector>
 #include <raytiles/raytiles.h>
@@ -103,9 +104,24 @@ int main() {
     raytiles::streamer streamer(world, streaming, rendering, pool_conf);
     // streamer.set_normals_scale(5.0f);
 
+    // ------- Large-world shifting state -------
+    // Convention: absolute = user - world_offset, equivalently user = absolute + world_offset.
+    // The `path[]` waypoints below are absolute coords (authored at offset = 0).
+    // We keep `camera.position` in user space (small floats) and accumulate the
+    // shift in `world_offset`. Each frame we test the user-space camera against
+    // `rebase_threshold` and, when crossed, shift the user frame back toward
+    // the origin while shifting `world_offset` by the same amount so the
+    // absolute camera (user - offset) is unchanged.
+    Vector3 world_offset = {0.0f, 0.0f, 0.0f};
+    constexpr float rebase_threshold = 4096.0f;
+
+    auto absolute_to_user = [&](Vector3 abs) {
+        return Vector3Add(abs, world_offset);
+    };
+
     Camera3D camera;
-    camera.position = Vector3{2000.0f, 5000.0f, 2000.0f};
-    camera.target = Vector3{3000.0f, 4750.0f, 3000.0f};
+    camera.position = absolute_to_user({2000.0f, 5000.0f, 2000.0f});
+    camera.target = absolute_to_user({3000.0f, 4750.0f, 3000.0f});
     camera.up = Vector3{0.0f, 1.0f, 0.0f};
     camera.fovy = 60.0f;
     camera.projection = CAMERA_PERSPECTIVE;
@@ -126,7 +142,7 @@ int main() {
 
     // loading loop
     for (;;) {
-        streamer.update(camera);
+        streamer.update(camera, world_offset);
         if (!streamer.is_loading()) break;
 
         const auto loading = streamer.get_loading();
@@ -139,7 +155,7 @@ int main() {
 
     while (!WindowShouldClose()) {
         const auto dt = GetFrameTime();
-        streamer.update(camera);
+        streamer.update(camera, world_offset);
 
         if (auto_pilot && !crashed) {
             float step_time = 5.0f;
@@ -150,22 +166,24 @@ int main() {
                 step++;
                 if (step >= path.size() - 3) step = 0;
             }
-            camera.position = get_spline_point(
+            // Path waypoints are absolute; convert to user space using the
+            // current world_offset (user = absolute + offset).
+            camera.position = absolute_to_user(get_spline_point(
                 path[step % path.size()],
                 path[(step + 1) % path.size()],
                 path[(step + 2) % path.size()],
                 path[(step + 3) % path.size()],
                 flight_progress
-            );
+            ));
 
             // look ahead...
-            camera.target = get_spline_point(
+            camera.target = absolute_to_user(get_spline_point(
                 path[(step + 1) % path.size()],
                 path[(step + 2) % path.size()],
                 path[(step + 3) % path.size()],
                 path[(step + 4) % path.size()],
                 flight_progress + 0.2f
-            );
+            ));
         }
 
         const auto to_target = camera.target - camera.position;
@@ -184,9 +202,33 @@ int main() {
             adv_f.update(camera, dt);
         }
 
+        // Large-world rebase: keep the user-space camera close to the origin.
+        // Whenever |camera.x| or |camera.z| exceeds the threshold, slide BOTH
+        // the camera (position + target) AND the world_offset by the same
+        // amount, preserving the absolute camera location (user - offset).
+        // In a real game you must apply the same shift to every entity that
+        // lives in user space (models, lights, particles, ...).
+        auto rebase_axis = [&](const char axis, float &user, float &target, float &off) {
+            if (user > rebase_threshold) {
+                user -= rebase_threshold;
+                target -= rebase_threshold;
+                off -= rebase_threshold;
+                std::printf("[rebase] %c -= %.0f  user=%.1f offset=%.1f\n",
+                            axis, rebase_threshold, user, off);
+            } else if (user < -rebase_threshold) {
+                user += rebase_threshold;
+                target += rebase_threshold;
+                off += rebase_threshold;
+                std::printf("[rebase] %c += %.0f  user=%.1f offset=%.1f\n",
+                            axis, rebase_threshold, user, off);
+            }
+        };
+        rebase_axis('x', camera.position.x, camera.target.x, world_offset.x);
+        rebase_axis('z', camera.position.z, camera.target.z, world_offset.z);
+
         //r.set_sun_direction(Vector3{0.1f, sun, 0.0f});
 
-        const auto h = streamer.ground_height(camera.position).value_or(0.0f);
+        const auto h = streamer.ground_height(camera.position, world_offset).value_or(0.0f);
         if (h > camera.position.y) crashed = true;
 
         BeginDrawing();
@@ -194,7 +236,7 @@ int main() {
 
         BeginMode3D(camera);
         // draw the world around the camera
-        streamer.draw(camera);
+        streamer.draw(camera, world_offset);
         const Vector3 model_pos = Vector3Add(camera.position, Vector3Scale(forward, 50.0f));
 
         DrawModelEx(tie, model_pos, rotationAxis, angle, {2.0f, 2.0f, 2.0f}, WHITE);
@@ -211,17 +253,23 @@ int main() {
         // DrawRectangle(5, 550, 600, 40, Fade(BLACK, 0.5f));
         // DrawText("Controls: K to toggle labels, L to toggle wireframe", 10, 560, 20, WHITE);
 
-        DrawRectangle(5, 50, 200, 40, Fade(BLACK, 0.5f));
-        DrawText(TextFormat("P %d %d %d",
+        DrawRectangle(5, 50, 280, 80, Fade(BLACK, 0.5f));
+        DrawText(TextFormat("user P %d %d %d",
                             static_cast<int>(camera.position.x),
                             static_cast<int>(camera.position.y),
                             static_cast<int>(camera.position.z)
                  ), 10, 60, 20, WHITE);
+        DrawText(TextFormat("offset %d %d %d",
+                            static_cast<int>(world_offset.x),
+                            static_cast<int>(world_offset.y),
+                            static_cast<int>(world_offset.z)
+                 ), 10, 90, 20, WHITE);
 
         if (crashed) {
             DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.5f));
             DrawText("You crashed! Press R to reset.", 200, 300, 30, WHITE);
             if (IsKeyPressed(KEY_R)) {
+                world_offset = {0.0f, 0.0f, 0.0f};
                 camera.position = Vector3{2000.0f, 5000.0f, 2000.0f};
                 camera.target = Vector3{3000.0f, 4750.0f, 3000.0f};
                 // f = FreeCamera(camera);

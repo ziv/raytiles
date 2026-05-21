@@ -181,14 +181,14 @@ void RaytilesStreamerDestroy(RaytilesStreamer *streamer) {
     delete streamer;
 }
 
-void RaytilesStreamerUpdate(RaytilesStreamer *streamer, const Camera3D camera) {
+void RaytilesStreamerUpdate(RaytilesStreamer *streamer, const Camera3D camera, const Vector3 worldOffset) {
     if (!streamer) return;
-    streamer->impl.update(camera);
+    streamer->impl.update(camera, worldOffset);
 }
 
-void RaytilesStreamerDraw(RaytilesStreamer *streamer, const Camera3D camera) {
+void RaytilesStreamerDraw(RaytilesStreamer *streamer, const Camera3D camera, const Vector3 worldOffset) {
     if (!streamer) return;
-    streamer->impl.draw(camera);
+    streamer->impl.draw(camera, worldOffset);
 }
 
 bool RaytilesStreamerIsLoading(const RaytilesStreamer *streamer) {
@@ -203,9 +203,10 @@ float RaytilesStreamerGetLoading(const RaytilesStreamer *streamer) {
 
 bool RaytilesStreamerGroundHeight(const RaytilesStreamer *streamer,
                                   const Vector3 position,
+                                  const Vector3 worldOffset,
                                   float *out_height) {
     if (!streamer) return false;
-    const auto h = streamer->impl.ground_height(position);
+    const auto h = streamer->impl.ground_height(position, worldOffset);
     if (!h.has_value()) return false;
     if (out_height) *out_height = *h;
     return true;

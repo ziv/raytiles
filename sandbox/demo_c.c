@@ -36,9 +36,13 @@ int main(void) {
         .projection = CAMERA_PERSPECTIVE,
     };
 
+    // Large-world shifting: this demo doesn't move, so we just pass a
+    // zero offset. See the C++ `demo` sandbox for a full rebase loop.
+    const Vector3 world_offset = (Vector3){0.0f, 0.0f, 0.0f};
+
     // initial-loading splash screen
     while (!WindowShouldClose()) {
-        RaytilesStreamerUpdate(streamer, camera);
+        RaytilesStreamerUpdate(streamer, camera, world_offset);
         if (!RaytilesStreamerIsLoading(streamer)) break;
 
         const float progress = RaytilesStreamerGetLoading(streamer) * 100.0f;
@@ -50,13 +54,14 @@ int main(void) {
 
     // main loop
     while (!WindowShouldClose()) {
-        RaytilesStreamerUpdate(streamer, camera);
+        RaytilesStreamerUpdate(streamer, camera, world_offset);
 
+        UpdateCamera(&camera, CAMERA_FREE);
         BeginDrawing();
         ClearBackground(SKYBLUE);
 
         BeginMode3D(camera);
-        RaytilesStreamerDraw(streamer, camera);
+        RaytilesStreamerDraw(streamer, camera, world_offset);
         EndMode3D();
 
         DrawText("raytiles C demo - ESC to quit", 10, 570, 20, RAYWHITE);
