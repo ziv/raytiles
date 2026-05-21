@@ -34,8 +34,8 @@ namespace raytiles {
     /// adopt it into a raii::image (heightmap path), upload-and-UnloadImage
     /// (texture / normals path), or UnloadImage on cancellation.
     struct loading_tile {
-        float tx;
-        float tz;
+        double tx;
+        double tz;
         std::shared_future<Image> tx_future;
         std::shared_future<Image> hm_future;
         std::shared_future<Image> nl_future;
@@ -45,8 +45,8 @@ namespace raytiles {
     /// retained for `ground_height()` queries.
     struct loaded_tile {
         Meters size;
-        float tx;
-        float tz;
+        double tx;
+        double tz;
         raii::texture tx_texture;
         raii::texture hm_texture;
         raii::image hm_image;

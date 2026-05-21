@@ -134,7 +134,7 @@ namespace raytiles {
 
     void tiles_manager::post_process(const Frustum &frustum) {
         for (auto &tile: rendering_tiles | std::views::values) {
-            tile.in_frustum_this_frame = utils::is_tile_in_frustum(tile.tx, tile.tz, tile.size, frustum);
+            tile.in_frustum_this_frame = utils::is_tile_in_frustum(static_cast<float>(tile.tx), static_cast<float>(tile.tz), tile.size, frustum);
         }
         // first time the loading list is empty, means we finished loading
         if (loading && loading_tiles.empty()) {
@@ -297,8 +297,8 @@ namespace raytiles {
 
         auto t = loading_tile{
             // loading tile structure
-            (static_cast<float>(tile.x) + 0.5f) * tile_size,
-            (static_cast<float>(tile.z) + 0.5f) * tile_size,
+            (static_cast<double>(tile.x) + 0.5) * static_cast<double>(tile_size),
+            (static_cast<double>(tile.z) + 0.5) * static_cast<double>(tile_size),
             tile_downloader.enqueue_texture(tile.zoom, tx, tz),
             tile_downloader.enqueue_heightmap(tile.zoom, tx, tz),
             tile_downloader.enqueue_normals(tile.zoom, tx, tz),

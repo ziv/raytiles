@@ -42,9 +42,9 @@ namespace raytiles {
             if (!tile.in_frustum_this_frame) continue;
             const auto it = draw_view.tiles.find(key.zoom);
 
-            const float dx = tile.tx - position.x;
-            const float dz = tile.tz - position.z;
-            const float dist_sq = dx * dx + dz * dz; // XZ is enough; ignore Y for sorting
+            const double dx = tile.tx - static_cast<double>(position.x);
+            const double dz = tile.tz - static_cast<double>(position.z);
+            const float dist_sq = static_cast<float>(dx * dx + dz * dz); // XZ is enough; ignore Y for sorting
             draw_order_.push_back({dist_sq, &key, &tile, &it->second});
         }
 
@@ -55,7 +55,9 @@ namespace raytiles {
             material->maps[MATERIAL_MAP_ALBEDO].texture = *e.tile->tx_texture;
             material->maps[MATERIAL_MAP_ROUGHNESS].texture = *e.tile->hm_texture;
             material->maps[MATERIAL_MAP_NORMAL].texture = *e.tile->nl_texture;
-            DrawMesh(*e.tv->mesh, *material, MatrixTranslate(e.tile->tx, 0.0f, e.tile->tz));
+            DrawMesh(*e.tv->mesh, *material,
+                     MatrixTranslate(static_cast<float>(e.tile->tx), 0.0f,
+                                     static_cast<float>(e.tile->tz)));
         }
         return static_cast<int>(draw_order_.size());
     }
@@ -64,7 +66,7 @@ namespace raytiles {
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
             if (tile.in_frustum_this_frame) {
                 const auto &t = draw_view.tiles.at(key.zoom);
-                DrawCubeWires({tile.tx, 0.0f, tile.tz}, t.size, 1000.0f, t.size, GREEN);
+                DrawCubeWires({static_cast<float>(tile.tx), 0.0f, static_cast<float>(tile.tz)}, t.size, 1000.0f, t.size, GREEN);
             }
         }
     }
@@ -74,7 +76,7 @@ namespace raytiles {
         const auto height = static_cast<float>(GetScreenHeight());
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
             if (tile.in_frustum_this_frame) {
-                const auto [x, y] = GetWorldToScreen({tile.tx, 0.0f, tile.tz}, camera);
+                const auto [x, y] = GetWorldToScreen({static_cast<float>(tile.tx), 0.0f, static_cast<float>(tile.tz)}, camera);
                 if (x < 0 || x > width || y < 0 || y > height) continue;
 
                 DrawText(TextFormat("%d", key.zoom), static_cast<int>(x), static_cast<int>(y), 15, draw_view.desired_keys.contains(key) ? GREEN : RED);
