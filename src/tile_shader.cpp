@@ -1,6 +1,11 @@
 #include "raytiles/raytiles.h"
 #include "detail/tile_shader.h"
-#include "shaders.hpp"
+
+#ifdef __EMSCRIPTEN__
+#define GLSL_VERSION_HEADER "#version 300 es\nprecision mediump float;\n"
+#else
+#define GLSL_VERSION_HEADER "#version 330\n"
+#endif
 
 namespace raytiles {
     namespace {

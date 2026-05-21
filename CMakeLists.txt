@@ -40,7 +40,6 @@ add_library(${PROJECT_NAME}
         src/detail/tiles_renderer.h
         src/detail/downloader.h
         src/downloader.cpp
-        src/shaders.hpp
         src/tile_shader.cpp
         src/detail/tile_shader.h
         src/tiles_manager.cpp
