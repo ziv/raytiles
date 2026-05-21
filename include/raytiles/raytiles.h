@@ -260,8 +260,7 @@ namespace raytiles {
 
         /// Updates the desired tile set based on the camera and promotes any
         /// finished downloads into renderable GPU resources. Cheap to call every
-        /// frame; internally rate-limited by `streaming_config::upload_budget_sec`
-        /// and `streaming_config::max_uploads_per_frame`.
+        /// frame.
         void update(const Camera3D &camera);
 
         /// Renders all currently loaded tiles in view. Must be called between
