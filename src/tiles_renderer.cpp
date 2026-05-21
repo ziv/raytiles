@@ -53,7 +53,7 @@ namespace raytiles {
             // happens after the (huge - huge) cancels into a small delta.
             const double dx = (tile.tx + off_x) - static_cast<double>(position.x);
             const double dz = (tile.tz + off_z) - static_cast<double>(position.z);
-            const float dist_sq = static_cast<float>(dx * dx + dz * dz); // XZ is enough; ignore Y for sorting
+            const auto dist_sq = static_cast<float>(dx * dx + dz * dz); // XZ is enough; ignore Y for sorting
             draw_order_.push_back({dist_sq, &key, &tile, &it->second});
         }
 
