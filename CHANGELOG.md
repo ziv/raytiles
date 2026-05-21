@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/ziv/raytiles/compare/v0.10.0...v0.10.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* remove logs from threads ([bb842eb](https://github.com/ziv/raytiles/commit/bb842eb3ab1534c5f6cf4143154b46869c1f5fa0))
+
 ## [0.10.0](https://github.com/ziv/raytiles/compare/v0.9.1...v0.10.0) (2026-05-21)
 
 
