@@ -102,13 +102,11 @@ namespace raytiles {
     }
 
     void streamer::update(const Camera3D &camera) {
-        const auto position = camera.position;
+        tile_manager->pre_process(camera.position);
 
-        tile_manager->pre_process(position);
-
-        if (Vector3DistanceSqr(position, last_position) > update_distance_sq) {
-            last_position = position;
-            tile_manager->process(position);
+        if (Vector3DistanceSqr(camera.position, last_position) > update_distance_sq) {
+            last_position = camera.position;
+            tile_manager->process(camera.position);
         }
 
         last_frustum = utils::extract_frustum(camera, near_plane, far_plane);
