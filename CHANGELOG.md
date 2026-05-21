@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.10.0](https://github.com/ziv/raytiles/compare/v0.9.1...v0.10.0) (2026-05-21)
+
+
+### Features
+
+* add support for large world offset ([01f314d](https://github.com/ziv/raytiles/commit/01f314da7a60974e389e995968d6772da04c7401))
+* large world offset ([#95](https://github.com/ziv/raytiles/issues/95)) ([01f314d](https://github.com/ziv/raytiles/commit/01f314da7a60974e389e995968d6772da04c7401))
+
+
+### Bug Fixes
+
+* clang tidy clearance ([b6538d9](https://github.com/ziv/raytiles/commit/b6538d9f4befa940a36f53bf6a564e992534af31))
+* pool config to pool options ([b6538d9](https://github.com/ziv/raytiles/commit/b6538d9f4befa940a36f53bf6a564e992534af31))
+* promote floats to doubles ([01f314d](https://github.com/ziv/raytiles/commit/01f314da7a60974e389e995968d6772da04c7401))
+* remove old shaders ref ([b6538d9](https://github.com/ziv/raytiles/commit/b6538d9f4befa940a36f53bf6a564e992534af31))
+* rename assets to .cache ([4ed5a2b](https://github.com/ziv/raytiles/commit/4ed5a2b07683461f05c3692395d2af63a5f0cd04))
+* rename debug view into data view ([b6538d9](https://github.com/ziv/raytiles/commit/b6538d9f4befa940a36f53bf6a564e992534af31))
+* renderer changed + advanced camera ([#92](https://github.com/ziv/raytiles/issues/92)) ([4ed5a2b](https://github.com/ziv/raytiles/commit/4ed5a2b07683461f05c3692395d2af63a5f0cd04))
+
 ## [0.9.1](https://github.com/ziv/raytiles/compare/v0.9.0...v0.9.1) (2026-05-20)
 
 
