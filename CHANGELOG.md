@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.1](https://github.com/ziv/raytiles/compare/v0.11.0...v0.11.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* aligb c wrapper api ([f2660ed](https://github.com/ziv/raytiles/commit/f2660ed5778d850273b2a0847c2ff9fb470cc78c))
+* convert explicit call to loop ([259d6aa](https://github.com/ziv/raytiles/commit/259d6aa4cbec750f0f9042a44c165004f7cf86bc))
+* remove early z optimization ([#98](https://github.com/ziv/raytiles/issues/98)) ([4e968aa](https://github.com/ziv/raytiles/commit/4e968aa342be94b3229809fb9e343474a1034de5))
+
 ## [0.11.0](https://github.com/ziv/raytiles/compare/v0.10.1...v0.11.0) (2026-05-21)
 
 
