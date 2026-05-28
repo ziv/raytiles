@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.2](https://github.com/ziv/raytiles/compare/v0.11.1...v0.11.2) (2026-05-28)
+
+
+### Bug Fixes
+
+* c wrapper wrong assignment ([6a5bb4c](https://github.com/ziv/raytiles/commit/6a5bb4c7c646baab958ae8b6772a213b415a89f2))
+* calculate_horizon calcuation fixed t 3570^2 * h instead of (3570*h)^2 ([f3d5fd7](https://github.com/ziv/raytiles/commit/f3d5fd7002eb83f62daeecffd2cd6da5ae6d385a))
+
 ## [0.11.1](https://github.com/ziv/raytiles/compare/v0.11.0...v0.11.1) (2026-05-25)
 
 
