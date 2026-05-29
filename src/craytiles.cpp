@@ -51,7 +51,7 @@ namespace {
         raytiles::streaming_config s{};
         if (!c) return s;
         s.rendering_radius = c->rendering_radius;
-        s.update_distance_sq = c->update_height;
+        s.update_distance_sq = c->update_distance_sq;
         s.upload_budget_sec = c->upload_budget_sec;
         s.max_uploads_per_frame = c->max_uploads_per_frame;
         s.near_plane = c->near_plane;
@@ -120,7 +120,7 @@ RaytilesStreamingConfig RaytilesStreamingConfigDefault(void) {
     for (std::size_t i = 0; i < raytiles::zoom_levels; ++i) {
         out.thresholds[i] = s.thresholds[i];
     }
-    out.update_height = s.update_distance_sq;
+    out.update_distance_sq = s.update_distance_sq;
     out.upload_budget_sec = s.upload_budget_sec;
     out.max_uploads_per_frame = s.max_uploads_per_frame;
     out.near_plane = s.near_plane;

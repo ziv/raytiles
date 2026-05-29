@@ -55,7 +55,7 @@ namespace raytiles {
     float tiles_manager::get_loading() const {
         if (loading_tiles.empty()) return 0.0f;
         const auto required = static_cast<float>(desired_keys.size());
-        if (required == 0.0f) return 0.0f; // avoid division by zero, should not happen but just in case
+        if (required == 0.0f) return 1.0f; // avoid division by zero, should not happen but just in case
         const auto loaded = static_cast<float>(loading_tiles.size());
         return 1 - loaded / required;
     }
