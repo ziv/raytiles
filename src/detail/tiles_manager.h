@@ -75,7 +75,7 @@ namespace raytiles {
 
     class tiles_manager {
     public:
-        tiles_manager(tiles_manager_options opts, pool_options pool_opts);
+        tiles_manager(const tiles_manager_options &opts, pool_options pool_opts);
 
         [[nodiscard]] std::optional<float> ground_height(const Vector3 &position) const;
 
@@ -95,6 +95,7 @@ namespace raytiles {
 
         /// Post-process tiles.
         /// Should be called evry frame and after "process".
+        /// @param frustum
         /// @param world_offset Maps absolute tile coords to user space (the
         ///                     `frustum`'s frame) via `user = absolute + offset`.
         void post_process(const Frustum &frustum, const Vector3 &world_offset);
