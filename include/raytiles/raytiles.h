@@ -210,10 +210,16 @@ namespace raytiles {
         /// contrast. Higher values make the terrain look bumpier, but can cause
         /// lighting artifacts if the normals become too steep.
         float normals_scale = 1.0f;
+
+        // sky shader config
+
+        float zenith_color[4] = {0.0f, 0.5f, 1.0f, 1.0f};
+        float horizon_color[4] = {0.0f, 0.0f, 1.0f, 1.0f};
     };
 
     class tiles_renderer;
     class tiles_manager;
+    class sky_renderer;
 
     /// Per-frame driver that maintains the working set of tiles around a camera
     /// and renders them. One streamer manages one world; create more if you need
@@ -360,18 +366,19 @@ namespace raytiles {
     private:
         // streamer keeps only the streaming-policy bits it actually uses
         // (update gating, near/far for frustum extraction). All tile
-        // lifecycle state lives in `tile_manager`.
+        // lifecycle state lives in `tiles_manager_`.
         // streaming_config streaming;
         float near_plane;
         float far_plane;
         float update_distance_sq;
 
-        std::unique_ptr<tiles_renderer> tile_renderer;
-        std::unique_ptr<tiles_manager> tile_manager;
+        std::unique_ptr<tiles_renderer> tiles_renderer_;
+        std::unique_ptr<tiles_manager> tiles_manager_;
+        // std::unique_ptr<sky_renderer> sky_renderer_;
 
         int rendered = 0;
 
-        // update every frame
+        // update every frame§
         Vector3 last_position = {-9999.9f, -9999.9f, -9999.9f};
         Frustum last_frustum{};
 

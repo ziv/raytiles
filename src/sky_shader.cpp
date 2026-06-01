@@ -7,7 +7,6 @@
 #endif
 
 namespace raytiles {
-
     namespace {
         // language=GLSL
         constexpr auto vertex_shader = GLSL_VERSION_HEADER R"glsl(
@@ -114,5 +113,47 @@ void main()
     finalColor = vec4(skyColor, 1.0);
 }
 )glsl";
+    }
+
+    sky_shader::sky_shader(const sky_shader_options &opts)
+        : options(opts),
+          shader(raii::load_shader_from_memory(vertex_shader, fragment_shader)) {
+        // cache slots
+        zenith_color_loc = GetShaderLocation(*shader, "zenithColor");
+        horizon_color_loc = GetShaderLocation(*shader, "horizonColor");
+        time_loc = GetShaderLocation(*shader, "time");
+
+        if (-1 == zenith_color_loc ||
+            -1 == horizon_color_loc ||
+            -1 == time_loc
+        ) {
+            throw std::runtime_error("Failed to get shader uniform locations");
+        }
+
+        SetShaderValue(*shader, zenith_color_loc, options.zenithColor, SHADER_UNIFORM_VEC4);
+        SetShaderValue(*shader, horizon_color_loc, options.horizonColor, SHADER_UNIFORM_VEC4);
+    }
+
+    sky_shader &sky_shader::set_zenith_color(float r, float g, float b, float a) {
+        options.zenithColor[0] = r;
+        options.zenithColor[1] = g;
+        options.zenithColor[2] = b;
+        options.zenithColor[3] = a;
+        SetShaderValue(*shader, zenith_color_loc, options.zenithColor, SHADER_UNIFORM_VEC4);
+        return *this;
+    }
+
+    sky_shader &sky_shader::set_horizon_color(float r, float g, float b, float a) {
+        options.horizonColor[0] = r;
+        options.horizonColor[1] = g;
+        options.horizonColor[2] = b;
+        options.horizonColor[3] = a;
+        SetShaderValue(*shader, horizon_color_loc, options.horizonColor, SHADER_UNIFORM_VEC4);
+        return *this;
+    }
+
+    sky_shader &sky_shader::set_time(float time) {
+        SetShaderValue(*shader, time_loc, &time, SHADER_UNIFORM_FLOAT);
+        return *this;
     }
 }

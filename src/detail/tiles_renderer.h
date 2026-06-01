@@ -74,13 +74,6 @@ namespace raytiles {
         void set_sun_scale(float scale);
 
     private:
-        struct draw_entry {
-            float dist_sq; // squared XZ distance from camera, used as sort key
-            const tile_key *key; // non-owning, points into draw_view.rendering_tiles
-            const loaded_tile *tile; // non-owning, same
-            const tile_value *tv; // non-owning, points into draw_view.tiles
-        };
-
         tile_shader shader_;
         raii::material material{};
     };

@@ -76,8 +76,8 @@ namespace raytiles {
         : near_plane(static_cast<float>(streaming_conf.near_plane)),
           far_plane(static_cast<float>(streaming_conf.far_plane)),
           update_distance_sq(streaming_conf.update_distance_sq),
-          tile_renderer(std::make_unique<tiles_renderer>(rendering_conf)),
-          tile_manager(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming_conf), make_pool_options(pool_conf))) {
+          tiles_renderer_(std::make_unique<tiles_renderer>(rendering_conf)),
+          tiles_manager_(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming_conf), make_pool_options(pool_conf))) {
         // set the rendering distance
         rlSetClipPlanes(streaming_conf.near_plane, streaming_conf.far_plane);
     }
@@ -89,15 +89,15 @@ namespace raytiles {
     streamer &streamer::operator=(streamer &&) noexcept = default;
 
     bool streamer::is_loading() const {
-        return tile_manager->is_loading();
+        return tiles_manager_->is_loading();
     }
 
     float streamer::get_loading() const {
-        return tile_manager->get_loading();
+        return tiles_manager_->get_loading();
     }
 
     std::optional<float> streamer::ground_height(const Vector3 position) const {
-        return tile_manager->ground_height(Vector3Subtract(position, cached_world_offset_));
+        return tiles_manager_->ground_height(Vector3Subtract(position, cached_world_offset_));
     }
 
     void streamer::update(const Camera3D &camera, const Vector3 world_offset) {
@@ -107,15 +107,15 @@ namespace raytiles {
         cached_world_offset_ = world_offset;
 
         // Convert camera position from user space to absolute world space.
-        // Internal pipeline (tile_manager) operates in absolute space because
+        // Internal pipeline (tiles_manager_) operates in absolute space because
         // tile coordinates (tile.tx, tile.tz) are stored absolute.
         const Vector3 abs_position = Vector3Subtract(camera.position, world_offset);
 
-        tile_manager->pre_process(abs_position);
+        tiles_manager_->pre_process(abs_position);
 
         if (Vector3DistanceSqr(abs_position, last_position) > update_distance_sq) {
             last_position = abs_position;
-            tile_manager->process(abs_position);
+            tiles_manager_->process(abs_position);
         }
 
         // Frustum is built from the user-space camera (small floats) and is
@@ -123,24 +123,24 @@ namespace raytiles {
         // (tile.tx + offset.x) before the in-frustum test.
         last_frustum = utils::extract_frustum(camera, near_plane, far_plane);
 
-        tile_manager->post_process(last_frustum, world_offset);
+        tiles_manager_->post_process(last_frustum, world_offset);
     }
 
     void streamer::draw() {
-        rendered = tile_renderer->draw(cached_camera_.position, cached_world_offset_,
-                                       tile_manager->make_debug_view(last_frustum));
+        rendered = tiles_renderer_->draw(cached_camera_.position, cached_world_offset_,
+                                       tiles_manager_->make_debug_view(last_frustum));
     }
 
-    void streamer::set_ambient_light(const Color color) const { tile_renderer->set_ambient_light(color); }
-    void streamer::set_ambient_light(const Vector4 color) const { tile_renderer->set_ambient_light(color); }
-    void streamer::set_ambient_light(const float r, const float g, const float b, const float a) const { tile_renderer->set_ambient_light(r, g, b, a); }
-    void streamer::set_fog_color(const Color color) const { tile_renderer->set_fog_color(color); }
-    void streamer::set_fog_color(const Vector4 color) const { tile_renderer->set_fog_color(color); }
-    void streamer::set_fog_color(const float r, const float g, const float b, const float a) const { tile_renderer->set_fog_color(r, g, b, a); }
-    void streamer::set_fog_start(const float distance) const { tile_renderer->set_fog_start(distance); }
-    void streamer::set_fog_end(const float distance) const { tile_renderer->set_fog_end(distance); }
-    void streamer::set_height_scale(const float scale) const { tile_renderer->set_height_scale(scale); }
-    void streamer::set_normals_scale(const float scale) const { tile_renderer->set_normals_scale(scale); }
-    void streamer::set_sun_direction(const Vector3 direction) const { tile_renderer->set_sun_direction(direction); }
-    void streamer::set_sun_scale(const float scale) const { tile_renderer->set_sun_scale(scale); }
+    void streamer::set_ambient_light(const Color color) const { tiles_renderer_->set_ambient_light(color); }
+    void streamer::set_ambient_light(const Vector4 color) const { tiles_renderer_->set_ambient_light(color); }
+    void streamer::set_ambient_light(const float r, const float g, const float b, const float a) const { tiles_renderer_->set_ambient_light(r, g, b, a); }
+    void streamer::set_fog_color(const Color color) const { tiles_renderer_->set_fog_color(color); }
+    void streamer::set_fog_color(const Vector4 color) const { tiles_renderer_->set_fog_color(color); }
+    void streamer::set_fog_color(const float r, const float g, const float b, const float a) const { tiles_renderer_->set_fog_color(r, g, b, a); }
+    void streamer::set_fog_start(const float distance) const { tiles_renderer_->set_fog_start(distance); }
+    void streamer::set_fog_end(const float distance) const { tiles_renderer_->set_fog_end(distance); }
+    void streamer::set_height_scale(const float scale) const { tiles_renderer_->set_height_scale(scale); }
+    void streamer::set_normals_scale(const float scale) const { tiles_renderer_->set_normals_scale(scale); }
+    void streamer::set_sun_direction(const Vector3 direction) const { tiles_renderer_->set_sun_direction(direction); }
+    void streamer::set_sun_scale(const float scale) const { tiles_renderer_->set_sun_scale(scale); }
 } // namespace raytiles
