@@ -69,9 +69,6 @@ typedef struct RaytilesWorldConfig {
 
     /// Generate trilinear / anisotropic mipmaps for the albedo texture.
     bool use_mipmap;
-
-    /// Whether the streamer logs from the main thread via raylib's TraceLog.
-    bool use_logger;
 } RaytilesWorldConfig;
 
 /// Tile-streaming parameters. Mirrors `raytiles::streaming_config`.
@@ -84,12 +81,10 @@ typedef struct RaytilesStreamingConfig {
     /// `raytiles::streaming_config::thresholds`.
     float thresholds[RAYTILES_ZOOM_LEVELS];
 
-    /// Squared XZ distance the camera must travel to trigger a re-stream.
-    /// Type matches the C++ `MetersSq` (double).
-    double update_distance_sq;
-
-    /// Altitude delta (meters) that triggers a re-stream.
-    float update_height;
+    /// Squared XZ distance (meters²) the camera must travel to trigger a
+    /// re-stream. Mirrors `raytiles::streaming_config::update_distance_sq`
+    /// (type `MetersSq` == float).
+    float update_distance_sq;
 
     /// Per-frame wall-clock budget (seconds) for promoting tiles to GPU.
     double upload_budget_sec;
@@ -144,9 +139,6 @@ typedef struct RaytilesPoolConfig {
     /// Skip TLS certificate verification (test / proxy use only).
     bool allow_insecure_tls;
 
-    /// Whether the pool's worker threads emit log lines.
-    bool use_logger;
-
     /// On-disk cache path templates, formatted with `{zoom}/{x}/{y}` (or
     /// `{zoom}/{y}/{x}` for the texture path) via `std::vformat`.
     const char *texture_cache_path;
@@ -154,21 +146,10 @@ typedef struct RaytilesPoolConfig {
     const char *normals_cache_path;
 
     /// Provider URL templates (full URL, including scheme + host + path).
-    /// If `*_host` and `*_url_path` are both NULL/empty, the pool splits the
-    /// full URL into host and path at construction.
+    /// The pool splits each full URL into host and path at construction.
     const char *texture_url;
     const char *heightmap_url;
     const char *normals_url;
-
-    /// Pre-split provider URL components. If non-empty they take precedence
-    /// over the full `*_url` strings above. The full request URL is
-    /// `<host><url_path>` with `{zoom}/{x}/{y}` (or `{y}/{x}`) substituted.
-    const char *texture_host;
-    const char *texture_url_path;
-    const char *heightmap_host;
-    const char *heightmap_url_path;
-    const char *normals_host;
-    const char *normals_url_path;
 } RaytilesPoolConfig;
 
 // ---------------------------------------------------------------------------
