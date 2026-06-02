@@ -1,41 +1,30 @@
 #include <algorithm>
-#include <cstdio>
 #include <format>
-#include <vector>
 #include <raytiles/raytiles.h>
 
 #include "advanced-fly.hpp"
 #include "fly.h"
 
-static std::string required_env(const char *name, std::string_view label) {
-    if (const char *value = std::getenv(name); value && *value) {
+static std::string required_env() {
+    if (const char *value = std::getenv("MAPBOX_TOKEN"); value && *value) {
         return value;
     }
-    throw std::runtime_error(std::format("missing {} token in options or environment variables", label));
+    throw std::runtime_error("missing Mapbox token in options or environment variables");
 }
 
 int main() {
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(800, 600, "raytiles");
 
-    std::string token = required_env("MAPBOX_TOKEN", "Mapbox");
+    std::string token = required_env();
 
     raytiles::world_config world;
     raytiles::streaming_config streaming;
     raytiles::rendering_config rendering;
     raytiles::pool_config pool_conf;
 
-    pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
+    // pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
     pool_conf.download_threads = 8;
-
-    // everest
-    // world.anchor_x_tile = 373;
-    // world.anchor_z_tile = 214;
-
-    // scotland
-    // world.anchor_x_tile = 248;
-    // world.anchor_z_tile = 160;
-    // world.base_zoom_tile_size = 43769;
 
     // The Dolomites
     world.anchor_x_tile = 273;
@@ -44,27 +33,6 @@ int main() {
     // The Grand Canyon
     // world.anchor_x_tile = 97;
     // world.anchor_z_tile = 200;
-
-    // New Zealand
-    // world.anchor_x_tile = 494;
-    // world.anchor_z_tile = 332;
-
-    // Haway
-    // world.anchor_x_tile = 29;
-    // world.anchor_z_tile = 223;
-
-    // Norway
-    // world.anchor_x_tile = 265;
-    // world.anchor_z_tile = 143;
-
-    // Grand Teton
-    // world.anchor_x_tile = 98;
-    // world.anchor_z_tile = 186;
-
-    // Crete
-    // world.anchor_x_tile = 292;
-    // world.anchor_z_tile = 202;
-
 
     // Adjust to fit your scene
     world.base_zoom_tile_size = 64000;
@@ -136,8 +104,7 @@ int main() {
             camera.position.x -= rebase_threshold;
             camera.target.x -= rebase_threshold;
             world_offset.x -= rebase_threshold;
-        }
-        if (camera.position.x < -rebase_threshold) {
+        } else if (camera.position.x < -rebase_threshold) {
             camera.position.x += rebase_threshold;
             camera.target.x += rebase_threshold;
             world_offset.x += rebase_threshold;
@@ -146,29 +113,11 @@ int main() {
             camera.position.z -= rebase_threshold;
             camera.target.z -= rebase_threshold;
             world_offset.z -= rebase_threshold;
-        }
-        if (camera.position.z < -rebase_threshold) {
+        } else if (camera.position.z < -rebase_threshold) {
             camera.position.z += rebase_threshold;
             camera.target.z += rebase_threshold;
             world_offset.z += rebase_threshold;
         }
-        // auto rebase_axis = [&](const char axis, float &user, float &target, float &off) {
-        //     if (user > rebase_threshold) {
-        //         user -= rebase_threshold;
-        //         target -= rebase_threshold;
-        //         off -= rebase_threshold;
-        //         std::printf("[rebase] %c -= %.0f  user=%.1f offset=%.1f\n",
-        //                     axis, rebase_threshold, user, off);
-        //     } else if (user < -rebase_threshold) {
-        //         user += rebase_threshold;
-        //         target += rebase_threshold;
-        //         off += rebase_threshold;
-        //         std::printf("[rebase] %c += %.0f  user=%.1f offset=%.1f\n",
-        //                     axis, rebase_threshold, user, off);
-        //     }
-        // };
-        // rebase_axis('x', camera.position.x, camera.target.x, world_offset.x);
-        // rebase_axis('z', camera.position.z, camera.target.z, world_offset.z);
 
         // Frame inputs are now stable for this frame -> hand them to the
         // streamer once. draw() and ground_height() will reuse these values.
@@ -199,7 +148,7 @@ int main() {
         }
 
         DrawRectangle(5, 550, 600, 40, Fade(BLACK, 0.5f));
-        DrawText("Controls: K to toggle labels, L to toggle wireframe", 10, 560, 20, WHITE);
+        DrawText("Controls:  K  to toggle labels,  L  to toggle wireframe,  +/-  throttle", 10, 560, 10, WHITE);
 
         DrawRectangle(5, 10, 280, 80, Fade(BLACK, 0.5f));
         DrawText(TextFormat("user P %d %d %d",
