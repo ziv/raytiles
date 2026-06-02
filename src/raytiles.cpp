@@ -1,5 +1,7 @@
 #include "../include/raytiles/raytiles.h"
 
+#include "detail/sky_renderer.h"
+
 #if defined(_WIN32)
 #define NOGDI
 #define NOUSER
@@ -77,7 +79,8 @@ namespace raytiles {
           far_plane(static_cast<float>(streaming_conf.far_plane)),
           update_distance_sq(streaming_conf.update_distance_sq),
           tiles_renderer_(std::make_unique<tiles_renderer>(rendering_conf)),
-          tiles_manager_(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming_conf), make_pool_options(pool_conf))) {
+          tiles_manager_(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming_conf), make_pool_options(pool_conf))),
+          sky_renderer_(std::make_unique<sky_renderer>(rendering_conf)) {
         // set the rendering distance
         rlSetClipPlanes(streaming_conf.near_plane, streaming_conf.far_plane);
     }
@@ -128,7 +131,7 @@ namespace raytiles {
 
     void streamer::draw() {
         rendered = tiles_renderer_->draw(cached_camera_.position, cached_world_offset_,
-                                       tiles_manager_->make_debug_view(last_frustum));
+                                         tiles_manager_->make_debug_view(last_frustum));
     }
 
     void streamer::set_ambient_light(const Color color) const { tiles_renderer_->set_ambient_light(color); }

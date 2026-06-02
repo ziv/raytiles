@@ -48,6 +48,10 @@ add_library(${PROJECT_NAME}
         src/detail/tile_shader.h
         src/tiles_manager.cpp
         src/detail/tiles_manager.h
+        src/detail/sky_renderer.h
+        src/detail/sky_shader.h
+        src/sky_shader.cpp
+        src/sky_renderer.cpp
 )
 
 target_include_directories(${PROJECT_NAME}

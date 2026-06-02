@@ -6,6 +6,7 @@
 #include <string>
 
 #include "raylib.h"
+#include "raytiles/raytiles.h"
 #include "raii.hpp"
 
 namespace raytiles {

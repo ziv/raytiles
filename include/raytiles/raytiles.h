@@ -374,7 +374,7 @@ namespace raytiles {
 
         std::unique_ptr<tiles_renderer> tiles_renderer_;
         std::unique_ptr<tiles_manager> tiles_manager_;
-        // std::unique_ptr<sky_renderer> sky_renderer_;
+        std::unique_ptr<sky_renderer> sky_renderer_;
 
         int rendered = 0;
 
