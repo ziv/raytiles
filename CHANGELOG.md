@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.12.0](https://github.com/ziv/raytiles/compare/v0.11.2...v0.12.0) (2026-06-02)
+
+
+### Features
+
+* restore debug view and simplified the demo ([3a9a13c](https://github.com/ziv/raytiles/commit/3a9a13c70118d5ffc18a3914733f52e4ad157e29))
+* restore debug view and simplified the demo ([a339021](https://github.com/ziv/raytiles/commit/a3390218374877efa08a1b57a2dfb4aaff21a10d))
+
+
+### Bug Fixes
+
+* align c wrapper api ([f61fc1f](https://github.com/ziv/raytiles/commit/f61fc1fc0702680493bbcb4859f7d89a80c8f90e))
+* align c wrapper impl + tidy ([f61fc1f](https://github.com/ziv/raytiles/commit/f61fc1fc0702680493bbcb4859f7d89a80c8f90e))
+
 ## [0.11.2](https://github.com/ziv/raytiles/compare/v0.11.1...v0.11.2) (2026-05-28)
 
 
