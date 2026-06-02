@@ -75,7 +75,7 @@ namespace raytiles {
 
     class tiles_manager {
     public:
-        tiles_manager(tiles_manager_options opts, pool_options pool_opts);
+        tiles_manager(const tiles_manager_options &opts, pool_options pool_opts);
 
         [[nodiscard]] std::optional<float> ground_height(const Vector3 &position) const;
 

@@ -9,8 +9,8 @@
 using namespace std::chrono_literals;
 
 namespace raytiles {
-    tiles_manager::tiles_manager(tiles_manager_options opts, pool_options pool_opts)
-        : options(std::move(opts)),
+    tiles_manager::tiles_manager(const tiles_manager_options &opts, pool_options pool_opts)
+        : options(opts),
           tile_downloader(std::move(pool_opts)) {
         // input validation
         if (options.base_zoom < min_supported_zoom) {
@@ -136,8 +136,8 @@ namespace raytiles {
         for (auto &tile: rendering_tiles | std::views::values) {
             // Shift absolute tile center into user space before testing
             // against the user-space frustum.
-            const float user_x = static_cast<float>(tile.tx + static_cast<double>(world_offset.x));
-            const float user_z = static_cast<float>(tile.tz + static_cast<double>(world_offset.z));
+            const auto user_x = static_cast<float>(tile.tx + static_cast<double>(world_offset.x));
+            const auto user_z = static_cast<float>(tile.tz + static_cast<double>(world_offset.z));
             tile.in_frustum_this_frame = utils::is_tile_in_frustum(user_x, user_z, tile.size, frustum);
         }
         // first time the loading list is empty, means we finished loading
