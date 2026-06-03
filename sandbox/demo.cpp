@@ -28,8 +28,8 @@ int main() {
     // rlSetClipPlanes(1.0f, 400000.0f);
 
     // The Dolomites
-    world.anchor_x_tile = 273;
-    world.anchor_z_tile = 180;
+    // world.anchor_x_tile = 273;
+    // world.anchor_z_tile = 180;
 
     // The Grand Canyon
     // world.anchor_x_tile = 97;
@@ -37,11 +37,13 @@ int main() {
 
     // Adjust to fit your scene
     world.base_zoom_tile_size = 64000;
-    rendering.skirt_drop = 1000.0f;
+    // rendering.skirt_drop = 1000.0f;
     world.skirt_overlap = {1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.02f};
 
 
-    raytiles::streamer streamer(world, streaming, rendering, pool_conf);
+    // raytiles::streamer streamer(world, streaming, rendering, pool_conf);
+
+    raytiles::streamer streamer(32.0004, 34.8706, world, streaming, rendering, pool_conf);
 
     Vector3 world_offset = {0.0f, 0.0f, 0.0f};
 

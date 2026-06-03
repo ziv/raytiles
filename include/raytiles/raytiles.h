@@ -126,6 +126,9 @@ namespace raytiles {
         /// Generate trilinear / anisotropic mipmaps for the albedo texture on
         /// upload. Strongly recommended; avoids shimmering at distance.
         bool use_mipmap = true;
+
+        // todo handle offset settings
+        Vector3 offset = {0.0f, 0.0f, 0.0f};
     };
 
     /// Tile-streaming parameters. Governs *which* tiles are kept resident and
@@ -256,7 +259,16 @@ namespace raytiles {
         ///       a live GL context.
         explicit streamer(const world_config &world_conf = {},
                           const streaming_config &streaming_conf = {},
-                          rendering_config rendering_conf = {},
+                          const rendering_config &rendering_conf = {},
+                          const pool_config &pool_conf = {});
+
+        // todo add documentation
+        // todo simplify the signature
+        explicit streamer(double latitude,
+                          double longitude,
+                          world_config &world_conf,
+                          const streaming_config &streaming_conf = {},
+                          const rendering_config &rendering_conf = {},
                           const pool_config &pool_conf = {});
 
         ~streamer();
@@ -293,6 +305,7 @@ namespace raytiles {
         void draw();
 
         void draw_debug_3d();
+
         void draw_debug_labels();
 
         /// Return true for initial loading only
