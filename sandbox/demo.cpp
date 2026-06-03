@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <format>
 #include <raytiles/raytiles.h>
-
+#include <rlgl.h>
 #include "advanced-fly.hpp"
 #include "fly.h"
 
@@ -25,6 +25,7 @@ int main() {
 
     // pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
     pool_conf.download_threads = 8;
+    // rlSetClipPlanes(1.0f, 400000.0f);
 
     // The Dolomites
     world.anchor_x_tile = 273;
@@ -43,7 +44,6 @@ int main() {
     raytiles::streamer streamer(world, streaming, rendering, pool_conf);
 
     Vector3 world_offset = {0.0f, 0.0f, 0.0f};
-    constexpr float rebase_threshold = 4096.0f;
 
     auto absolute_to_user = [&](const Vector3 abs) {
         return Vector3Add(abs, world_offset);
@@ -78,7 +78,11 @@ int main() {
         EndDrawing();
     }
 
+    // Make sure we'll see the horizon
+    rlSetClipPlanes(streaming.near_plane, streaming.far_plane);
+
     while (!WindowShouldClose()) {
+        constexpr float rebase_threshold = 4096.0f;
         const auto dt = GetFrameTime();
 
         const auto to_target = camera.target - camera.position;

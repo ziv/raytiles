@@ -1,4 +1,5 @@
 #include <raytiles/raytiles.h>
+#include <rlgl.h>
 #include "fly.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -64,6 +65,22 @@ int main() {
     camera.projection = CAMERA_PERSPECTIVE;
 
     FreeCamera f(camera);
+
+    // Make sure we'll see the horizon
+    rlSetClipPlanes(streaming.near_plane, streaming.far_plane);
+
+    // loading loop
+    for (;;) {
+        constexpr Vector3 world_offset = {0.0f, 0.0f, 0.0f};
+        streamer.update(camera, world_offset);
+        if (!streamer.is_loading()) break;
+
+        const auto loading = streamer.get_loading();
+        BeginDrawing();
+        ClearBackground(BLACK);
+        DrawText(TextFormat("Loading... %.1f%%", loading * 100.0f), 350, 350, 50, WHITE);
+        EndDrawing();
+    }
 
     auto update = [&] {
         f.update(camera, GetFrameTime());

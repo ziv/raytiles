@@ -6,7 +6,6 @@
 #endif
 #include "raylib.h"
 #include "raymath.h"
-#include "rlgl.h"
 #include <cmath>
 #include <memory>
 #include <optional>
@@ -78,8 +77,6 @@ namespace raytiles {
           update_distance_sq(streaming_conf.update_distance_sq),
           tile_renderer(std::make_unique<tiles_renderer>(rendering_conf)),
           tile_manager(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming_conf), make_pool_options(pool_conf))) {
-        // set the rendering distance
-        rlSetClipPlanes(streaming_conf.near_plane, streaming_conf.far_plane);
     }
 
     streamer::~streamer() = default;

@@ -6,6 +6,7 @@
 /// the streamed world with a fixed camera. Press ESC to quit.
 #include <raytiles/craytiles.h>
 #include <raylib.h>
+#include <rlgl.h>
 
 int main(void) {
     SetTraceLogLevel(LOG_INFO);
@@ -39,6 +40,9 @@ int main(void) {
     // Large-world shifting: this demo doesn't move, so we just pass a
     // zero offset. See the C++ `demo` sandbox for a full rebase loop.
     const Vector3 world_offset = (Vector3){0.0f, 0.0f, 0.0f};
+
+    // Make sure we'll see the horizon
+    rlSetClipPlanes(streaming.near_plane, streaming.far_plane);
 
     // initial-loading splash screen
     while (!WindowShouldClose()) {
