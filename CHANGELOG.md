@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.0](https://github.com/ziv/raytiles/compare/v0.13.0...v0.14.0) (2026-06-04)
+
+
+### Features
+
+* add lat/lon to public API ([#111](https://github.com/ziv/raytiles/issues/111)) ([47a64ef](https://github.com/ziv/raytiles/commit/47a64eff7220b1438f87c955732c1cacd09d2e5e))
+* introduce new API for starting streamer with lat/lon only ([47a64ef](https://github.com/ziv/raytiles/commit/47a64eff7220b1438f87c955732c1cacd09d2e5e))
+
 ## [0.13.0](https://github.com/ziv/raytiles/compare/v0.12.0...v0.13.0) (2026-06-03)
 
 
