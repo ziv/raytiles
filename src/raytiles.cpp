@@ -17,7 +17,7 @@
 
 namespace raytiles {
     namespace {
-        world_config &update_world_config(world_config &conf, const double latitude, const double longitude, const int min_supported_zoom) {
+        world_config &update_world_config(world_config &conf, const double latitude, const double longitude) {
             // calculate tiles
             const double lat = latitude * DEG2RAD;
             const double n = std::pow(2.0, min_supported_zoom);
@@ -103,11 +103,11 @@ namespace raytiles {
 
     streamer::streamer(const double latitude,
                        const double longitude,
-                       world_config &world_conf,
+                       world_config world_conf,
                        const streaming_config &streaming_conf,
                        const rendering_config &rendering_conf,
                        const pool_config &pool_conf)
-        : streamer(update_world_config(world_conf, latitude, longitude, min_supported_zoom), streaming_conf, rendering_conf, pool_conf) {
+        : streamer(update_world_config(world_conf, latitude, longitude), streaming_conf, rendering_conf, pool_conf) {
     }
 
     streamer::~streamer() = default;

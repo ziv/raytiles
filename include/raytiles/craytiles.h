@@ -69,6 +69,10 @@ typedef struct RaytilesWorldConfig {
 
     /// Generate trilinear / anisotropic mipmaps for the albedo texture.
     bool use_mipmap;
+
+    /// World-space offset applied to the anchor. Mirrors
+    /// `raytiles::world_config::offset`.
+    Vector3 offset;
 } RaytilesWorldConfig;
 
 /// Tile-streaming parameters. Mirrors `raytiles::streaming_config`.
@@ -191,6 +195,21 @@ RaytilesStreamer *RaytilesStreamerCreate(const RaytilesWorldConfig *world,
                                          const RaytilesRenderingConfig *rendering,
                                          const RaytilesPoolConfig *pool);
 
+/// Creates a streamer anchored at a geographic `latitude` / `longitude`
+/// (degrees); the remaining world config is filled in from `world` (or the
+/// C++ defaults when `world` is NULL). Mirrors the C++
+/// `raytiles::streamer(double latitude, double longitude, ...)` constructor.
+/// Requires a live raylib GL context (`InitWindow` first). Any of the config
+/// pointers may be NULL to use the corresponding C++ default. The structs (and
+/// any strings / arrays they reference) are copied; the caller may free them
+/// on return. Returns NULL on allocation failure.
+RaytilesStreamer *RaytilesStreamerCreateLatLon(double latitude,
+                                               double longitude,
+                                               const RaytilesWorldConfig *world,
+                                               const RaytilesStreamingConfig *streaming,
+                                               const RaytilesRenderingConfig *rendering,
+                                               const RaytilesPoolConfig *pool);
+
 /// Destroys a streamer and releases all GPU / CPU resources. NULL-safe.
 void RaytilesStreamerDestroy(RaytilesStreamer *streamer);
 
@@ -213,6 +232,16 @@ void RaytilesStreamerUpdate(RaytilesStreamer *streamer, Camera3D camera, Vector3
 /// `EndMode3D` after `RaytilesStreamerUpdate` in the same frame. Reuses the
 /// camera and `worldOffset` cached by `RaytilesStreamerUpdate`.
 void RaytilesStreamerDraw(RaytilesStreamer *streamer);
+
+/// Renders debug 3D geometry (tile bounds / wireframes) for the current tile
+/// set. Call between `BeginMode3D` / `EndMode3D` after
+/// `RaytilesStreamerUpdate`. NULL-safe. Mirrors `streamer::draw_debug_3d`.
+void RaytilesStreamerDrawDebug3D(RaytilesStreamer *streamer);
+
+/// Renders debug 2D text labels for the current tile set. Call after
+/// `EndMode3D` (in screen space). NULL-safe. Mirrors
+/// `streamer::draw_debug_labels`.
+void RaytilesStreamerDrawDebugLabels(RaytilesStreamer *streamer);
 
 /// Returns true during the initial loading phase (i.e. while at least one
 /// tile required to fill the rendering radius is still being fetched).
