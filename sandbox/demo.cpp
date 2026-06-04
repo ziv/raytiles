@@ -23,25 +23,27 @@ int main() {
     raytiles::rendering_config rendering;
     raytiles::pool_config pool_conf;
 
-    // pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
+    pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
     pool_conf.download_threads = 8;
     // rlSetClipPlanes(1.0f, 400000.0f);
 
     // The Dolomites
-    world.anchor_x_tile = 273;
-    world.anchor_z_tile = 180;
+    constexpr double lat = 46.206889;
+    constexpr double lon = 9.497194;
+    // world.anchor_x_tile = 273;
+    // world.anchor_z_tile = 180;
 
     // The Grand Canyon
     // world.anchor_x_tile = 97;
     // world.anchor_z_tile = 200;
 
     // Adjust to fit your scene
-    world.base_zoom_tile_size = 64000;
-    rendering.skirt_drop = 1000.0f;
-    world.skirt_overlap = {1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.02f};
+    // world.base_zoom_tile_size = 64000;
+    // rendering.skirt_drop = 1000.0f;
+    // world.skirt_overlap = {1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.02f};
 
 
-    raytiles::streamer streamer(world, streaming, rendering, pool_conf);
+    raytiles::streamer streamer(lat, lon, world, streaming, rendering, pool_conf);
 
     Vector3 world_offset = {0.0f, 0.0f, 0.0f};
 

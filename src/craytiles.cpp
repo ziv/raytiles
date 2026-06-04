@@ -25,6 +25,15 @@ struct RaytilesStreamer {
                      raytiles::pool_config p)
         : impl(std::move(w), std::move(s), std::move(r), std::move(p)) {
     }
+
+    RaytilesStreamer(double latitude,
+                     double longitude,
+                     raytiles::world_config w,
+                     raytiles::streaming_config s,
+                     raytiles::rendering_config r,
+                     raytiles::pool_config p)
+        : impl(latitude, longitude, std::move(w), std::move(s), std::move(r), std::move(p)) {
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -41,6 +50,7 @@ namespace {
         w.max_zoom = c->max_zoom;
         w.base_zoom_tile_size = c->base_zoom_tile_size;
         w.use_mipmap = c->use_mipmap;
+        w.offset = c->offset;
         for (std::size_t i = 0; i < raytiles::zoom_levels; ++i) {
             w.skirt_overlap[i] = c->skirt_overlap[i];
         }
@@ -110,6 +120,7 @@ RaytilesWorldConfig RaytilesWorldConfigDefault(void) {
         out.skirt_overlap[i] = w.skirt_overlap[i];
     }
     out.use_mipmap = w.use_mipmap;
+    out.offset = w.offset;
     return out;
 }
 
@@ -181,6 +192,24 @@ void RaytilesStreamerDestroy(RaytilesStreamer *streamer) {
     delete streamer;
 }
 
+RaytilesStreamer *RaytilesStreamerCreateLatLon(const double latitude,
+                                               const double longitude,
+                                               const RaytilesWorldConfig *world,
+                                               const RaytilesStreamingConfig *streaming,
+                                               const RaytilesRenderingConfig *rendering,
+                                               const RaytilesPoolConfig *pool) {
+    try {
+        return new RaytilesStreamer(latitude,
+                                    longitude,
+                                    to_cpp_world(world),
+                                    to_cpp_streaming(streaming),
+                                    to_cpp_rendering(rendering),
+                                    to_cpp_pool(pool));
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 void RaytilesStreamerUpdate(RaytilesStreamer *streamer, const Camera3D camera, const Vector3 worldOffset) {
     if (!streamer) return;
     streamer->impl.update(camera, worldOffset);
@@ -189,6 +218,16 @@ void RaytilesStreamerUpdate(RaytilesStreamer *streamer, const Camera3D camera, c
 void RaytilesStreamerDraw(RaytilesStreamer *streamer) {
     if (!streamer) return;
     streamer->impl.draw();
+}
+
+void RaytilesStreamerDrawDebug3D(RaytilesStreamer *streamer) {
+    if (!streamer) return;
+    streamer->impl.draw_debug_3d();
+}
+
+void RaytilesStreamerDrawDebugLabels(RaytilesStreamer *streamer) {
+    if (!streamer) return;
+    streamer->impl.draw_debug_labels();
 }
 
 bool RaytilesStreamerIsLoading(const RaytilesStreamer *streamer) {

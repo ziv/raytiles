@@ -126,6 +126,9 @@ namespace raytiles {
         /// Generate trilinear / anisotropic mipmaps for the albedo texture on
         /// upload. Strongly recommended; avoids shimmering at distance.
         bool use_mipmap = true;
+
+        // todo handle offset settings
+        Vector3 offset = {0.0f, 0.0f, 0.0f};
     };
 
     /// Tile-streaming parameters. Governs *which* tiles are kept resident and
@@ -247,16 +250,36 @@ namespace raytiles {
     /// Movable but not copyable.
     class streamer {
     public:
+        /// All arguments have defaults and optionally tweakable fields, so you can construct
+        /// a streamer with zero arguments for a quick start with reasonable defaults.
         /// @param world_conf
         /// @param streaming_conf
         /// @param rendering_conf
-        /// @param pool_conf Tunable parameters for the tile downloader pool; moved into the pool.
+        /// @param pool_conf
         /// @note A raylib window must already be initialized (`InitWindow`) before
         ///       constructing a streamer because shader / texture creation requires
         ///       a live GL context.
         explicit streamer(const world_config &world_conf = {},
                           const streaming_config &streaming_conf = {},
-                          rendering_config rendering_conf = {},
+                          const rendering_config &rendering_conf = {},
+                          const pool_config &pool_conf = {});
+
+        /// Allow you to construct a streamer with just a latitude and longitude as the
+        /// world anchor; the rest of the world config is filled in with defaults.
+        /// @param latitude
+        /// @param longitude
+        /// @param world_conf
+        /// @param streaming_conf
+        /// @param rendering_conf
+        /// @param pool_conf
+        /// @note A raylib window must already be initialized (`InitWindow`) before
+        ///       constructing a streamer because shader / texture creation requires
+        ///       a live GL context.
+        explicit streamer(double latitude,
+                          double longitude,
+                          world_config world_conf = {},
+                          const streaming_config &streaming_conf = {},
+                          const rendering_config &rendering_conf = {},
                           const pool_config &pool_conf = {});
 
         ~streamer();
@@ -293,6 +316,7 @@ namespace raytiles {
         void draw();
 
         void draw_debug_3d();
+
         void draw_debug_labels();
 
         /// Return true for initial loading only

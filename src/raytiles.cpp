@@ -17,6 +17,28 @@
 
 namespace raytiles {
     namespace {
+        world_config &update_world_config(world_config &conf, const double latitude, const double longitude) {
+            // calculate tiles
+            const double lat = latitude * DEG2RAD;
+            const double n = std::pow(2.0, min_supported_zoom);
+            const double x = (longitude + 180.0) / 360.0 * n;
+            const double y = (1.0 - std::log(std::tan(lat) + 1.0 / std::cos(lat)) / PI) / 2.0 * n;
+            conf.anchor_x_tile = static_cast<int>(std::floor(x));
+            conf.anchor_z_tile = static_cast<int>(std::floor(y));
+
+            // calculate tile size
+            constexpr double equator_circumference_m = 40075016.686;
+            const double tile_size = equator_circumference_m * std::cos(lat) / n;
+            conf.base_zoom_tile_size = static_cast<float>(tile_size);
+
+            // calculate the offset
+            const auto offset_x = static_cast<float>((x - conf.anchor_x_tile) * tile_size);
+            const auto offset_z = static_cast<float>((y - conf.anchor_z_tile) * tile_size);
+            conf.offset = {offset_x, 0.0f, offset_z};
+
+            return conf;
+        }
+
         std::pair<std::string, std::string> split_url(const std::string &url) {
             const auto scheme = url.find("://");
             if (scheme == std::string::npos) throw std::runtime_error("invalid url (no scheme): " + url);
@@ -70,13 +92,22 @@ namespace raytiles {
 
     streamer::streamer(const world_config &world_conf,
                        const streaming_config &streaming_conf,
-                       rendering_config rendering_conf,
+                       const rendering_config &rendering_conf,
                        const pool_config &pool_conf)
         : near_plane(static_cast<float>(streaming_conf.near_plane)),
           far_plane(static_cast<float>(streaming_conf.far_plane)),
           update_distance_sq(streaming_conf.update_distance_sq),
           tile_renderer(std::make_unique<tiles_renderer>(rendering_conf)),
           tile_manager(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming_conf), make_pool_options(pool_conf))) {
+    }
+
+    streamer::streamer(const double latitude,
+                       const double longitude,
+                       world_config world_conf,
+                       const streaming_config &streaming_conf,
+                       const rendering_config &rendering_conf,
+                       const pool_config &pool_conf)
+        : streamer(update_world_config(world_conf, latitude, longitude), streaming_conf, rendering_conf, pool_conf) {
     }
 
     streamer::~streamer() = default;
