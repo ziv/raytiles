@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/ziv/raytiles/compare/v0.14.0...v0.15.0) (2026-06-05)
+
+
+### Features
+
+* basic sky module, renders sky and clouds ([#113](https://github.com/ziv/raytiles/issues/113)) ([76543fd](https://github.com/ziv/raytiles/commit/76543fd3e3b66a0b8f636a4f3a5776f883289606))
+
 ## [0.14.0](https://github.com/ziv/raytiles/compare/v0.13.0...v0.14.0) (2026-06-04)
 
 
