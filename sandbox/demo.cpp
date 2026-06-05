@@ -4,6 +4,9 @@
 #include <rlgl.h>
 #include "advanced-fly.hpp"
 #include "fly.h"
+#include <raytiles/rayskies.h>
+
+#include "utils.h"
 
 static std::string required_env() {
     if (const char *value = std::getenv("MAPBOX_TOKEN"); value && *value) {
@@ -14,7 +17,7 @@ static std::string required_env() {
 
 int main() {
     SetTraceLogLevel(LOG_WARNING);
-    InitWindow(800, 600, "raytiles");
+    InitWindow(1024, 768, "raytiles");
 
     std::string token = required_env();
 
@@ -25,25 +28,25 @@ int main() {
 
     pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
     pool_conf.download_threads = 8;
+
+
     // rlSetClipPlanes(1.0f, 400000.0f);
 
     // The Dolomites
     constexpr double lat = 46.206889;
     constexpr double lon = 9.497194;
-    // world.anchor_x_tile = 273;
-    // world.anchor_z_tile = 180;
-
-    // The Grand Canyon
-    // world.anchor_x_tile = 97;
-    // world.anchor_z_tile = 200;
-
-    // Adjust to fit your scene
-    // world.base_zoom_tile_size = 64000;
-    // rendering.skirt_drop = 1000.0f;
-    // world.skirt_overlap = {1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.02f};
 
 
+    // init tiles streamer
     raytiles::streamer streamer(lat, lon, world, streaming, rendering, pool_conf);
+
+    // init sky streamer
+    raytiles::sky::sky_steamer sky;
+
+    // runtime configuration
+    sky.set_horizon_color(SKYBLUE);
+    streamer.set_fog_color(SKYBLUE);
+    streamer.set_ambient_light(Color{200, 200, 200, 255});
 
     Vector3 world_offset = {0.0f, 0.0f, 0.0f};
 
@@ -61,8 +64,7 @@ int main() {
     free_camera::AdvancedFreeCamera adv_f{};
     Model tie = LoadModel("res/tie/scene.gltf");
 
-    streamer.set_fog_color(SKYBLUE);
-    streamer.set_ambient_light(Color{200, 200, 200, 255});
+
     float sun = 1.0f;
     bool wireframe = false;
     bool labels = false;
@@ -89,63 +91,31 @@ int main() {
 
         const auto to_target = camera.target - camera.position;
         const auto forward = Vector3Normalize(to_target);
-        // const auto right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
-        // const auto up = Vector3Normalize(Vector3CrossProduct(right, forward));
-
-        // rotate model 90 deg left on xz plane, so it faces forward
-        // const Matrix rot = MatrixRotateY(-PI / 2);
-        float angle = atan2f(forward.x, forward.z) * RAD2DEG;
-        Vector3 rotationAxis = {0.0f, 1.0f, 0.0f};
 
 
         if (!crashed) adv_f.update(camera, dt);
 
-        // Large-world rebase: keep the user-space camera close to the origin.
-        // Whenever |camera.x| or |camera.z| exceeds the threshold, slide BOTH
-        // the camera (position + target) AND the world_offset by the same
-        // amount, preserving the absolute camera location (user - offset).
-        // In a real game you must apply the same shift to every entity that
-        // lives in user space (models, lights, particles, ...).
-        if (camera.position.x > rebase_threshold) {
-            camera.position.x -= rebase_threshold;
-            camera.target.x -= rebase_threshold;
-            world_offset.x -= rebase_threshold;
-        } else if (camera.position.x < -rebase_threshold) {
-            camera.position.x += rebase_threshold;
-            camera.target.x += rebase_threshold;
-            world_offset.x += rebase_threshold;
-        }
-        if (camera.position.z > rebase_threshold) {
-            camera.position.z -= rebase_threshold;
-            camera.target.z -= rebase_threshold;
-            world_offset.z -= rebase_threshold;
-        } else if (camera.position.z < -rebase_threshold) {
-            camera.position.z += rebase_threshold;
-            camera.target.z += rebase_threshold;
-            world_offset.z += rebase_threshold;
-        }
+        rebase_large_world(camera, world_offset, rebase_threshold);
 
         // Frame inputs are now stable for this frame -> hand them to the
         // streamer once. draw() and ground_height() will reuse these values.
         streamer.update(camera, world_offset);
 
-        //r.set_sun_direction(Vector3{0.1f, sun, 0.0f});
-
-        const auto h = streamer.ground_height(camera.position).value_or(0.0f);
-        if (h > camera.position.y) crashed = true;
+        if (streamer.ground_height(camera.position).value_or(0.0f) > camera.position.y) crashed = true;
 
         BeginDrawing();
         ClearBackground(SKYBLUE);
 
         BeginMode3D(camera);
         // draw the world around the camera
+        sky.draw(camera.position);
         streamer.draw();
+
         const Vector3 model_pos = Vector3Add(camera.position, Vector3Scale(forward, 50.0f));
 
-        DrawModelEx(tie, model_pos, rotationAxis, angle, {1.0f, 1.0f, 1.0f}, WHITE);
-        if (wireframe) {
-            streamer.draw_debug_3d();
-        }
+        // DrawModelEx(tie, model_pos, rotationAxis, angle, {1.0f, 1.0f, 1.0f}, WHITE);
+        DrawModel(tie, model_pos, 1.0f, WHITE);
+        if (wireframe) streamer.draw_debug_3d();
         EndMode3D();
 
         if (labels) {
