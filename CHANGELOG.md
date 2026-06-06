@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/ziv/raytiles/compare/v0.16.0...v0.16.1) (2026-06-06)
+
+
+### Bug Fixes
+
+* update the cache path in warmup script ([#117](https://github.com/ziv/raytiles/issues/117)) ([ef06fc8](https://github.com/ziv/raytiles/commit/ef06fc84548014da92809747f36881e41ac66733))
+
 ## [0.16.0](https://github.com/ziv/raytiles/compare/v0.15.0...v0.16.0) (2026-06-06)
 
 
