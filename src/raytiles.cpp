@@ -36,6 +36,7 @@ namespace raytiles {
             const auto offset_z = static_cast<float>((y - conf.anchor_z_tile) * tile_size);
             conf.offset = {offset_x, 0.0f, offset_z};
 
+            TraceLog(LOG_WARNING, "tiles anchore %d %d", conf.anchor_x_tile, conf.anchor_z_tile);
             return conf;
         }
 
@@ -97,6 +98,7 @@ namespace raytiles {
         : near_plane(static_cast<float>(streaming_conf.near_plane)),
           far_plane(static_cast<float>(streaming_conf.far_plane)),
           update_distance_sq(streaming_conf.update_distance_sq),
+          init_position(world_conf.offset),
           tile_renderer(std::make_unique<tiles_renderer>(rendering_conf)),
           tile_manager(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming_conf), make_pool_options(pool_conf))) {
     }
@@ -122,6 +124,10 @@ namespace raytiles {
 
     float streamer::get_loading() const {
         return tile_manager->get_loading();
+    }
+
+    Vector3 streamer::get_initial_position(const float y) const {
+        return init_position + Vector3{0.0f, y, 0.0f};
     }
 
     std::optional<float> streamer::ground_height(const Vector3 position) const {
