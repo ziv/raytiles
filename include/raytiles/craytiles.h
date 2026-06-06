@@ -252,6 +252,12 @@ bool RaytilesStreamerIsLoading(const RaytilesStreamer *streamer);
 /// NULL. Pair with `RaytilesStreamerIsLoading` to drive a splash screen.
 float RaytilesStreamerGetLoading(const RaytilesStreamer *streamer);
 
+/// Returns a sensible initial camera position above the world anchor, raised
+/// by `y` meters on the vertical axis. Useful for placing the camera before
+/// any tiles have loaded. Returns `(Vector3){0}` if `streamer` is NULL.
+/// Mirrors `streamer::get_initial_position`.
+Vector3 RaytilesStreamerGetInitialPosition(const RaytilesStreamer *streamer, float y);
+
 /// Samples the terrain altitude (world Y) under `position`, reading the
 /// heightmap pixel at the equivalent UV. O(1) cost.
 ///

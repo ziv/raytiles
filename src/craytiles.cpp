@@ -240,6 +240,11 @@ float RaytilesStreamerGetLoading(const RaytilesStreamer *streamer) {
     return streamer->impl.get_loading();
 }
 
+Vector3 RaytilesStreamerGetInitialPosition(const RaytilesStreamer *streamer, const float y) {
+    if (!streamer) return Vector3{0.0f, 0.0f, 0.0f};
+    return streamer->impl.get_initial_position(y);
+}
+
 bool RaytilesStreamerGroundHeight(const RaytilesStreamer *streamer,
                                   const Vector3 position,
                                   float *out_height) {

@@ -54,6 +54,8 @@ add_library(${PROJECT_NAME}
         src/sky_renderer.cpp
         include/raytiles/rayskies.h
         src/rayskies.cpp
+        include/raytiles/crayskies.h
+        src/crayskies.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
