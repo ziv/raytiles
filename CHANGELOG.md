@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.16.0](https://github.com/ziv/raytiles/compare/v0.15.0...v0.16.0) (2026-06-06)
+
+
+### Features
+
+* add api to get initial position ([#115](https://github.com/ziv/raytiles/issues/115)) ([3d4a5c4](https://github.com/ziv/raytiles/commit/3d4a5c4ff6f3a8bb1cbadb5e88afcf9a93e2e984))
+* get_initial_position with height ([3d4a5c4](https://github.com/ziv/raytiles/commit/3d4a5c4ff6f3a8bb1cbadb5e88afcf9a93e2e984))
+
+
+### Bug Fixes
+
+* rayskies api cleaning ([3d4a5c4](https://github.com/ziv/raytiles/commit/3d4a5c4ff6f3a8bb1cbadb5e88afcf9a93e2e984))
+
 ## [0.15.0](https://github.com/ziv/raytiles/compare/v0.14.0...v0.15.0) (2026-06-05)
 
 
