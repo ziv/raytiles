@@ -8,8 +8,8 @@
     <br />
 </div>
 
-![GitHub Release](https://img.shields.io/github/v/release/ziv/raytiles)
-![GitHub License](https://img.shields.io/github/license/ziv/raytiles)
+![GitHub Release](https://img.shields.io/github/v/release/ziv/raytiles?label=Release)
+![GitHub License](https://img.shields.io/github/license/ziv/raytiles?label=License)
 
 [![macOS Build](https://github.com/ziv/raytiles/actions/workflows/macos.yml/badge.svg)](https://github.com/ziv/raytiles/actions/workflows/macos.yml)
 [![Linux Build](https://github.com/ziv/raytiles/actions/workflows/linux.yml/badge.svg)](https://github.com/ziv/raytiles/actions/workflows/linux.yml)
