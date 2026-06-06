@@ -37,6 +37,7 @@ open an issue!
 ## Features
 
 - Streaming and rendering **ANY** location on Earth!
+- Renders sky and clouds
 - Adaptive **LOD** (level-of-detail)
 - **Lights and Shadows** via normal maps
 - Ground-truth **altitude/height queries** for collision and spawning
