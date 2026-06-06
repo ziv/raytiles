@@ -23,10 +23,12 @@ namespace raytiles::sky {
         void draw(Vector3 player_pos) const;
 
         void set_horizon_color(float r, float g, float b) const;
-        void set_horizon_color(const Color color) const;
+
+        void set_horizon_color(Color color) const;
 
         void set_zenith_color(float r, float g, float b) const;
-        void set_zenith_color(const Color color) const;
+
+        void set_zenith_color(Color color) const;
 
     private:
         std::unique_ptr<sky_renderer> renderer;

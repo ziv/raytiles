@@ -28,13 +28,17 @@ int main() {
 
     pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
     pool_conf.download_threads = 8;
+    rendering.skirt_drop = 1000.0f;
 
 
     // rlSetClipPlanes(1.0f, 400000.0f);
 
     // The Dolomites
-    constexpr double lat = 46.206889;
-    constexpr double lon = 9.497194;
+    // constexpr double lat = 46.206889;
+    // constexpr double lon = 9.497194;
+
+    constexpr double lat = 41.680374;
+    constexpr double lon = -7.473474;
 
 
     // init tiles streamer
@@ -55,7 +59,8 @@ int main() {
     };
 
     Camera3D camera;
-    camera.position = absolute_to_user({2000.0f, 5000.0f, 2000.0f});
+    camera.position = Vector3({0.0f, 5000.0f, 0.0f}) - streamer.get_initial_position();
+    // camera.position = absolute_to_user({2000.0f, 5000.0f, 2000.0f});
     camera.target = absolute_to_user({3000.0f, 4750.0f, 3000.0f});
     camera.up = Vector3{0.0f, 1.0f, 0.0f};
     camera.fovy = 60.0f;
@@ -123,8 +128,8 @@ int main() {
             streamer.draw_debug_labels();
         }
 
-        DrawRectangle(5, 550, 600, 40, Fade(BLACK, 0.5f));
-        DrawText("Controls:  K  to toggle labels,  L  to toggle wireframe,  +/-  throttle", 10, 560, 10, WHITE);
+        DrawRectangle(5, 750, 600, 40, Fade(BLACK, 0.5f));
+        DrawText("Controls:  K  to toggle labels,  L  to toggle wireframe,  +/-  throttle", 10, 760, 10, WHITE);
 
         DrawRectangle(5, 10, 280, 80, Fade(BLACK, 0.5f));
         DrawText(TextFormat("user P %d %d %d",
