@@ -325,6 +325,8 @@ namespace raytiles {
         /// Return loading percents
         [[nodiscard]] float get_loading() const;
 
+        [[nodiscard]] Vector3 get_initial_position() const;
+
         /// Returns the terrain altitude (Y world-coordinate) under `position`,
         /// sampled from the heightmap pixel at the equivalent UV.
         /// @param position     Query point in user space. Internally combined
@@ -392,6 +394,7 @@ namespace raytiles {
         float near_plane;
         float far_plane;
         float update_distance_sq;
+        Vector3 init_position;
 
         std::unique_ptr<tiles_renderer> tile_renderer;
         std::unique_ptr<tiles_manager> tile_manager;
