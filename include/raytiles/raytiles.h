@@ -325,7 +325,7 @@ namespace raytiles {
         /// Return loading percents
         [[nodiscard]] float get_loading() const;
 
-        [[nodiscard]] Vector3 get_initial_position() const;
+        [[nodiscard]] Vector3 get_initial_position(float y) const;
 
         /// Returns the terrain altitude (Y world-coordinate) under `position`,
         /// sampled from the heightmap pixel at the equivalent UV.

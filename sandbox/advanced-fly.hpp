@@ -27,7 +27,7 @@ namespace free_camera {
     };
 
     class AdvancedFreeCamera {
-        float max_speed = 300.0f;
+        float max_speed = 500.0f;
         Quaternion rotation_ = QuaternionIdentity();
         CameraInputs inputs_ = {0.0f, 0.0f, 0.0f};
         CameraState state_ = {
@@ -42,9 +42,9 @@ namespace free_camera {
     public:
         explicit AdvancedFreeCamera() noexcept = default;
 
-        void display_state() {
-            DrawRectangle(5, 10, 300, 100, Fade(BLACK, 0.5f));
-        }
+        // void display_state() {
+        //     DrawRectangle(5, 10, 300, 100, Fade(BLACK, 0.5f));
+        // }
 
         void update(Camera3D &cam, const float dt) noexcept {
             const auto speed = Vector3Length(state_.linear_velocity);
