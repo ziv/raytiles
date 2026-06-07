@@ -26,24 +26,22 @@ int main() {
     raytiles::rendering_config rendering_conf;
     raytiles::pool_config pool_conf;
 
-    pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
+    // pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
     pool_conf.download_threads = 8;
     // rendering_conf.skirt_drop = 1000.0f;
-    word_conf.skirt_overlap = {
-        1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f
-    };
+    word_conf.skirt_overlap = {1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f};
 
 
     // The Dolomites
-    // constexpr double lat = 46.206889;
-    // constexpr double lon = 9.497194;
+    constexpr double lat = 46.206889;
+    constexpr double lon = 9.497194;
 
     // My home
     // constexpr double lat = 32.11572;
     // constexpr double lon = 34.79118;
 
-    constexpr double lat = 32.73076;
-    constexpr double lon = 34.95166;
+    // constexpr double lat = 32.73076;
+    // constexpr double lon = 34.95166;
 
     // init tiles streamer
     raytiles::streamer streamer(lat, lon, word_conf, streaming_conf, rendering_conf, pool_conf);
@@ -88,39 +86,28 @@ int main() {
         if (streamer.ground_height(camera.position).value_or(0.0f) > camera.position.y) crashed = true;
 
         BeginDrawing();
-            ClearBackground(SKYBLUE);
+        ClearBackground(SKYBLUE);
 
-            BeginMode3D(camera);
-                // draw the sky & the world around the camera
-                sky.draw(camera.position);
-                streamer.draw();
+        BeginMode3D(camera);
+        // draw the sky & the world around the camera
+        sky.draw(camera.position);
+        streamer.draw();
 
-                // reference model
-                const auto forward = Vector3Normalize(camera.target - camera.position);
-                const Vector3 model_pos = Vector3Add(camera.position, Vector3Scale(forward, 50.0f));
-                DrawModel(tie, model_pos, 1.0f, WHITE);
+        // reference model
+        const auto forward = Vector3Normalize(camera.target - camera.position);
+        const Vector3 model_pos = Vector3Add(camera.position, Vector3Scale(forward, 50.0f));
+        DrawModel(tie, model_pos, 1.0f, WHITE);
 
-                if (wireframe) streamer.draw_debug_3d();
-            EndMode3D();
+        if (wireframe) streamer.draw_debug_3d();
+        EndMode3D();
 
-            // draw zoom label above the tiles
-            if (labels) streamer.draw_debug_labels();
+        // draw zoom label above the tiles
+        if (labels) streamer.draw_debug_labels();
 
+        draw_controls_label();
+        draw_debug_data(camera, world_offset);
 
-            draw_controls_label();
-            draw_debug_data(camera, world_offset);
-
-            if (crashed) draw_crash_screen();
-            // if (crashed) {
-            //     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.5f));
-            //     DrawText("You crashed! Press R to reset.", 200, 300, 30, WHITE);
-            //     if (IsKeyPressed(KEY_R)) {
-            //         world_offset = {0.0f, 0.0f, 0.0f};
-            //         camera.position = Vector3{2000.0f, 5000.0f, 2000.0f};
-            //         camera.target = Vector3{3000.0f, 4750.0f, 3000.0f};
-            //         crashed = false;
-            //     }
-            // }
+        if (crashed) draw_crash_screen();
         EndDrawing();
 
         if (IsKeyDown(KEY_LEFT_BRACKET)) sun -= dt * 0.5f;
