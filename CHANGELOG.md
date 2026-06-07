@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/ziv/raytiles/compare/v0.16.1...v0.17.0) (2026-06-06)
+
+
+### Features
+
+* c api for the sky renderer ([#119](https://github.com/ziv/raytiles/issues/119)) ([8536886](https://github.com/ziv/raytiles/commit/8536886f8c5bbe43c3e98348b4476ff683dca8c1))
+
 ## [0.16.1](https://github.com/ziv/raytiles/compare/v0.16.0...v0.16.1) (2026-06-06)
 
 
