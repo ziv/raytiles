@@ -115,7 +115,7 @@ void main()
         normal_scale_loc = GetShaderLocation(*shader, "normalScale");
         fog_start_loc = GetShaderLocation(*shader, "fogStart");
         fog_end_loc = GetShaderLocation(*shader, "fogEnd");
-        skirt_drop = GetShaderLocation(*shader, "skirtDrop");
+        skirt_drop_loc = GetShaderLocation(*shader, "skirtDrop");
 
         // validate all slots populated
         if (-1 == cam_pos_loc ||
@@ -130,7 +130,7 @@ void main()
             -1 == normal_scale_loc ||
             -1 == fog_start_loc ||
             -1 == fog_end_loc ||
-            -1 == skirt_drop
+            -1 == skirt_drop_loc
         ) {
             throw std::runtime_error("failed to get shader locations");
         }
@@ -146,13 +146,10 @@ void main()
         SetShaderValue(*shader, fog_start_loc, &options.fog_start, SHADER_UNIFORM_FLOAT);
         SetShaderValue(*shader, fog_end_loc, &options.fog_end, SHADER_UNIFORM_FLOAT);
         SetShaderValue(*shader, sun_scale_loc, &options.sun_scale, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*shader, skirt_drop, &options.skirt_drop, SHADER_UNIFORM_FLOAT);
-        // set the ambient color (weather/day/night/...)
-        SetShaderValue(*shader, ambient_loc, options.ambient_light, SHADER_UNIFORM_VEC4);
-        // set the fog color (to match the sky)
-        SetShaderValue(*shader, fog_color_loc, options.fog_color, SHADER_UNIFORM_VEC4);
-        // set the sun direction
-        SetShaderValue(*shader, sun_dir_loc, options.sun_direction, SHADER_UNIFORM_VEC3);
+        SetShaderValue(*shader, skirt_drop_loc, &options.skirt_drop, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(*shader, ambient_loc, &options.ambient_light, SHADER_UNIFORM_VEC4);
+        SetShaderValue(*shader, fog_color_loc, &options.fog_color, SHADER_UNIFORM_VEC4);
+        SetShaderValue(*shader, sun_dir_loc, &options.sun_direction, SHADER_UNIFORM_VEC3);
     }
 
 
@@ -215,7 +212,7 @@ void main()
 
     tile_shader &tile_shader::set_skirt_drop(const float drop) {
         options.skirt_drop = drop;
-        SetShaderValue(*shader, skirt_drop, &options.skirt_drop, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(*shader, skirt_drop_loc, &options.skirt_drop, SHADER_UNIFORM_FLOAT);
         return *this;
     }
 

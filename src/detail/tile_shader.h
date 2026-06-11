@@ -125,7 +125,7 @@ namespace raytiles {
         int normal_scale_loc = -1;
         int fog_start_loc = -1;
         int fog_end_loc = -1;
-        int skirt_drop = -1;
+        int skirt_drop_loc = -1;
 
         // shader
         raii::shader shader;
