@@ -218,6 +218,13 @@ namespace raytiles {
     class tiles_renderer;
     class tiles_manager;
 
+    struct tile_state {
+        Meters near_plane;
+        Meters far_plane;
+        MetersSq update_distance_sq;
+        Vector3 init_position; // todo do we need it
+    };
+
     /// Per-frame driver that maintains the working set of tiles around a camera
     /// and renders them. One streamer manages one world; create more if you need
     /// independent worlds.
@@ -391,7 +398,7 @@ namespace raytiles {
         // (update gating, near/far for frustum extraction). All tile
         // lifecycle state lives in `tile_manager`.
         // streaming_config streaming;
-        float near_plane;
+        float near_plane; // todo should be enter into state object
         float far_plane;
         float update_distance_sq;
         Vector3 init_position;

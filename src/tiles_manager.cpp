@@ -26,6 +26,8 @@ namespace raytiles {
             throw std::runtime_error(std::format("max_zoom {} is below base_zoom {}", options.max_zoom, options.base_zoom));
         }
 
+        // todo this is should be in the renderer!!!!! why this is here?!
+
         // construct the tiles map
         // for each zoom level:
         // - metadata (size & threshold)
@@ -149,6 +151,7 @@ namespace raytiles {
         }
     }
 
+    // todo no no no no no
     data_view tiles_manager::make_debug_view(Frustum &frustum) {
         return data_view{frustum, rendering_tiles, tiles, desired_keys};
     }

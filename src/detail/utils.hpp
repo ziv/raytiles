@@ -165,4 +165,23 @@ namespace raytiles::utils {
         }
         return true; // should render
     }
+
+    // todo to encapsulate the np and fp values
+    class frustum_calculator {
+        Frustum frustum{};
+        float near_plane;
+        float far_plane;
+
+    public:
+        explicit frustum_calculator(const float near_plane, const float far_plane) : near_plane(near_plane), far_plane(far_plane) {
+        }
+
+        void calculate(const Camera3D &camera) {
+            frustum = extract_frustum(camera, near_plane, far_plane);
+        }
+
+        Frustum &get_frustum() {
+            return frustum;
+        }
+    };
 }
