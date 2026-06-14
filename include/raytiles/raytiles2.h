@@ -62,7 +62,7 @@ namespace raytiles {
 
     /// configuration for the background tile download pool. Passed by value to
     /// the `streamer` constructor.
-    struct pool_config {
+    struct configuration {
         /// Number of background download workers. Downloads are I/O-bound so it's
         /// safe to use more threads than CPU cores; 2 is a reasonable default for
         /// HTTP keep-alive against a single host.
@@ -85,16 +85,15 @@ namespace raytiles {
         std::string texture_url = RAYTILES_TEXTURE_URL;
         std::string heightmap_url = RAYTILES_HEIGHTMAP_URL;
         std::string normals_url = RAYTILES_NORMALS_URL;
-    };
 
-    /// World topology / geometry parameters. Everything in this struct is
-    /// effectively immutable once a `streamer` exists: changing any field
-    /// requires rebuilding meshes, re-uploading textures, or re-anchoring the
-    /// world. Set once at construction.
-    struct world_config {
+        /// World topology / geometry parameters. Everything in this struct is
+        /// effectively immutable once a `streamer` exists: changing any field
+        /// requires rebuilding meshes, re-uploading textures, or re-anchoring the
+        /// world. Set once at construction.
+
         /// World-space anchor in tile coordinates at `base_zoom`. The streamer
-        /// translates tile XY to world XZ relative to this anchor so the world
-        /// origin is wherever you want it (e.g. your runway).
+            /// translates tile XY to world XZ relative to this anchor so the world
+            /// origin is wherever you want it (e.g. your runway).
         int anchor_x_tile = 306;
         int anchor_z_tile = 207;
 
@@ -129,12 +128,12 @@ namespace raytiles {
 
         // todo handle offset settings
         Vector3 offset = {0.0f, 0.0f, 0.0f};
-    };
 
-    /// Tile-streaming parameters. Governs *which* tiles are kept resident and
-    /// how aggressively the working set is updated. Safe to tweak at runtime
-    /// (no mesh / texture rebuild), but most users set it once.
-    struct streaming_config {
+        /// Tile-streaming parameters. Governs *which* tiles are kept resident and
+        /// how aggressively the working set is updated. Safe to tweak at runtime
+        /// (no mesh / texture rebuild), but most users set it once.
+
+
         /// Radius, in `world_config::base_zoom` tiles, of the disc of tiles
         /// loaded around the camera. Larger values = more tiles in flight =
         /// more memory / bandwidth.
@@ -171,12 +170,11 @@ namespace raytiles {
         /// Far clip plane (meters) used by the displacement shader for fog and
         /// depth-precision tuning. Match this to your camera setup.
         MetersD far_plane = 400000;
-    };
 
-    /// Rendering / shader-uniform parameters. Every field here is genuinely
-    /// runtime-mutable; most have matching `streamer::set_*` setters that push
-    /// new values to the shader on the next `update()`.
-    struct rendering_config {
+        /// Rendering / shader-uniform parameters. Every field here is genuinely
+        /// runtime-mutable; most have matching `streamer::set_*` setters that push
+        /// new values to the shader on the next `update()`.
+
         /// Distance (in meters) at which atmospheric fog starts to fade tiles to
         /// `fog_color`.
         Meters fog_start = 100000.0f;
@@ -213,6 +211,8 @@ namespace raytiles {
         /// contrast. Higher values make the terrain look bumpier, but can cause
         /// lighting artifacts if the normals become too steep.
         float normals_scale = 1.0f;
+
+        explicit configuration(double latitude, double longitude);
     };
 
     class tiles_renderer;
@@ -255,49 +255,22 @@ namespace raytiles {
     ///
     /// All raylib resources are owned via RAII; destruction is safe and complete.
     /// Movable but not copyable.
-    class streamer {
+    class streamer2 {
     public:
-        /// All arguments have defaults and optionally tweakable fields, so you can construct
-        /// a streamer with zero arguments for a quick start with reasonable defaults.
-        /// @param world_conf
-        /// @param streaming_conf
-        /// @param rendering_conf
-        /// @param pool_conf
-        /// @note A raylib window must already be initialized (`InitWindow`) before
-        ///       constructing a streamer because shader / texture creation requires
-        ///       a live GL context.
-        explicit streamer(const world_config &world_conf = {},
-                          const streaming_config &streaming_conf = {},
-                          const rendering_config &rendering_conf = {},
-                          const pool_config &pool_conf = {});
+        explicit streamer2(const Camera3D &camera,
+                           double latitude,
+                           double longitude,
+                           configuration conf = {});
 
-        /// Allow you to construct a streamer with just a latitude and longitude as the
-        /// world anchor; the rest of the world config is filled in with defaults.
-        /// @param latitude
-        /// @param longitude
-        /// @param world_conf
-        /// @param streaming_conf
-        /// @param rendering_conf
-        /// @param pool_conf
-        /// @note A raylib window must already be initialized (`InitWindow`) before
-        ///       constructing a streamer because shader / texture creation requires
-        ///       a live GL context.
-        explicit streamer(double latitude,
-                          double longitude,
-                          world_config world_conf = {},
-                          const streaming_config &streaming_conf = {},
-                          const rendering_config &rendering_conf = {},
-                          const pool_config &pool_conf = {});
+        ~streamer2();
 
-        ~streamer();
+        streamer2(const streamer2 &) = delete;
 
-        streamer(const streamer &) = delete;
+        streamer2 &operator=(const streamer2 &) = delete;
 
-        streamer &operator=(const streamer &) = delete;
+        streamer2(streamer2 &&) noexcept;
 
-        streamer(streamer &&) noexcept;
-
-        streamer &operator=(streamer &&) noexcept;
+        streamer2 &operator=(streamer2 &&) noexcept;
 
         /// Updates the desired tile set based on the camera and promotes any
         /// finished downloads into renderable GPU resources. Cheap to call every
@@ -398,10 +371,13 @@ namespace raytiles {
         // (update gating, near/far for frustum extraction). All tile
         // lifecycle state lives in `tile_manager`.
         // streaming_config streaming;
-        float near_plane; // todo should be enter into state object
-        float far_plane;
-        float update_distance_sq;
-        Vector3 init_position;
+        configuration conf_;
+        Camera3D camera_;
+
+        float near_plane{}; // todo should be enter into state object
+        float far_plane{};
+        float update_distance_sq{};
+        Vector3 init_position{};
 
         std::unique_ptr<tiles_renderer> tile_renderer;
         std::unique_ptr<tiles_manager> tile_manager;
