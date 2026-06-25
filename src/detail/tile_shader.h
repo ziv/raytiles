@@ -43,7 +43,7 @@ namespace raytiles {
 
     class tile_shader {
     public:
-        explicit tile_shader(const tile_shader_options &opts = {});
+        explicit tile_shader(const tile_shader_options &opts);
 
         /// Returns the underlying raylib `Shader` handle. Use this when you
         /// need to bind the shader to a `Material` or pass it to a raylib

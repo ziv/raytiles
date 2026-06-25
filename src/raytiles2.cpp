@@ -1,6 +1,7 @@
 #include "raytiles/raytiles2.h"
 
 #include "../include/raytiles/raytiles.h"
+#include "raytiles/raytiles.h"
 
 #if defined(_WIN32)
 #define NOGDI
@@ -19,6 +20,20 @@
 
 namespace raytiles {
     namespace {
+        tile_shader_options extract_tile_shader_options(const configuration &conf) {
+            tile_shader_options opts;
+            opts.fog_start = conf.fog_start;
+            opts.fog_end = conf.fog_end;
+            opts.skirt_drop = conf.skirt_drop;
+            for (int i = 0; i < 4; ++i) opts.fog_color[i] = conf.fog_color[i];
+            for (int i = 0; i < 4; ++i) opts.ambient_light[i] = conf.ambient_light[i];
+            for (int i = 0; i < 3; ++i) opts.sun_direction[i] = conf.sun_direction[i];
+            opts.sun_scale = conf.sun_scale;
+            opts.height_scale = conf.height_scale;
+            opts.normals_scale = conf.normals_scale;
+            return opts;
+        }
+
         configuration &update_config(configuration &conf, const double latitude, const double longitude) {
             // calculate tiles
             const double lat = latitude * DEG2RAD;
@@ -114,6 +129,8 @@ namespace raytiles {
     //     : streamer(update_world_config(world_conf, latitude, longitude), streaming_conf, rendering_conf, pool_conf) {
     // }
 
+    configuration::configuration() = default;
+
     configuration::configuration(const double latitude, const double longitude) {
         // calculate tiles
         const double lat = latitude * DEG2RAD;
@@ -134,9 +151,10 @@ namespace raytiles {
         offset = {offset_x, 0.0f, offset_z};
     }
 
-    streamer2::streamer2(const Camera3D &camera, const double latitude, const double longitude, configuration conf)
-        : conf_(update_config(conf, latitude, longitude)),
-          camera_(camera) {
+    streamer2::streamer2(const Camera3D &camera, const configuration &conf)
+        : conf_(conf),
+          camera_(camera),
+          tile_renderer(std::make_unique<tiles_renderer>(extract_tile_shader_options(conf))) {
     }
 
     streamer2::~streamer2() = default;

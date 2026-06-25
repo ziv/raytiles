@@ -1,7 +1,5 @@
 #pragma once
 
-#include <vector>
-
 #include "raylib.h"
 #include "raii.hpp"
 #include "tile.hpp"
@@ -9,11 +7,9 @@
 #include "utils.hpp"
 
 namespace raytiles {
-    struct rendering_config;
-
     class tiles_renderer {
     public:
-        explicit tiles_renderer(const rendering_config &conf);
+        explicit tiles_renderer(const tile_shader_options &options);
 
         int draw(const Vector3 &position, const Vector3 &world_offset, const data_view &draw_view);
 

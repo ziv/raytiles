@@ -212,6 +212,8 @@ namespace raytiles {
         /// lighting artifacts if the normals become too steep.
         float normals_scale = 1.0f;
 
+        explicit configuration();
+
         explicit configuration(double latitude, double longitude);
     };
 
@@ -257,10 +259,7 @@ namespace raytiles {
     /// Movable but not copyable.
     class streamer2 {
     public:
-        explicit streamer2(const Camera3D &camera,
-                           double latitude,
-                           double longitude,
-                           configuration conf = {});
+        explicit streamer2(const Camera3D &camera, const configuration& conf);
 
         ~streamer2();
 
@@ -367,20 +366,22 @@ namespace raytiles {
         /// @}
 
     private:
-        // streamer keeps only the streaming-policy bits it actually uses
-        // (update gating, near/far for frustum extraction). All tile
-        // lifecycle state lives in `tile_manager`.
-        // streaming_config streaming;
+        //
         configuration conf_;
         Camera3D camera_;
+
+        // old, need refactoring
+        std::unique_ptr<tiles_renderer> tile_renderer;
+        std::unique_ptr<tiles_manager> tile_manager;
+
+
 
         float near_plane{}; // todo should be enter into state object
         float far_plane{};
         float update_distance_sq{};
         Vector3 init_position{};
 
-        std::unique_ptr<tiles_renderer> tile_renderer;
-        std::unique_ptr<tiles_manager> tile_manager;
+
 
         int rendered = 0;
 

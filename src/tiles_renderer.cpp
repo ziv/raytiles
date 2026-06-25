@@ -10,22 +10,22 @@ namespace raytiles {
     namespace {
         // Translate `rendering_config` (public API) into `tile_shader_options`
         // (shader-side mirror). Field-for-field copy.
-        tile_shader_options make_shader_options(const rendering_config &conf) {
-            tile_shader_options opts;
-            opts.fog_start = conf.fog_start;
-            opts.fog_end = conf.fog_end;
-            opts.skirt_drop = conf.skirt_drop;
-            for (int i = 0; i < 4; ++i) opts.fog_color[i] = conf.fog_color[i];
-            for (int i = 0; i < 4; ++i) opts.ambient_light[i] = conf.ambient_light[i];
-            for (int i = 0; i < 3; ++i) opts.sun_direction[i] = conf.sun_direction[i];
-            opts.sun_scale = conf.sun_scale;
-            opts.height_scale = conf.height_scale;
-            opts.normals_scale = conf.normals_scale;
-            return opts;
-        }
+        // tile_shader_options make_shader_options(const tiles_renderer_options &options) {
+        //     tile_shader_options opts;
+        //     opts.fog_start = options.fog_start;
+        //     opts.fog_end = options.fog_end;
+        //     opts.skirt_drop = options.skirt_drop;
+        //     for (int i = 0; i < 4; ++i) opts.fog_color[i] = options.fog_color[i];
+        //     for (int i = 0; i < 4; ++i) opts.ambient_light[i] = options.ambient_light[i];
+        //     for (int i = 0; i < 3; ++i) opts.sun_direction[i] = options.sun_direction[i];
+        //     opts.sun_scale = options.sun_scale;
+        //     opts.height_scale = options.height_scale;
+        //     opts.normals_scale = options.normals_scale;
+        //     return opts;
+        // }
     }
 
-    tiles_renderer::tiles_renderer(const rendering_config &conf) : shader_(make_shader_options(conf)) {
+    tiles_renderer::tiles_renderer(const tile_shader_options &options) : shader_(options) {
         material = raii::material{LoadMaterialDefault()};
         material->shader = shader_();
     }
