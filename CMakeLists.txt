@@ -56,6 +56,8 @@ add_library(${PROJECT_NAME}
         src/rayskies.cpp
         include/raytiles/crayskies.h
         src/crayskies.cpp
+        src/detail/fetch_pool.h
+        src/fetch_pool.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
