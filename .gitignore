@@ -11,4 +11,4 @@
 .github/copilot-instructions.md
 CLAUDE.md
 tmp/my.md
-/.cache
+/.cache/tile_source_test_cache/
