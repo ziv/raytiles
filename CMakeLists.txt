@@ -37,13 +37,14 @@ add_library(${PROJECT_NAME}
         include/raytiles/craytiles.h
         src/detail/raii.hpp
         src/detail/tile.hpp
+        src/detail/lod.hpp
         src/detail/utils.hpp
         src/raytiles.cpp
         src/craytiles.cpp
         src/tiles_renderer.cpp
         src/detail/tiles_renderer.h
-        src/detail/downloader.h
-        src/downloader.cpp
+        src/detail/tile_source.h
+        src/tile_source.cpp
         src/tile_shader.cpp
         src/detail/tile_shader.h
         src/tiles_manager.cpp
@@ -153,6 +154,7 @@ if (NOT RAYTILES_BINDINGS_MODE)
             tests/tests_main.cpp
             tests/lod_tests.cpp
             tests/utils_tests.cpp
+            tests/tile_source_tests.cpp
     )
 
     # tests link the library to inherit raylib's include dirs; the pure

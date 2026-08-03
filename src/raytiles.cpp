@@ -71,11 +71,11 @@ namespace raytiles {
             };
         }
 
-        pool_options make_pool_options(const pool_config &pool_conf) {
+        source_options make_source_options(const pool_config &pool_conf) {
             auto [texture_host, texture_url_path] = split_url(pool_conf.texture_url);
             auto [heightmap_host, heightmap_url_path] = split_url(pool_conf.heightmap_url);
             auto [normals_host, normals_url_path] = split_url(pool_conf.normals_url);
-            return pool_options{
+            return source_options{
                 .download_threads = pool_conf.download_threads,
                 .allow_insecure_tls = pool_conf.allow_insecure_tls,
                 .texture_cache_path = pool_conf.texture_cache_path,
@@ -100,7 +100,7 @@ namespace raytiles {
           update_distance_sq(streaming_conf.update_distance_sq),
           init_position(world_conf.offset),
           tile_renderer(std::make_unique<tiles_renderer>(rendering_conf)),
-          tile_manager(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming_conf), make_pool_options(pool_conf))) {
+          tile_manager(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming_conf), make_source_options(pool_conf))) {
     }
 
     streamer::streamer(const double latitude,

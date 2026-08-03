@@ -5,9 +5,9 @@
 #include <unordered_set>
 
 #include "raylib.h"
-#include "downloader.h"
 #include "lod.hpp"
 #include "tile.hpp"
+#include "tile_source.h"
 #include "utils.hpp"
 
 namespace raytiles {
@@ -76,13 +76,11 @@ namespace raytiles {
 
     class tiles_manager {
     public:
-        tiles_manager(const tiles_manager_options &opts, pool_options pool_opts);
+        tiles_manager(const tiles_manager_options &opts, source_options src_opts);
 
         [[nodiscard]] std::optional<float> ground_height(const Vector3 &position) const;
 
         [[nodiscard]] bool is_loading() const;
-
-        [[nodiscard]] std::size_t loading_count() const;
 
         [[nodiscard]] float get_loading() const;
 
@@ -110,7 +108,10 @@ namespace raytiles {
 
         void process_current_location(const Vector3 &position);
 
-        [[nodiscard]] loading_tile spawn(const tile_key &tile);
+        /// Queues a download for `key` (translating anchor-relative tile
+        /// coordinates to the provider's absolute ones) and tracks it as
+        /// loading.
+        void request(const tile_key &key);
 
         [[nodiscard]] bool is_tile_out_of_area(const tile_key &key, const Vector3 &position) const;
 
@@ -129,8 +130,14 @@ namespace raytiles {
         // updates only when "process_current_location" triggered
         std::unordered_set<tile_key> desired_keys;
 
-        // map of current loading tiles and their futures
-        std::unordered_map<tile_key, loading_tile> loading_tiles;
+        // keys requested from `source` but not yet promoted to GPU (their
+        // payload may still be downloading, or waiting in pending_uploads)
+        std::unordered_set<tile_key> loading_keys;
+
+        // completed payloads drained from `source` that did not fit into a
+        // previous frame's upload budget; promoted (or dropped) FIFO-ish from
+        // the back each frame
+        std::vector<tile_payload> pending_uploads;
 
         // map of tiles that may be rendered if in frustum
         // contain reference to the GPU nad CPU loaded resources
@@ -139,7 +146,7 @@ namespace raytiles {
         // metadata about tiles by their zoom
         std::unordered_map<Zoom, tile_value> tiles;
 
-        // background download workers
-        pool tile_downloader;
+        // async tile downloads (worker threads live here)
+        tile_source source;
     };
 }

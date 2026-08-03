@@ -3,16 +3,12 @@
 #include <format>
 #include <ranges>
 #include <utility>
-#include <chrono>
 #include <unordered_map>
 #include <vector>
-#include <ranges>
 #include "detail/utils.hpp"
 
-using namespace std::chrono_literals;
-
 namespace raytiles {
-    tiles_manager::tiles_manager(const tiles_manager_options &opts, pool_options pool_opts)
+    tiles_manager::tiles_manager(const tiles_manager_options &opts, source_options src_opts)
         : options(opts),
           lod_options{
               .base_zoom = opts.base_zoom,
@@ -21,7 +17,7 @@ namespace raytiles {
               .radius = opts.rendering_radius,
               .thresholds = opts.thresholds,
           },
-          tile_downloader(std::move(pool_opts)) {
+          source(std::move(src_opts)) {
         // input validation
         if (options.base_zoom < min_supported_zoom) {
             throw std::runtime_error(std::format("base_zoom {} is below min_supported_zoom {}", options.base_zoom, min_supported_zoom));
@@ -58,16 +54,12 @@ namespace raytiles {
         return loading;
     }
 
-    std::size_t tiles_manager::loading_count() const {
-        return loading_tiles.size();
-    }
-
     float tiles_manager::get_loading() const {
-        if (loading_tiles.empty()) return 0.0f;
+        if (loading_keys.empty()) return 0.0f;
         const auto required = static_cast<float>(desired_keys.size());
         if (required == 0.0f) return 0.0f; // avoid division by zero, should not happen but just in case
-        const auto loaded = static_cast<float>(loading_tiles.size());
-        return 1 - loaded / required;
+        const auto outstanding = static_cast<float>(loading_keys.size());
+        return 1 - outstanding / required;
     }
 
     std::optional<float> tiles_manager::ground_height(const Vector3 &position) const {
@@ -129,9 +121,15 @@ namespace raytiles {
             return true;
         });
 
-        for (auto &key: loading_tiles | std::views::keys) {
-            if (!desired_keys.contains(key)) {
-                tile_downloader.cancel(key.zoom, key.x, key.z);
+        // stop loading tiles that fell out of the desired set. cancellation
+        // is best-effort: a payload that slips through anyway is dropped by
+        // the desired-set check in process_loaded_tiles.
+        for (auto it = loading_keys.begin(); it != loading_keys.end();) {
+            if (!desired_keys.contains(*it)) {
+                source.cancel(*it);
+                it = loading_keys.erase(it);
+            } else {
+                ++it;
             }
         }
 
@@ -150,8 +148,8 @@ namespace raytiles {
             const auto user_z = static_cast<float>(tile.tz + static_cast<double>(world_offset.z));
             tile.in_frustum_this_frame = utils::is_tile_in_frustum(user_x, user_z, tile.size, frustum);
         }
-        // first time the loading list is empty, means we finished loading
-        if (loading && loading_tiles.empty()) {
+        // first time nothing is loading or pending upload, initial load is done
+        if (loading && loading_keys.empty()) {
             loading = false;
         }
     }
@@ -161,61 +159,38 @@ namespace raytiles {
     }
 
     void tiles_manager::process_loaded_tiles() {
-        // walk loading tiles; for each entry where all three downloads finished, either
-        // promote it to rendering_tiles or drop it (no longer desired). entries are
-        // erased immediately on the iterator. uploads are bounded both by a wall-clock
-        // budget (to keep the frame steady on slow GPUs) and a hard cap (to keep heavy
-        // single-tile uploads from running away). PNG decode happened off-thread inside
-        // the worker pool, so this loop only does GPU upload + bookkeeping.
+        // a failed tile (network / decode error, already logged by the
+        // worker) is simply forgotten; a later desired-set rebuild may
+        // request it again.
+        for (const auto &key: source.drain_failures()) loading_keys.erase(key);
+
+        // collect payloads completed since last frame. moves only — the
+        // decoded pixel buffers keep their single owner all the way from the
+        // worker to the GPU upload below.
+        for (auto &&payload: source.drain()) pending_uploads.push_back(std::move(payload));
+
+        // promote pending payloads into rendering_tiles. uploads are bounded
+        // both by a wall-clock budget (to keep the frame steady on slow GPUs)
+        // and a hard cap (to keep heavy single-tile uploads from running
+        // away). PNG decode already happened off-thread, so this loop only
+        // does GPU upload + bookkeeping.
         const double frame_start = GetTime();
         int promoted = 0;
 
-        for (auto it = loading_tiles.begin(); it != loading_tiles.end();) {
-            auto &[key, tile] = *it;
+        while (!pending_uploads.empty()) {
+            tile_payload payload = std::move(pending_uploads.back());
+            pending_uploads.pop_back();
+            const tile_key key = payload.key;
+            loading_keys.erase(key);
 
-            // all three futures must be ready
-            if (tile.tx_future.wait_for(0s) != std::future_status::ready ||
-                tile.hm_future.wait_for(0s) != std::future_status::ready ||
-                tile.nl_future.wait_for(0s) != std::future_status::ready) {
-                ++it;
-                continue;
-            }
-
-            // futures resolved with already-decoded raylib Image values (POD).
-            // .get() returns a const Image& into the shared_future's storage; the
-            // pixel buffer was malloc'd by stb_image in the worker. we copy the
-            // struct out (cheap, just pointer + ints) and immediately wrap each
-            // copy in raii::image so the buffer is freed by UnloadImage on every
-            // exit path below. the shared_future's residual copy of the Image is
-            // harmless when the loading_tile is erased: Image is a POD with no
-            // destructor, so destroying the shared_future does not double-free.
-            //
-            // a worker exception (network failure, decode failure, etc.) propagates
-            // through .get(); drop the tile and keep streaming the rest.
-            raii::image tex_img{};
-            raii::image height_img{};
-            raii::image normals_img{};
-            try {
-                tex_img = raii::image{tile.tx_future.get()};
-                height_img = raii::image{tile.hm_future.get()};
-                normals_img = raii::image{tile.nl_future.get()};
-            } catch (const std::exception &e) {
-                TraceLog(LOG_WARNING, "tile %d/%d/%d download failed: %s - dropping", key.zoom, key.x, key.z, e.what());
-                it = loading_tiles.erase(it);
-                continue;
-            }
-
-            // do we still need it?
-            if (!desired_keys.contains(key)) {
-                it = loading_tiles.erase(it);
-                continue;
-            }
+            // do we still need it? (dropping frees the CPU images here)
+            if (!desired_keys.contains(key)) continue;
 
             // upload to GPU and move into rendering_tiles. the heightmap CPU image is
             // kept in the loaded_tile for ground_height() queries (recast, collision).
-            raii::texture texture_tex = raii::load_texture_from_image(*tex_img);
-            raii::texture height_tex = raii::load_texture_from_image(*height_img);
-            raii::texture normals_tex = raii::load_texture_from_image(*normals_img);
+            raii::texture texture_tex = raii::load_texture_from_image(*payload.albedo);
+            raii::texture height_tex = raii::load_texture_from_image(*payload.height);
+            raii::texture normals_tex = raii::load_texture_from_image(*payload.normals);
 
             // don't clamp the ends
             SetTextureWrap(*texture_tex, TEXTURE_WRAP_CLAMP);
@@ -228,18 +203,22 @@ namespace raytiles {
                 SetTextureFilter(*texture_tex, TEXTURE_FILTER_ANISOTROPIC_16X);
             }
 
+            // world-space tile center, matching the mesh translation in draw
+            const auto tile_size = tiles.at(key.zoom).size;
+            const auto tx = (static_cast<double>(key.x) + 0.5) * static_cast<double>(tile_size);
+            const auto tz = (static_cast<double>(key.z) + 0.5) * static_cast<double>(tile_size);
+
             rendering_tiles.insert_or_assign(key, loaded_tile{
-                                                 tiles.at(key.zoom).size,
-                                                 tile.tx,
-                                                 tile.tz,
+                                                 tile_size,
+                                                 tx,
+                                                 tz,
                                                  std::move(texture_tex),
                                                  std::move(height_tex),
-                                                 std::move(height_img),
+                                                 std::move(payload.height),
                                                  std::move(normals_tex),
                                                  false
                                              });
 
-            it = loading_tiles.erase(it);
             ++promoted;
 
             if (promoted >= options.max_uploads_per_frame) break;
@@ -252,29 +231,18 @@ namespace raytiles {
         // only owns the side effect of spawning downloads for missing tiles.
         lod::desired_tiles(lod_options, position, desired_keys);
 
-        // spawn new if not in rendering list
+        // request whatever is neither resident nor already loading
         for (const auto &key: desired_keys)
-            if (!rendering_tiles.contains(key) && !loading_tiles.contains(key))
-                loading_tiles.try_emplace(key, spawn(key));
+            if (!rendering_tiles.contains(key) && !loading_keys.contains(key))
+                request(key);
     }
 
-    loading_tile tiles_manager::spawn(const tile_key &tile) {
-        const auto &te = tiles.at(tile.zoom);
-        const auto scale = 1 << (tile.zoom - options.base_zoom);
-        const auto tx = tile.x + options.anchor_x_tile * scale;
-        const auto tz = tile.z + options.anchor_z_tile * scale;
-        const auto tile_size = te.size;
-
-        auto t = loading_tile{
-            // loading tile structure
-            (static_cast<double>(tile.x) + 0.5) * static_cast<double>(tile_size),
-            (static_cast<double>(tile.z) + 0.5) * static_cast<double>(tile_size),
-            tile_downloader.enqueue_texture(tile.zoom, tx, tz),
-            tile_downloader.enqueue_heightmap(tile.zoom, tx, tz),
-            tile_downloader.enqueue_normals(tile.zoom, tx, tz),
-        };
-
-        return t;
+    void tiles_manager::request(const tile_key &key) {
+        // tile keys are anchor-relative; the provider wants absolute slippy
+        // coordinates, so shift by the anchor scaled to this key's zoom.
+        const auto scale = 1 << (key.zoom - options.base_zoom);
+        source.request(key, key.x + options.anchor_x_tile * scale, key.z + options.anchor_z_tile * scale);
+        loading_keys.insert(key);
     }
 
     bool tiles_manager::is_tile_out_of_area(const tile_key &key, const Vector3 &position) const {
