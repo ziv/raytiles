@@ -13,12 +13,9 @@ int main(void) {
     InitWindow(800, 600, "raytiles - C demo");
     SetTargetFPS(60);
 
-    RaytilesWorldConfig world = RaytilesWorldConfigDefault();
-    RaytilesStreamingConfig streaming = RaytilesStreamingConfigDefault();
-    RaytilesRenderingConfig rendering = RaytilesRenderingConfigDefault();
-    RaytilesPoolConfig pool = RaytilesPoolConfigDefault();
+    RaytilesConfig config = RaytilesConfigDefault();
 
-    RaytilesStreamer *streamer = RaytilesStreamerCreate(&world, &streaming, &rendering, &pool);
+    RaytilesStreamer *streamer = RaytilesStreamerCreate(&config);
     if (!streamer) {
         TraceLog(LOG_ERROR, "failed to create raytiles streamer");
         CloseWindow();
@@ -27,7 +24,7 @@ int main(void) {
 
     RaytilesStreamerSetFogColor(streamer, SKYBLUE);
     RaytilesStreamerSetAmbientLight(streamer, (Color){200, 200, 200, 255});
-    RaytilesStreamerSetSunDirection(streamer, (Vector3){0.1f, 1.0f, 0.1f});
+    RaytilesStreamerSetSun(streamer, (Vector3){0.1f, 1.0f, 0.1f}, 1.0f);
 
     Camera3D camera = {
         .position = {2000.0f, 5000.0f, 2000.0f},
@@ -42,14 +39,14 @@ int main(void) {
     const Vector3 world_offset = (Vector3){0.0f, 0.0f, 0.0f};
 
     // Make sure we'll see the horizon
-    rlSetClipPlanes(streaming.near_plane, streaming.far_plane);
+    rlSetClipPlanes(config.streaming.near_plane, config.streaming.far_plane);
 
     // initial-loading splash screen
     while (!WindowShouldClose()) {
         RaytilesStreamerUpdate(streamer, camera, world_offset);
         if (!RaytilesStreamerIsLoading(streamer)) break;
 
-        const float progress = RaytilesStreamerGetLoading(streamer) * 100.0f;
+        const float progress = RaytilesStreamerLoadingProgress(streamer) * 100.0f;
         BeginDrawing();
         ClearBackground(BLACK);
         DrawText(TextFormat("Loading... %.1f%%", progress), 280, 280, 30, WHITE);

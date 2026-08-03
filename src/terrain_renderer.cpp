@@ -236,10 +236,6 @@ void main()
                           static_cast<float>(color.a) / 255.0f);
     }
 
-    void terrain_renderer::set_ambient_light(const Vector4 color) {
-        set_ambient_light(color.x, color.y, color.z, color.w);
-    }
-
     void terrain_renderer::set_fog_color(const float r, const float g, const float b, const float a) {
         options.fog_color[0] = r;
         options.fog_color[1] = g;
@@ -253,10 +249,6 @@ void main()
                       static_cast<float>(color.g) / 255.0f,
                       static_cast<float>(color.b) / 255.0f,
                       static_cast<float>(color.a) / 255.0f);
-    }
-
-    void terrain_renderer::set_fog_color(const Vector4 color) {
-        set_fog_color(color.x, color.y, color.z, color.w);
     }
 
     void terrain_renderer::set_fog_start(const float distance) {

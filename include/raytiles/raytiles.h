@@ -60,12 +60,12 @@ namespace raytiles {
         Plane planes[6];
     };
 
-    /// Configuration for the background tile download pool. Passed by value to
-    /// the `streamer` constructor.
-    struct pool_config {
+    /// Tile download / provider configuration: worker threads, provider URL
+    /// templates, and the on-disk cache layout.
+    struct network_config {
         /// Number of background download workers. Downloads are I/O-bound so it's
-        /// safe to use more threads than CPU cores; 2 is a reasonable default for
-        /// HTTP keep-alive against a single host.
+        /// safe to use more threads than CPU cores; 4 is a reasonable default for
+        /// HTTP keep-alive against a small set of hosts.
         int download_threads = 4;
 
         /// Skip TLS certificate verification for tile downloads. Only useful for
@@ -78,10 +78,11 @@ namespace raytiles {
         std::string heightmap_cache_path = ".cache/heightmap/{}/{}/{}.png";
         std::string normals_cache_path = ".cache/normals/{}/{}/{}.png";
 
-        /// Provider URL templates. The full request URL is constructed from
-        /// `{zoom}/{x}/{z}` (plus any optional token in the template). Any
-        /// provider following the XYZ (slippy-map) convention works, as long as
-        /// the heightmap provider returns RGB-encoded heightmaps.
+        /// Provider URL templates using `:zoom:` / `:x:` / `:y:` tokens
+        /// (substituted at request time). Any provider following the XYZ
+        /// (slippy-map) convention works, as long as the heightmap provider
+        /// returns Terrarium RGB-encoded heightmaps (`ground_height()`
+        /// depends on that encoding).
         std::string texture_url = RAYTILES_TEXTURE_URL;
         std::string heightmap_url = RAYTILES_HEIGHTMAP_URL;
         std::string normals_url = RAYTILES_NORMALS_URL;
@@ -94,7 +95,8 @@ namespace raytiles {
     struct world_config {
         /// World-space anchor in tile coordinates at `base_zoom`. The streamer
         /// translates tile XY to world XZ relative to this anchor so the world
-        /// origin is wherever you want it (e.g. your runway).
+        /// origin is wherever you want it (e.g. your runway). Prefer the
+        /// latitude/longitude constructor, which computes the anchor for you.
         int anchor_x_tile = 306;
         int anchor_z_tile = 207;
 
@@ -127,7 +129,11 @@ namespace raytiles {
         /// upload. Strongly recommended; avoids shimmering at distance.
         bool use_mipmap = true;
 
-        // todo handle offset settings
+        /// Initial-position hint returned by `streamer::get_initial_position`:
+        /// the world-space point corresponding to the anchor. The
+        /// latitude/longitude constructor fills it in so the camera can start
+        /// exactly over the requested coordinates; with a manual anchor it is
+        /// yours to set (or leave zero to start at the anchor tile's corner).
         Vector3 offset = {0.0f, 0.0f, 0.0f};
     };
 
@@ -150,11 +156,10 @@ namespace raytiles {
             100000.0f, 80000.0f, 40000.0f, 20000.0f, 10000.0f, 5000.0f, 2500.0f
         };
 
-        /// Distance delta (in meters) that triggers a desired-set recomputation.
-        /// Keep this large enough that small movements don't churn
-        /// the working set.
-        MetersSq update_distance_sq = 500.0f * 500.0f;
-
+        /// Distance (in meters) the camera must travel to trigger a
+        /// desired-set recomputation. Keep this large enough that small
+        /// movements don't churn the working set.
+        Meters update_distance = 500.0f;
 
         /// Wall-clock budget (in seconds) per frame for promoting downloaded tiles
         /// into GPU resources. Caps the cost of a single bursty frame.
@@ -164,18 +169,20 @@ namespace raytiles {
         /// Whichever limit is hit first stops the loop.
         int max_uploads_per_frame = 8;
 
-        /// Near clip plane (meters) used by the displacement shader for fog and
-        /// depth-precision tuning. Match this to your camera setup.
+        /// Near clip plane (meters) used when extracting the culling frustum.
+        /// Match this to your camera setup.
         MetersD near_plane = 1;
 
-        /// Far clip plane (meters) used by the displacement shader for fog and
-        /// depth-precision tuning. Match this to your camera setup.
+        /// Far clip plane (meters) used when extracting the culling frustum.
+        /// Match this to your camera setup.
         MetersD far_plane = 400000;
     };
 
     /// Rendering / shader-uniform parameters. Every field here is genuinely
     /// runtime-mutable; most have matching `streamer::set_*` setters that push
-    /// new values to the shader on the next `update()`.
+    /// new values to the shader immediately. Colors are float RGBA (0..1) so
+    /// initial values keep full precision; the runtime setters take raylib
+    /// `Color` for convenience.
     struct rendering_config {
         /// Distance (in meters) at which atmospheric fog starts to fade tiles to
         /// `fog_color`.
@@ -215,6 +222,19 @@ namespace raytiles {
         float normals_scale = 1.0f;
     };
 
+    /// Complete streamer configuration. Every field of every nested struct has
+    /// a sensible default, so `{}` is a fully working configuration and call
+    /// sites only spell out what they change:
+    /// @code
+    ///   raytiles::streamer s(lat, lon, {.streaming = {.rendering_radius = 8}});
+    /// @endcode
+    struct config {
+        world_config world{};
+        streaming_config streaming{};
+        rendering_config rendering{};
+        network_config network{};
+    };
+
     class terrain_renderer;
     class tile_source;
     class tile_store;
@@ -225,7 +245,7 @@ namespace raytiles {
     ///
     /// Typical use:
     /// @code
-    ///   raytiles::streamer s(world, streaming, rendering, pool_conf);
+    ///   raytiles::streamer s(latitude, longitude);
     ///   while (!WindowShouldClose()) {
     ///     // 1. apply your large-world rebase (if any) so camera and
     ///     //    world_offset agree on the *current* frame.
@@ -251,37 +271,24 @@ namespace raytiles {
     /// Movable but not copyable.
     class streamer {
     public:
-        /// All arguments have defaults and optionally tweakable fields, so you can construct
-        /// a streamer with zero arguments for a quick start with reasonable defaults.
-        /// @param world_conf
-        /// @param streaming_conf
-        /// @param rendering_conf
-        /// @param pool_conf
+        /// Constructs a streamer. `config{}` (the default) is fully usable —
+        /// free Esri imagery + Mapzen terrain around the default anchor.
+        /// @param cfg complete configuration; see the `config` nested structs.
         /// @note A raylib window must already be initialized (`InitWindow`) before
         ///       constructing a streamer because shader / texture creation requires
         ///       a live GL context.
-        explicit streamer(const world_config &world_conf = {},
-                          const streaming_config &streaming_conf = {},
-                          const rendering_config &rendering_conf = {},
-                          const pool_config &pool_conf = {});
+        /// @throws std::runtime_error when `cfg.world` violates the zoom bounds.
+        explicit streamer(config cfg = {});
 
-        /// Allow you to construct a streamer with just a latitude and longitude as the
-        /// world anchor; the rest of the world config is filled in with defaults.
-        /// @param latitude
-        /// @param longitude
-        /// @param world_conf
-        /// @param streaming_conf
-        /// @param rendering_conf
-        /// @param pool_conf
+        /// Constructs a streamer anchored at a geographic coordinate: the tile
+        /// anchor, tile size, and initial-position offset of `cfg.world` are
+        /// computed from `latitude` / `longitude` (degrees); everything else in
+        /// `cfg` is used as-is.
         /// @note A raylib window must already be initialized (`InitWindow`) before
         ///       constructing a streamer because shader / texture creation requires
         ///       a live GL context.
-        explicit streamer(double latitude,
-                          double longitude,
-                          world_config world_conf = {},
-                          const streaming_config &streaming_conf = {},
-                          const rendering_config &rendering_conf = {},
-                          const pool_config &pool_conf = {});
+        /// @throws std::runtime_error when `cfg.world` violates the zoom bounds.
+        streamer(double latitude, double longitude, config cfg = {});
 
         ~streamer();
 
@@ -316,16 +323,23 @@ namespace raytiles {
         /// Reuses the camera and `world_offset` cached by `update()`.
         void draw();
 
+        /// Draws tile-bound wireframes for debugging. Call inside the same
+        /// `BeginMode3D` / `EndMode3D` block as `draw()`.
         void draw_debug_3d();
 
+        /// Draws per-tile zoom labels for debugging. Call after `EndMode3D`.
         void draw_debug_labels();
 
-        /// Return true for initial loading only
+        /// True until the initial tile set finished loading. Use together with
+        /// `loading_progress()` to drive a splash screen.
         [[nodiscard]] bool is_loading() const;
 
-        /// Return loading percents
-        [[nodiscard]] float get_loading() const;
+        /// Initial-load progress in `[0, 1]`, monotonically non-decreasing;
+        /// returns 1 once loading completed.
+        [[nodiscard]] float loading_progress() const;
 
+        /// A sensible starting camera position: the world-space point of the
+        /// constructor's anchor (see `world_config::offset`), raised `y` meters.
         [[nodiscard]] Vector3 get_initial_position(float y) const;
 
         /// Returns the terrain altitude (Y world-coordinate) under `position`,
@@ -342,33 +356,29 @@ namespace raytiles {
         [[nodiscard]] std::optional<float> ground_height(Vector3 position) const;
 
         /// @name Shader parameter setters
-        /// Forwarded onto the internal renderer; safe to call any time after
-        /// construction. Take effect on the next `update()`.
+        /// Push new uniform values to the displacement shader; safe to call any
+        /// time after construction, take effect on the next drawn frame. For
+        /// float-precision colors set the initial values in
+        /// `config::rendering` instead.
         /// @{
 
-        /// Sets the ambient light color sent to the displacement shader. Use this
-        /// to drive day / night / weather lighting changes.
+        /// Sets the ambient light color. Use this to drive day / night /
+        /// weather lighting changes.
         void set_ambient_light(Color color) const;
-
-        void set_ambient_light(Vector4 color) const;
-
-        void set_ambient_light(float r, float g, float b, float a) const;
 
         /// Sets the fog color for distance attenuation. Match this to your sky
         /// color for a seamless horizon.
         void set_fog_color(Color color) const;
 
-        void set_fog_color(Vector4 color) const;
+        /// Sets fog color and both fade distances in one call: colors start
+        /// blending at `start` meters from the camera and are fully replaced
+        /// by `color` at `end` meters.
+        void set_fog(Color color, float start, float end) const;
 
-        void set_fog_color(float r, float g, float b, float a) const;
-
-        /// Sets the fog start distance — the distance from the camera at which
-        /// colors begin to blend with the fog.
-        void set_fog_start(float distance) const;
-
-        /// Sets the fog end distance — the distance from the camera at which
-        /// colors are fully blended with the fog color.
-        void set_fog_end(float distance) const;
+        /// Sets the sun: `direction` is normalized by the shader (magnitude
+        /// irrelevant); `intensity` controls the contrast between lit and
+        /// shaded areas (default 1.0).
+        void set_sun(Vector3 direction, float intensity) const;
 
         /// Sets the heightmap scale factor, which exaggerates or flattens the
         /// terrain relief (drama factor).
@@ -376,14 +386,6 @@ namespace raytiles {
 
         /// Sets the normals scale factor to increase or reduce lighting contrast.
         void set_normals_scale(float scale) const;
-
-        /// Sets the sun direction vector used by the displacement shader's
-        /// lighting calculations.
-        void set_sun_direction(Vector3 direction) const;
-
-        /// Sets the sun lighting intensity, which controls the contrast between
-        /// lit and shaded areas.
-        void set_sun_scale(float scale) const;
 
         /// @}
 
@@ -397,9 +399,11 @@ namespace raytiles {
         float update_distance_sq;
         Vector3 init_position;
 
-        std::unique_ptr<terrain_renderer> renderer_;
+        // declaration order is construction order: the store validates the
+        // config (and throws) before the renderer creates any GL resources
         std::unique_ptr<tile_source> source_;
         std::unique_ptr<tile_store> store_;
+        std::unique_ptr<terrain_renderer> renderer_;
 
         int rendered = 0;
 

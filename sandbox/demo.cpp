@@ -21,15 +21,12 @@ int main() {
 
     std::string token = required_env();
 
-    raytiles::world_config word_conf;
-    raytiles::streaming_config streaming_conf;
-    raytiles::rendering_config rendering_conf;
-    raytiles::pool_config pool_conf;
+    raytiles::config cfg;
 
-    // pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
-    pool_conf.download_threads = 8;
-    // rendering_conf.skirt_drop = 1000.0f;
-    word_conf.skirt_overlap = {1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f};
+    // cfg.network.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
+    cfg.network.download_threads = 8;
+    // cfg.rendering.skirt_drop = 1000.0f;
+    cfg.world.skirt_overlap = {1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f};
 
 
     // The Dolomites
@@ -55,7 +52,7 @@ int main() {
     // constexpr double lon = 34.95166;
 
     // init tiles streamer
-    raytiles::streamer streamer(lat, lon, word_conf, streaming_conf, rendering_conf, pool_conf);
+    raytiles::streamer streamer(lat, lon, cfg);
 
     // init sky streamer
     raytiles::sky::sky_steamer sky;
@@ -79,7 +76,7 @@ int main() {
     loading_screen(streamer, camera, world_offset);
 
     // make sure we'll see the horizon
-    rlSetClipPlanes(streaming_conf.near_plane, streaming_conf.far_plane);
+    rlSetClipPlanes(cfg.streaming.near_plane, cfg.streaming.far_plane);
 
     while (!WindowShouldClose()) {
         constexpr float rebase_threshold = 4096.0f;

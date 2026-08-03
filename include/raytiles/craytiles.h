@@ -2,29 +2,27 @@
 /// C wrapper for the raytiles public API (see raytiles.h).
 ///
 /// Mirrors the C++ API 1:1 in C-compatible form:
-///   - `raytiles::world_config`     -> `RaytilesWorldConfig`
-///                                     (default: `RaytilesWorldConfigDefault()`)
-///   - `raytiles::streaming_config` -> `RaytilesStreamingConfig`
-///                                     (default: `RaytilesStreamingConfigDefault()`)
-///   - `raytiles::rendering_config` -> `RaytilesRenderingConfig`
-///                                     (default: `RaytilesRenderingConfigDefault()`)
-///   - `raytiles::pool_config`      -> `RaytilesPoolConfig`
-///                                     (default: `RaytilesPoolConfigDefault()`)
+///   - `raytiles::config`           -> `RaytilesConfig`
+///                                     (default: `RaytilesConfigDefault()`)
+///     with the same nested groups: `world`, `streaming`, `rendering`,
+///     `network`.
 ///   - `raytiles::streamer`         -> opaque `RaytilesStreamer*`
 ///
 /// Shader-parameter setters are exposed directly on the streamer handle as
-/// `RaytilesStreamerSet*`.
+/// `RaytilesStreamerSet*` (raylib `Color` / `Vector3` based, matching the
+/// C++ setters; float-precision colors go through
+/// `RaytilesRenderingConfig` at creation).
 ///
 /// Per-zoom `std::array` fields are exposed as fixed-size C arrays of length
 /// `RAYTILES_ZOOM_LEVELS`. Slot `i` applies to zoom `base_zoom + i`; trailing
 /// slots beyond `max_zoom - base_zoom` are ignored.
 ///
-/// String fields in `RaytilesPoolConfig` are `const char*`. NULL is treated as
-/// an empty string. Strings only need to remain valid for the duration of the
-/// `RaytilesStreamerCreate` call.
+/// String fields in `RaytilesNetworkConfig` are `const char*`. NULL is treated
+/// as the built-in default. Strings only need to remain valid for the duration
+/// of the `RaytilesStreamerCreate*` call.
 ///
-/// `Camera3D`, `Vector3`, `Vector4`, and `Color` are passed by value to keep
-/// the ABI C-compatible (no C++ references in the public surface).
+/// `Camera3D`, `Vector3`, and `Color` are passed by value to keep the ABI
+/// C-compatible (no C++ references in the public surface).
 ///
 /// All functions that touch GPU state require a live raylib GL context
 /// (`InitWindow` first), matching the C++ contract.
@@ -70,8 +68,9 @@ typedef struct RaytilesWorldConfig {
     /// Generate trilinear / anisotropic mipmaps for the albedo texture.
     bool use_mipmap;
 
-    /// World-space offset applied to the anchor. Mirrors
-    /// `raytiles::world_config::offset`.
+    /// Initial-position hint (world-space point of the anchor). Mirrors
+    /// `raytiles::world_config::offset`; filled in automatically by
+    /// `RaytilesStreamerCreateLatLon`.
     Vector3 offset;
 } RaytilesWorldConfig;
 
@@ -85,10 +84,9 @@ typedef struct RaytilesStreamingConfig {
     /// `raytiles::streaming_config::thresholds`.
     float thresholds[RAYTILES_ZOOM_LEVELS];
 
-    /// Squared XZ distance (meters²) the camera must travel to trigger a
-    /// re-stream. Mirrors `raytiles::streaming_config::update_distance_sq`
-    /// (type `MetersSq` == float).
-    float update_distance_sq;
+    /// Distance (meters) the camera must travel to trigger a re-stream.
+    /// Mirrors `raytiles::streaming_config::update_distance`.
+    float update_distance;
 
     /// Per-frame wall-clock budget (seconds) for promoting tiles to GPU.
     double upload_budget_sec;
@@ -96,10 +94,10 @@ typedef struct RaytilesStreamingConfig {
     /// Hard cap on tile promotions per frame.
     int max_uploads_per_frame;
 
-    /// Near clip plane (meters). Matches the C++ `MetersD` (double).
+    /// Near clip plane (meters) used for frustum extraction.
     double near_plane;
 
-    /// Far clip plane (meters).
+    /// Far clip plane (meters) used for frustum extraction.
     double far_plane;
 } RaytilesStreamingConfig;
 
@@ -133,49 +131,46 @@ typedef struct RaytilesRenderingConfig {
     float normals_scale;
 } RaytilesRenderingConfig;
 
-/// Pool / provider parameters. Mirrors `raytiles::pool_config`.
-/// String fields may be NULL to mean "empty"; otherwise they are copied into
-/// the underlying C++ pool on `RaytilesStreamerCreate`.
-typedef struct RaytilesPoolConfig {
+/// Download / provider parameters. Mirrors `raytiles::network_config`.
+/// String fields may be NULL to mean "use the built-in default"; otherwise
+/// they are copied on `RaytilesStreamerCreate*`.
+typedef struct RaytilesNetworkConfig {
     /// Number of background download workers.
     int download_threads;
 
     /// Skip TLS certificate verification (test / proxy use only).
     bool allow_insecure_tls;
 
-    /// On-disk cache path templates, formatted with `{zoom}/{x}/{y}` (or
-    /// `{zoom}/{y}/{x}` for the texture path) via `std::vformat`.
+    /// On-disk cache path templates, formatted with `{zoom}/{x}/{z}` slots
+    /// (`{}` placeholders) via `std::vformat`.
     const char *texture_cache_path;
     const char *heightmap_cache_path;
     const char *normals_cache_path;
 
-    /// Provider URL templates (full URL, including scheme + host + path).
-    /// The pool splits each full URL into host and path at construction.
+    /// Provider URL templates (full URL with `:zoom:`/`:x:`/`:y:` tokens).
     const char *texture_url;
     const char *heightmap_url;
     const char *normals_url;
-} RaytilesPoolConfig;
+} RaytilesNetworkConfig;
+
+/// Complete streamer configuration. Mirrors `raytiles::config`: four nested
+/// groups, all defaulted by `RaytilesConfigDefault()`.
+typedef struct RaytilesConfig {
+    RaytilesWorldConfig world;
+    RaytilesStreamingConfig streaming;
+    RaytilesRenderingConfig rendering;
+    RaytilesNetworkConfig network;
+} RaytilesConfig;
 
 // ---------------------------------------------------------------------------
-//  Default-initializers
+//  Default-initializer
 // ---------------------------------------------------------------------------
 
-/// Returns a `RaytilesWorldConfig` populated with the same defaults as the
-/// C++ `raytiles::world_config{}`.
-RaytilesWorldConfig RaytilesWorldConfigDefault(void);
-
-/// Returns a `RaytilesStreamingConfig` populated with the same defaults as the
-/// C++ `raytiles::streaming_config{}`.
-RaytilesStreamingConfig RaytilesStreamingConfigDefault(void);
-
-/// Returns a `RaytilesRenderingConfig` populated with the same defaults as
-/// the C++ `raytiles::rendering_config{}`.
-RaytilesRenderingConfig RaytilesRenderingConfigDefault(void);
-
-/// Returns a `RaytilesPoolConfig` populated with the same defaults as the
-/// C++ `raytiles::pool_config{}`. String fields point to static storage owned
-/// by the library; do not free them.
-RaytilesPoolConfig RaytilesPoolConfigDefault(void);
+/// Returns a `RaytilesConfig` populated with the same defaults as the C++
+/// `raytiles::config{}` — a fully working configuration (free Esri imagery +
+/// Mapzen terrain). String fields point to static storage owned by the
+/// library; do not free them.
+RaytilesConfig RaytilesConfigDefault(void);
 
 // ---------------------------------------------------------------------------
 //  Streamer
@@ -186,29 +181,21 @@ RaytilesPoolConfig RaytilesPoolConfigDefault(void);
 typedef struct RaytilesStreamer RaytilesStreamer;
 
 /// Creates a streamer. Requires a live raylib GL context (`InitWindow` first).
-/// Any of the config pointers may be NULL to use the corresponding C++ default
-/// (equivalent to passing `RaytilesXxxConfigDefault()`). The structs (and any
-/// strings / arrays they reference) are copied; the caller may free them on
-/// return. Returns NULL on allocation failure.
-RaytilesStreamer *RaytilesStreamerCreate(const RaytilesWorldConfig *world,
-                                         const RaytilesStreamingConfig *streaming,
-                                         const RaytilesRenderingConfig *rendering,
-                                         const RaytilesPoolConfig *pool);
+/// `config` may be NULL to use `RaytilesConfigDefault()`. The struct (and any
+/// strings / arrays it references) is copied; the caller may free it on
+/// return. Returns NULL on failure (allocation or invalid zoom bounds).
+RaytilesStreamer *RaytilesStreamerCreate(const RaytilesConfig *config);
 
 /// Creates a streamer anchored at a geographic `latitude` / `longitude`
-/// (degrees); the remaining world config is filled in from `world` (or the
-/// C++ defaults when `world` is NULL). Mirrors the C++
-/// `raytiles::streamer(double latitude, double longitude, ...)` constructor.
-/// Requires a live raylib GL context (`InitWindow` first). Any of the config
-/// pointers may be NULL to use the corresponding C++ default. The structs (and
-/// any strings / arrays they reference) are copied; the caller may free them
-/// on return. Returns NULL on allocation failure.
+/// (degrees): the anchor tiles, tile size, and initial-position offset of
+/// `config->world` are computed from the coordinate; everything else in
+/// `config` is used as-is. Mirrors the C++
+/// `raytiles::streamer(latitude, longitude, config)` constructor.
+/// `config` may be NULL to use `RaytilesConfigDefault()`. Requires a live
+/// raylib GL context (`InitWindow` first). Returns NULL on failure.
 RaytilesStreamer *RaytilesStreamerCreateLatLon(double latitude,
                                                double longitude,
-                                               const RaytilesWorldConfig *world,
-                                               const RaytilesStreamingConfig *streaming,
-                                               const RaytilesRenderingConfig *rendering,
-                                               const RaytilesPoolConfig *pool);
+                                               const RaytilesConfig *config);
 
 /// Destroys a streamer and releases all GPU / CPU resources. NULL-safe.
 void RaytilesStreamerDestroy(RaytilesStreamer *streamer);
@@ -248,9 +235,11 @@ void RaytilesStreamerDrawDebugLabels(RaytilesStreamer *streamer);
 /// Returns false if `streamer` is NULL.
 bool RaytilesStreamerIsLoading(const RaytilesStreamer *streamer);
 
-/// Returns the initial-load progress in `[0, 1]`. Returns 0 if `streamer` is
+/// Returns the initial-load progress in `[0, 1]`, monotonically
+/// non-decreasing; returns 1 once loading completed and 0 if `streamer` is
 /// NULL. Pair with `RaytilesStreamerIsLoading` to drive a splash screen.
-float RaytilesStreamerGetLoading(const RaytilesStreamer *streamer);
+/// Mirrors `streamer::loading_progress`.
+float RaytilesStreamerLoadingProgress(const RaytilesStreamer *streamer);
 
 /// Returns a sensible initial camera position above the world anchor, raised
 /// by `y` meters on the vertical axis. Useful for placing the camera before
@@ -278,27 +267,21 @@ bool RaytilesStreamerGroundHeight(const RaytilesStreamer *streamer,
 
 /// Sets the ambient light color sent to the displacement shader. Use this to
 /// drive day / night / weather lighting changes.
-/// Three variants mirror the C++ overloads: `Color` (8-bit per channel),
-/// `Vector4` (normalized 0..1 floats), and explicit float RGBA components.
 void RaytilesStreamerSetAmbientLight(RaytilesStreamer *streamer, Color color);
-void RaytilesStreamerSetAmbientLightV4(RaytilesStreamer *streamer, Vector4 color);
-void RaytilesStreamerSetAmbientLightRGBA(RaytilesStreamer *streamer,
-                                         float r, float g, float b, float a);
 
 /// Sets the fog color for distance attenuation. Match this to your sky color
 /// for a seamless horizon.
-/// Three variants mirror the C++ overloads: `Color` (8-bit per channel),
-/// `Vector4` (normalized 0..1 floats), and explicit float RGBA components.
 void RaytilesStreamerSetFogColor(RaytilesStreamer *streamer, Color color);
-void RaytilesStreamerSetFogColorV4(RaytilesStreamer *streamer, Vector4 color);
-void RaytilesStreamerSetFogColorRGBA(RaytilesStreamer *streamer,
-                                     float r, float g, float b, float a);
 
-/// Sets the distance (meters) at which fog begins blending in.
-void RaytilesStreamerSetFogStart(RaytilesStreamer *streamer, float distance);
+/// Sets fog color and both fade distances in one call: colors start blending
+/// at `start` meters from the camera and are fully replaced by `color` at
+/// `end` meters. Mirrors `streamer::set_fog`.
+void RaytilesStreamerSetFog(RaytilesStreamer *streamer, Color color, float start, float end);
 
-/// Sets the distance (meters) at which fog reaches full opacity.
-void RaytilesStreamerSetFogEnd(RaytilesStreamer *streamer, float distance);
+/// Sets the sun: `direction` is normalized by the shader (magnitude
+/// irrelevant); `intensity` controls lit/shaded contrast (default 1.0).
+/// Mirrors `streamer::set_sun`.
+void RaytilesStreamerSetSun(RaytilesStreamer *streamer, Vector3 direction, float intensity);
 
 /// Sets the heightmap multiplier (drama factor) used by the vertex shader.
 void RaytilesStreamerSetHeightScale(RaytilesStreamer *streamer, float scale);
@@ -306,14 +289,6 @@ void RaytilesStreamerSetHeightScale(RaytilesStreamer *streamer, float scale);
 /// Sets the normals multiplier used by the fragment shader. Higher values
 /// produce stronger lighting contrast.
 void RaytilesStreamerSetNormalsScale(RaytilesStreamer *streamer, float scale);
-
-/// Sets the sun direction vector used by the fragment shader's lighting.
-/// The shader normalizes the vector internally; magnitude is irrelevant.
-void RaytilesStreamerSetSunDirection(RaytilesStreamer *streamer, Vector3 direction);
-
-/// Sets the sun lighting intensity, controlling contrast between lit and
-/// shaded slopes.
-void RaytilesStreamerSetSunScale(RaytilesStreamer *streamer, float scale);
 
 #ifdef __cplusplus
 } // extern "C"

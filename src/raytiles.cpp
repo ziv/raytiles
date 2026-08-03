@@ -18,27 +18,31 @@
 
 namespace raytiles {
     namespace {
-        world_config &update_world_config(world_config &conf, const double latitude, const double longitude) {
+        // Computes the world_config anchor fields from a geographic
+        // coordinate: the containing tile at min zoom, the local tile size
+        // (shrinks with latitude), and the world-space offset of the exact
+        // lat/lon inside that tile (so the camera can start right over it).
+        config &anchor_config_at(config &cfg, const double latitude, const double longitude) {
             // calculate tiles
             const double lat = latitude * DEG2RAD;
             const double n = std::pow(2.0, min_supported_zoom);
             const double x = (longitude + 180.0) / 360.0 * n;
             const double y = (1.0 - std::log(std::tan(lat) + 1.0 / std::cos(lat)) / PI) / 2.0 * n;
-            conf.anchor_x_tile = static_cast<int>(std::floor(x));
-            conf.anchor_z_tile = static_cast<int>(std::floor(y));
+            cfg.world.anchor_x_tile = static_cast<int>(std::floor(x));
+            cfg.world.anchor_z_tile = static_cast<int>(std::floor(y));
 
             // calculate tile size
             constexpr double equator_circumference_m = 40075016.686;
             const double tile_size = equator_circumference_m * std::cos(lat) / n;
-            conf.base_zoom_tile_size = static_cast<float>(tile_size);
+            cfg.world.base_zoom_tile_size = static_cast<float>(tile_size);
 
             // calculate the offset
-            const auto offset_x = static_cast<float>((x - conf.anchor_x_tile) * tile_size);
-            const auto offset_z = static_cast<float>((y - conf.anchor_z_tile) * tile_size);
-            conf.offset = {offset_x, 0.0f, offset_z};
+            const auto offset_x = static_cast<float>((x - cfg.world.anchor_x_tile) * tile_size);
+            const auto offset_z = static_cast<float>((y - cfg.world.anchor_z_tile) * tile_size);
+            cfg.world.offset = {offset_x, 0.0f, offset_z};
 
-            TraceLog(LOG_WARNING, "tiles anchore %d %d", conf.anchor_x_tile, conf.anchor_z_tile);
-            return conf;
+            TraceLog(LOG_INFO, "raytiles: anchor tiles %d %d", cfg.world.anchor_x_tile, cfg.world.anchor_z_tile);
+            return cfg;
         }
 
         std::pair<std::string, std::string> split_url(const std::string &url) {
@@ -51,8 +55,7 @@ namespace raytiles {
             return {url.substr(0, path_pos), url.substr(path_pos)};
         }
 
-        // Translates the streamer's public config pair into the tile_store's
-        // own option struct.
+        // Translates the public config into the tile_store's option struct.
         store_options make_store_options(const world_config &world, const streaming_config &streaming) {
             return store_options{
                 .base_zoom = world.base_zoom,
@@ -69,16 +72,19 @@ namespace raytiles {
             };
         }
 
-        source_options make_source_options(const pool_config &pool_conf) {
-            auto [texture_host, texture_url_path] = split_url(pool_conf.texture_url);
-            auto [heightmap_host, heightmap_url_path] = split_url(pool_conf.heightmap_url);
-            auto [normals_host, normals_url_path] = split_url(pool_conf.normals_url);
+        // Translates the public network config into the tile_source's option
+        // struct — mainly splitting the full URL templates into host + path
+        // once, so workers never re-parse them.
+        source_options make_source_options(const network_config &network) {
+            auto [texture_host, texture_url_path] = split_url(network.texture_url);
+            auto [heightmap_host, heightmap_url_path] = split_url(network.heightmap_url);
+            auto [normals_host, normals_url_path] = split_url(network.normals_url);
             return source_options{
-                .download_threads = pool_conf.download_threads,
-                .allow_insecure_tls = pool_conf.allow_insecure_tls,
-                .texture_cache_path = pool_conf.texture_cache_path,
-                .heightmap_cache_path = pool_conf.heightmap_cache_path,
-                .normals_cache_path = pool_conf.normals_cache_path,
+                .download_threads = network.download_threads,
+                .allow_insecure_tls = network.allow_insecure_tls,
+                .texture_cache_path = network.texture_cache_path,
+                .heightmap_cache_path = network.heightmap_cache_path,
+                .normals_cache_path = network.normals_cache_path,
                 .texture_host = std::move(texture_host),
                 .texture_url_path = std::move(texture_url_path),
                 .heightmap_host = std::move(heightmap_host),
@@ -89,26 +95,18 @@ namespace raytiles {
         }
     } // namespace
 
-    streamer::streamer(const world_config &world_conf,
-                       const streaming_config &streaming_conf,
-                       const rendering_config &rendering_conf,
-                       const pool_config &pool_conf)
-        : near_plane(static_cast<float>(streaming_conf.near_plane)),
-          far_plane(static_cast<float>(streaming_conf.far_plane)),
-          update_distance_sq(streaming_conf.update_distance_sq),
-          init_position(world_conf.offset),
-          renderer_(std::make_unique<terrain_renderer>(rendering_conf)),
-          source_(std::make_unique<tile_source>(make_source_options(pool_conf))),
-          store_(std::make_unique<tile_store>(make_store_options(world_conf, streaming_conf))) {
+    streamer::streamer(config cfg)
+        : near_plane(static_cast<float>(cfg.streaming.near_plane)),
+          far_plane(static_cast<float>(cfg.streaming.far_plane)),
+          update_distance_sq(cfg.streaming.update_distance * cfg.streaming.update_distance),
+          init_position(cfg.world.offset),
+          source_(std::make_unique<tile_source>(make_source_options(cfg.network))),
+          store_(std::make_unique<tile_store>(make_store_options(cfg.world, cfg.streaming))),
+          renderer_(std::make_unique<terrain_renderer>(cfg.rendering)) {
     }
 
-    streamer::streamer(const double latitude,
-                       const double longitude,
-                       world_config world_conf,
-                       const streaming_config &streaming_conf,
-                       const rendering_config &rendering_conf,
-                       const pool_config &pool_conf)
-        : streamer(update_world_config(world_conf, latitude, longitude), streaming_conf, rendering_conf, pool_conf) {
+    streamer::streamer(const double latitude, const double longitude, config cfg)
+        : streamer(anchor_config_at(cfg, latitude, longitude)) {
     }
 
     streamer::~streamer() = default;
@@ -121,7 +119,7 @@ namespace raytiles {
         return store_->loading();
     }
 
-    float streamer::get_loading() const {
+    float streamer::loading_progress() const {
         return store_->progress();
     }
 
@@ -172,15 +170,21 @@ namespace raytiles {
     }
 
     void streamer::set_ambient_light(const Color color) const { renderer_->set_ambient_light(color); }
-    void streamer::set_ambient_light(const Vector4 color) const { renderer_->set_ambient_light(color); }
-    void streamer::set_ambient_light(const float r, const float g, const float b, const float a) const { renderer_->set_ambient_light(r, g, b, a); }
+
     void streamer::set_fog_color(const Color color) const { renderer_->set_fog_color(color); }
-    void streamer::set_fog_color(const Vector4 color) const { renderer_->set_fog_color(color); }
-    void streamer::set_fog_color(const float r, const float g, const float b, const float a) const { renderer_->set_fog_color(r, g, b, a); }
-    void streamer::set_fog_start(const float distance) const { renderer_->set_fog_start(distance); }
-    void streamer::set_fog_end(const float distance) const { renderer_->set_fog_end(distance); }
+
+    void streamer::set_fog(const Color color, const float start, const float end) const {
+        renderer_->set_fog_color(color);
+        renderer_->set_fog_start(start);
+        renderer_->set_fog_end(end);
+    }
+
+    void streamer::set_sun(const Vector3 direction, const float intensity) const {
+        renderer_->set_sun_direction(direction);
+        renderer_->set_sun_scale(intensity);
+    }
+
     void streamer::set_height_scale(const float scale) const { renderer_->set_height_scale(scale); }
+
     void streamer::set_normals_scale(const float scale) const { renderer_->set_normals_scale(scale); }
-    void streamer::set_sun_direction(const Vector3 direction) const { renderer_->set_sun_direction(direction); }
-    void streamer::set_sun_scale(const float scale) const { renderer_->set_sun_scale(scale); }
 } // namespace raytiles
