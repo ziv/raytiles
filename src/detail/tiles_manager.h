@@ -6,6 +6,7 @@
 
 #include "raylib.h"
 #include "downloader.h"
+#include "lod.hpp"
 #include "tile.hpp"
 #include "utils.hpp"
 
@@ -109,8 +110,6 @@ namespace raytiles {
 
         void process_current_location(const Vector3 &position);
 
-        void build_required(const Vector3 &position, Zoom zoom, int tx, int tz, float render_radius_sq);
-
         [[nodiscard]] loading_tile spawn(const tile_key &tile);
 
         [[nodiscard]] bool is_tile_out_of_area(const tile_key &key, const Vector3 &position) const;
@@ -118,6 +117,11 @@ namespace raytiles {
         [[nodiscard]] bool is_tile_covered(const tile_key &key) const;
 
         tiles_manager_options options;
+
+        // LOD policy inputs, derived once from `options` at construction.
+        // The desired-set math itself lives in lod.hpp (pure, unit-tested).
+        lod::options lod_options;
+
         bool loading = true;
         // Vector3 last_position = {-9999.9f, -9999.9f, -9999.9f};
 

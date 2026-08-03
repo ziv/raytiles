@@ -151,10 +151,14 @@ if (NOT RAYTILES_BINDINGS_MODE)
     FetchContent_MakeAvailable(doctest)
     add_executable(run_tests
             tests/tests_main.cpp
-            tests/example_tests.cpp
+            tests/lod_tests.cpp
+            tests/utils_tests.cpp
     )
 
-    target_link_libraries(run_tests PRIVATE doctest::doctest)
+    # tests link the library to inherit raylib's include dirs; the pure
+    # modules under test (lod, utils, tile hash) never touch GL at runtime.
+    target_link_libraries(run_tests PRIVATE doctest::doctest ${PROJECT_NAME})
+    target_include_directories(run_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
     include(CTest)
     add_test(NAME AllTests COMMAND run_tests)
