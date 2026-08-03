@@ -47,8 +47,8 @@ add_library(${PROJECT_NAME}
         src/tile_source.cpp
         src/tile_shader.cpp
         src/detail/tile_shader.h
-        src/tiles_manager.cpp
-        src/detail/tiles_manager.h
+        src/tile_store.cpp
+        src/detail/tile_store.h
         src/detail/sky_shader.h
         src/sky_shader.cpp
         src/detail/sky_renderer.h

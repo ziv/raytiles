@@ -1,30 +1,28 @@
 #pragma once
 
-#include <vector>
-
 #include "raylib.h"
 #include "raii.hpp"
-#include "tile.hpp"
 #include "tile_shader.h"
-#include "utils.hpp"
 
 namespace raytiles {
     struct rendering_config;
+    class tile_store;
 
     class tiles_renderer {
     public:
         explicit tiles_renderer(const rendering_config &conf);
 
-        int draw(const Vector3 &position, const Vector3 &world_offset, const data_view &draw_view);
+        /// Draws every store tile whose visibility flag was set by the last
+        /// `tile_store::cull`. Returns the number of tiles drawn.
+        int draw(const Vector3 &position, const Vector3 &world_offset, const tile_store &store);
 
-        /// Draws a 2D HUD with streamer statistics (loaded / loading counts, etc.)
-        /// and zoom labels above the tiles
+        /// Draws a 2D HUD with zoom labels above the tiles.
         /// Call between `BeginDrawing` / `EndDrawing`, after `EndMode3D`.
-        static void debug(const Camera3D &camera, const Vector3 &world_offset, const data_view &draw_view);
+        static void debug(const Camera3D &camera, const Vector3 &world_offset, const tile_store &store);
 
         /// Draws 3D debug overlays (tile bounds). Call inside the same
         /// `BeginMode3D` / `EndMode3D` block as `draw`.
-        static void debug_3d(const Vector3 &world_offset, const data_view &draw_view);
+        static void debug_3d(const Vector3 &world_offset, const tile_store &store);
 
         /// Sets the ambient light color sent to the displacement shader. Use this
         /// to drive day / night / weather lighting changes.
@@ -74,13 +72,6 @@ namespace raytiles {
         void set_sun_scale(float scale);
 
     private:
-        struct draw_entry {
-            float dist_sq; // squared XZ distance from camera, used as sort key
-            const tile_key *key; // non-owning, points into draw_view.rendering_tiles
-            const loaded_tile *tile; // non-owning, same
-            const tile_value *tv; // non-owning, points into draw_view.tiles
-        };
-
         tile_shader shader_;
         raii::material material{};
     };

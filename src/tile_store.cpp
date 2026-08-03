@@ -1,14 +1,16 @@
-#include "raytiles/raytiles.h"
-#include "detail/tiles_manager.h"
+#include "detail/tile_store.h"
+
+#include <algorithm>
+#include <cmath>
 #include <format>
 #include <ranges>
+#include <stdexcept>
 #include <utility>
-#include <unordered_map>
-#include <vector>
+
 #include "detail/utils.hpp"
 
 namespace raytiles {
-    tiles_manager::tiles_manager(const tiles_manager_options &opts, source_options src_opts)
+    tile_store::tile_store(const store_options &opts)
         : options(opts),
           lod_options{
               .base_zoom = opts.base_zoom,
@@ -16,9 +18,8 @@ namespace raytiles {
               .base_tile_size = opts.base_zoom_tile_size,
               .radius = opts.rendering_radius,
               .thresholds = opts.thresholds,
-          },
-          source(std::move(src_opts)) {
-        // input validation
+          } {
+        // input validation — before any GL resource is created
         if (options.base_zoom < min_supported_zoom) {
             throw std::runtime_error(std::format("base_zoom {} is below min_supported_zoom {}", options.base_zoom, min_supported_zoom));
         }
@@ -29,63 +30,44 @@ namespace raytiles {
             throw std::runtime_error(std::format("max_zoom {} is below base_zoom {}", options.max_zoom, options.base_zoom));
         }
 
-        // construct the tiles map
-        // for each zoom level:
-        // - metadata (size & threshold)
-        // - mesh
+        // one plane mesh per zoom level; resolution doubles with zoom (finer
+        // displacement close to the camera) up to max_resolution
         int res = min_resolution;
         for (int zoom = options.base_zoom; zoom <= options.max_zoom; ++zoom) {
             const auto idx = static_cast<std::size_t>(zoom - options.base_zoom);
             const auto ratio = static_cast<float>(1 << (zoom - options.base_zoom));
             const auto size = options.base_zoom_tile_size / ratio;
-            const auto th = options.thresholds[idx];
             const auto skirt_factor = options.skirt_overlap[idx];
 
-            tiles[zoom] = tile_value{
-                size,
-                th * th,
-                raii::mesh{GenMeshPlane(size * skirt_factor, size * skirt_factor, res, res)}
-            };
+            zooms_[idx].size = size;
+            zooms_[idx].mesh = raii::mesh{GenMeshPlane(size * skirt_factor, size * skirt_factor, res, res)};
             res = std::min(res * 2, max_resolution);
         }
     }
 
-    bool tiles_manager::is_loading() const {
-        return loading;
+    float tile_store::progress() const {
+        if (!loading_) return 1.0f;
+        return progress_;
     }
 
-    float tiles_manager::get_loading() const {
-        if (loading_keys.empty()) return 0.0f;
-        const auto required = static_cast<float>(desired_keys.size());
-        if (required == 0.0f) return 0.0f; // avoid division by zero, should not happen but just in case
-        const auto outstanding = static_cast<float>(loading_keys.size());
-        return 1 - outstanding / required;
-    }
-
-    std::optional<float> tiles_manager::ground_height(const Vector3 &position) const {
+    std::optional<float> tile_store::ground_height(const Vector3 &abs_position) const {
         // walk from the highest available zoom down to base; whichever zoom holds the
         // tile that contains (position.x, position.z) wins. higher zoom = finer
         // sample, so we prefer it if loaded.
         for (int zoom = options.max_zoom; zoom >= options.base_zoom; --zoom) {
-            const auto &t = tiles.at(zoom);
-            // const float size = tile_sizes[zoom - conf.base_zoom];
-            const float size = t.size;
+            const float size = entry(zoom).size;
 
-            const int tile_x = static_cast<int>(std::floor(position.x / size));
-            const int tile_z = static_cast<int>(std::floor(position.z / size));
+            const int tile_x = static_cast<int>(std::floor(abs_position.x / size));
+            const int tile_z = static_cast<int>(std::floor(abs_position.z / size));
 
             const auto it = rendering_tiles.find(tile_key{zoom, tile_x, tile_z});
             if (it == rendering_tiles.end()) continue;
 
-            const auto &tile = it->second;
-            const Image &img = *tile.hm_image;
-
-            // todo never suppose to happen, renderer holds only valid images. remove?
-            if (!IsImageValid(img)) continue;
+            const Image &img = *it->second.hm_image;
 
             // local uv inside the tile, [0, 1)
-            const float u = (position.x - static_cast<float>(tile_x) * size) / size;
-            const float v = (position.z - static_cast<float>(tile_z) * size) / size;
+            const float u = (abs_position.x - static_cast<float>(tile_x) * size) / size;
+            const float v = (abs_position.z - static_cast<float>(tile_z) * size) / size;
 
             const int px = static_cast<int>(u * static_cast<float>(img.width));
             const int py = static_cast<int>(v * static_cast<float>(img.height));
@@ -95,9 +77,8 @@ namespace raytiles {
         return std::nullopt;
     }
 
-
-    void tiles_manager::pre_process(const Vector3 &position) {
-        // gc
+    void tile_store::reconcile(const Vector3 &abs_position, tile_source &source) {
+        // gc: evict resident tiles nobody needs anymore
         std::erase_if(rendering_tiles, [&](const auto &item) {
             // if it in desired, keep it
             if (desired_keys.contains(item.first)) return false;
@@ -112,7 +93,7 @@ namespace raytiles {
 
             // if the tile is far beyond the horizon, remove
             // without thinking
-            if (is_tile_out_of_area(item.first, position)) return true;
+            if (is_tile_out_of_area(item.first, abs_position)) return true;
 
             // here we stop to think (this is the "slow" path)
             // if the tile is not covered by other tiles, keep
@@ -123,7 +104,7 @@ namespace raytiles {
 
         // stop loading tiles that fell out of the desired set. cancellation
         // is best-effort: a payload that slips through anyway is dropped by
-        // the desired-set check in process_loaded_tiles.
+        // the desired-set check in promote().
         for (auto it = loading_keys.begin(); it != loading_keys.end();) {
             if (!desired_keys.contains(*it)) {
                 source.cancel(*it);
@@ -132,33 +113,9 @@ namespace raytiles {
                 ++it;
             }
         }
-
-        process_loaded_tiles();
     }
 
-    void tiles_manager::process(const Vector3 &position) {
-        process_current_location(position);
-    }
-
-    void tiles_manager::post_process(const Frustum &frustum, const Vector3 &world_offset) {
-        for (auto &tile: rendering_tiles | std::views::values) {
-            // Shift absolute tile center into user space before testing
-            // against the user-space frustum.
-            const auto user_x = static_cast<float>(tile.tx + static_cast<double>(world_offset.x));
-            const auto user_z = static_cast<float>(tile.tz + static_cast<double>(world_offset.z));
-            tile.in_frustum_this_frame = utils::is_tile_in_frustum(user_x, user_z, tile.size, frustum);
-        }
-        // first time nothing is loading or pending upload, initial load is done
-        if (loading && loading_keys.empty()) {
-            loading = false;
-        }
-    }
-
-    data_view tiles_manager::make_debug_view(Frustum &frustum) {
-        return data_view{frustum, rendering_tiles, tiles, desired_keys};
-    }
-
-    void tiles_manager::process_loaded_tiles() {
+    void tile_store::promote(tile_source &source) {
         // a failed tile (network / decode error, already logged by the
         // worker) is simply forgotten; a later desired-set rebuild may
         // request it again.
@@ -204,14 +161,15 @@ namespace raytiles {
             }
 
             // world-space tile center, matching the mesh translation in draw
-            const auto tile_size = tiles.at(key.zoom).size;
-            const auto tx = (static_cast<double>(key.x) + 0.5) * static_cast<double>(tile_size);
-            const auto tz = (static_cast<double>(key.z) + 0.5) * static_cast<double>(tile_size);
+            const auto &ze = entry(key.zoom);
+            const auto tx = (static_cast<double>(key.x) + 0.5) * static_cast<double>(ze.size);
+            const auto tz = (static_cast<double>(key.z) + 0.5) * static_cast<double>(ze.size);
 
             rendering_tiles.insert_or_assign(key, loaded_tile{
-                                                 tile_size,
+                                                 ze.size,
                                                  tx,
                                                  tz,
+                                                 &ze.mesh.get(),
                                                  std::move(texture_tex),
                                                  std::move(height_tex),
                                                  std::move(payload.height),
@@ -224,20 +182,42 @@ namespace raytiles {
             if (promoted >= options.max_uploads_per_frame) break;
             if (GetTime() - frame_start >= options.upload_budget_sec) break;
         }
+
+        // progress is a high-water mark: the desired set can grow mid-load,
+        // but the reported fraction never runs backwards.
+        if (!desired_keys.empty()) {
+            const auto required = static_cast<float>(desired_keys.size());
+            const auto outstanding = static_cast<float>(loading_keys.size());
+            progress_ = std::max(progress_, std::clamp(1.0f - outstanding / required, 0.0f, 1.0f));
+        }
     }
 
-    void tiles_manager::process_current_location(const Vector3 &position) {
-        // the desired-set policy is a pure function (see lod.hpp); this method
-        // only owns the side effect of spawning downloads for missing tiles.
-        lod::desired_tiles(lod_options, position, desired_keys);
+    void tile_store::update_desired(const Vector3 &abs_position, tile_source &source) {
+        // the desired-set policy is a pure function (see lod.hpp); this
+        // method only owns the side effect of requesting missing tiles.
+        lod::desired_tiles(lod_options, abs_position, desired_keys);
 
-        // request whatever is neither resident nor already loading
         for (const auto &key: desired_keys)
             if (!rendering_tiles.contains(key) && !loading_keys.contains(key))
-                request(key);
+                request(key, source);
     }
 
-    void tiles_manager::request(const tile_key &key) {
+    void tile_store::cull(const Frustum &frustum, const Vector3 &world_offset) {
+        for (auto &tile: rendering_tiles | std::views::values) {
+            // Shift absolute tile center into user space before testing
+            // against the user-space frustum.
+            const auto user_x = static_cast<float>(tile.tx + static_cast<double>(world_offset.x));
+            const auto user_z = static_cast<float>(tile.tz + static_cast<double>(world_offset.z));
+            tile.in_frustum_this_frame = utils::is_tile_in_frustum(user_x, user_z, tile.size, frustum);
+        }
+
+        // first time nothing is loading or pending upload, initial load is done
+        if (loading_ && loading_keys.empty()) {
+            loading_ = false;
+        }
+    }
+
+    void tile_store::request(const tile_key &key, tile_source &source) {
         // tile keys are anchor-relative; the provider wants absolute slippy
         // coordinates, so shift by the anchor scaled to this key's zoom.
         const auto scale = 1 << (key.zoom - options.base_zoom);
@@ -245,13 +225,12 @@ namespace raytiles {
         loading_keys.insert(key);
     }
 
-    bool tiles_manager::is_tile_out_of_area(const tile_key &key, const Vector3 &position) const {
-        const auto &t = tiles.at(key.zoom);
-        const MetersDSq distance_sq = utils::distance_sq_to_tile_xz(position, key, t.size);
+    bool tile_store::is_tile_out_of_area(const tile_key &key, const Vector3 &position) const {
+        const MetersDSq distance_sq = utils::distance_sq_to_tile_xz(position, key, entry(key.zoom).size);
         return distance_sq > utils::calculate_horizon(position);
     }
 
-    bool tiles_manager::is_tile_covered(const tile_key &key) const {
+    bool tile_store::is_tile_covered(const tile_key &key) const {
         const auto contains = [&](const int zoom, const int x, const int z) { return rendering_tiles.contains(tile_key{zoom, x, z}); };
 
         // check parent
@@ -291,4 +270,4 @@ namespace raytiles {
 
         return false;
     }
-}
+} // namespace raytiles

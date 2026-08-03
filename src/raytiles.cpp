@@ -12,7 +12,8 @@
 #include <utility>
 
 #include "detail/tiles_renderer.h"
-#include "detail/tiles_manager.h"
+#include "detail/tile_source.h"
+#include "detail/tile_store.h"
 #include "detail/utils.hpp"
 
 namespace raytiles {
@@ -50,19 +51,16 @@ namespace raytiles {
             return {url.substr(0, path_pos), url.substr(path_pos)};
         }
 
-        // Translates the streamer's public config triplet into the
-        // tiles_manager's own option struct. Mirrors `make_shader_options`
-        // in renderer.cpp.
-        tiles_manager_options make_tiles_manager_options(const world_config &world, const streaming_config &streaming) {
-            return tiles_manager_options{
+        // Translates the streamer's public config pair into the tile_store's
+        // own option struct.
+        store_options make_store_options(const world_config &world, const streaming_config &streaming) {
+            return store_options{
                 .base_zoom = world.base_zoom,
                 .max_zoom = world.max_zoom,
                 .base_zoom_tile_size = world.base_zoom_tile_size,
                 .anchor_x_tile = world.anchor_x_tile,
                 .anchor_z_tile = world.anchor_z_tile,
                 .rendering_radius = streaming.rendering_radius,
-                .near_plane = streaming.near_plane,
-                .far_plane = streaming.far_plane,
                 .use_mipmap = world.use_mipmap,
                 .upload_budget_sec = streaming.upload_budget_sec,
                 .max_uploads_per_frame = streaming.max_uploads_per_frame,
@@ -100,7 +98,8 @@ namespace raytiles {
           update_distance_sq(streaming_conf.update_distance_sq),
           init_position(world_conf.offset),
           tile_renderer(std::make_unique<tiles_renderer>(rendering_conf)),
-          tile_manager(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming_conf), make_source_options(pool_conf))) {
+          source_(std::make_unique<tile_source>(make_source_options(pool_conf))),
+          store_(std::make_unique<tile_store>(make_store_options(world_conf, streaming_conf))) {
     }
 
     streamer::streamer(const double latitude,
@@ -119,11 +118,11 @@ namespace raytiles {
     streamer &streamer::operator=(streamer &&) noexcept = default;
 
     bool streamer::is_loading() const {
-        return tile_manager->is_loading();
+        return store_->loading();
     }
 
     float streamer::get_loading() const {
-        return tile_manager->get_loading();
+        return store_->progress();
     }
 
     Vector3 streamer::get_initial_position(const float y) const {
@@ -131,7 +130,7 @@ namespace raytiles {
     }
 
     std::optional<float> streamer::ground_height(const Vector3 position) const {
-        return tile_manager->ground_height(Vector3Subtract(position, cached_world_offset_));
+        return store_->ground_height(Vector3Subtract(position, cached_world_offset_));
     }
 
     void streamer::update(const Camera3D &camera, const Vector3 world_offset) {
@@ -141,36 +140,35 @@ namespace raytiles {
         cached_world_offset_ = world_offset;
 
         // Convert camera position from user space to absolute world space.
-        // Internal pipeline (tile_manager) operates in absolute space because
-        // tile coordinates (tile.tx, tile.tz) are stored absolute.
+        // The internal pipeline (store/source) operates in absolute space
+        // because tile coordinates (tile.tx, tile.tz) are stored absolute.
         const Vector3 abs_position = Vector3Subtract(camera.position, world_offset);
 
-        tile_manager->pre_process(abs_position);
+        store_->reconcile(abs_position, *source_);
+        store_->promote(*source_);
 
         if (Vector3DistanceSqr(abs_position, last_position) > update_distance_sq) {
             last_position = abs_position;
-            tile_manager->process(abs_position);
+            store_->update_desired(abs_position, *source_);
         }
 
         // Frustum is built from the user-space camera (small floats) and is
-        // therefore in user space. post_process shifts each tile to user space
+        // therefore in user space. cull shifts each tile to user space
         // (tile.tx + offset.x) before the in-frustum test.
         last_frustum = utils::extract_frustum(camera, near_plane, far_plane);
-
-        tile_manager->post_process(last_frustum, world_offset);
+        store_->cull(last_frustum, world_offset);
     }
 
     void streamer::draw() {
-        rendered = tile_renderer->draw(cached_camera_.position, cached_world_offset_,
-                                       tile_manager->make_debug_view(last_frustum));
+        rendered = tile_renderer->draw(cached_camera_.position, cached_world_offset_, *store_);
     }
 
     void streamer::draw_debug_3d() {
-        tiles_renderer::debug_3d(cached_world_offset_, tile_manager->make_debug_view(last_frustum));
+        tiles_renderer::debug_3d(cached_world_offset_, *store_);
     }
 
     void streamer::draw_debug_labels() {
-        tiles_renderer::debug(cached_camera_, cached_world_offset_, tile_manager->make_debug_view(last_frustum));
+        tiles_renderer::debug(cached_camera_, cached_world_offset_, *store_);
     }
 
     void streamer::set_ambient_light(const Color color) const { tile_renderer->set_ambient_light(color); }

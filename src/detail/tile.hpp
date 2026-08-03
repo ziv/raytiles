@@ -8,12 +8,6 @@
 #include "raii.hpp"
 
 namespace raytiles {
-    struct tile_value {
-        Meters size;
-        MetersDSq threshold;
-        raii::mesh mesh;
-    };
-
     struct tile_key {
         int zoom;
         int x;
@@ -38,10 +32,15 @@ namespace raytiles {
 
     /// Fully promoted tile: GPU textures uploaded, heightmap CPU image
     /// retained for `ground_height()` queries.
+    ///
+    /// `mesh` points at the tile_store's per-zoom mesh (non-owning; the
+    /// store outlives its tiles and never moves), so the renderer draws a
+    /// tile without any zoom lookup.
     struct loaded_tile {
         Meters size;
         double tx;
         double tz;
+        const Mesh *mesh;
         raii::texture tx_texture;
         raii::texture hm_texture;
         raii::image hm_image;

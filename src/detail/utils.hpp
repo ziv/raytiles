@@ -1,24 +1,15 @@
 #pragma once
 #include <cmath>
-#include <vector>
-#include <unordered_map>
-#include <unordered_set>
 
 #include "raylib.h"
 #include "raymath.h"
+#include "raytiles/raytiles.h"
 #include "tile.hpp"
 
 namespace raytiles {
     constexpr float max_world_height = 8848.0f; // Mount Everest height in meters
     constexpr int min_resolution = 4;
     constexpr int max_resolution = 256;
-
-    struct data_view {
-        Frustum &frustum;
-        std::unordered_map<tile_key, loaded_tile> &rendering_tiles;
-        std::unordered_map<Zoom, tile_value> &tiles; // todo replace with array (perf)
-        std::unordered_set<tile_key> &desired_keys;
-    };
 }
 
 namespace raytiles::utils {

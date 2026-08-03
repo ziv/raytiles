@@ -4,6 +4,7 @@
 #include "doctest.h"
 
 #include <array>
+#include <unordered_set>
 #include <vector>
 
 #include "raytiles/raytiles.h"
