@@ -11,16 +11,11 @@
 #include <string_view>
 #include <utility>
 
-#ifdef __EMSCRIPTEN__
-#include <emscripten/fetch.h>
-#include <emscripten.h>
-#else
 #if defined(_WIN32)
 #define NOGDI
 #define NOUSER
 #endif
 #include "httplib.h"
-#endif
 
 // stb_image function prototypes only — the implementation lives inside
 // raylib (rtextures.o exports stbi_load_from_memory / stbi_image_free with
@@ -87,29 +82,6 @@ namespace raytiles {
             return out;
         }
 
-#ifdef __EMSCRIPTEN__
-        std::string fetch(const std::string &url) {
-            std::string result = "";
-            emscripten_fetch_attr_t attr;
-            emscripten_fetch_attr_init(&attr);
-            strcpy(attr.requestMethod, "GET");
-
-            attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY | EMSCRIPTEN_FETCH_SYNCHRONOUS;
-            emscripten_fetch_t *fetch = emscripten_fetch(&attr, url.c_str());
-
-            if (fetch != nullptr) {
-                if (fetch->status == 200) {
-                    result = std::string(fetch->data, fetch->numBytes);
-                } else {
-                    std::cerr << "Web Download Error: HTTP " << fetch->status << " for URL: " << url << std::endl;
-                }
-                emscripten_fetch_close(fetch);
-            } else {
-                std::cerr << "Emscripten fetch initialization failed for URL: " << url << std::endl;
-            }
-            return result;
-        }
-#else
         std::string fetch(httplib::Client &cli, const std::string &url) {
             auto res = cli.Get(url);
             if (!res || res->status != 200) {
@@ -129,7 +101,6 @@ namespace raytiles {
             cli.enable_server_certificate_verification(!allow_insecure_tls);
             return cli;
         }
-#endif
 
         void write_atomic(const std::string &path, const std::string &bytes) {
             std::filesystem::create_directories(std::filesystem::path(path).parent_path());
@@ -153,15 +124,11 @@ namespace raytiles {
     }
 
     void pool::worker_loop(const std::stop_token &st) {
-#ifndef __EMSCRIPTEN__
-
         // persistent http clients per host. endpoints all live under a
         // single host, so we can keep the TLS connection alive across many tiles
         // instead of paying handshake cost per fetch. the clients are owned by the
         // worker thread so no synchronization is needed.
         std::unordered_map<std::string, httplib::Client> clients;
-
-#endif
 
         while (true) {
             ImageJob img_job;
@@ -193,13 +160,8 @@ namespace raytiles {
                     bytes = read_file(img_job.path);
                 } else {
                     auto host = get_host(img_job.type);
-#ifdef __EMSCRIPTEN__
-                    auto body = fetch(host + img_job.url);
-#else
-                    // todo do we need to destroy the hosts when done?
                     if (!clients.contains(host)) clients.try_emplace(host, create_client(host, options.allow_insecure_tls));
                     auto body = fetch(clients.at(host), img_job.url);
-#endif
 
                     write_atomic(img_job.path, body);
                     bytes = std::move(body);

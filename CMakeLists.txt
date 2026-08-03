@@ -93,43 +93,26 @@ else ()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 endif ()
 
-if (EMSCRIPTEN)
-    target_compile_options(${PROJECT_NAME} PUBLIC "-pthread" "-fexceptions")
-    target_link_options(${PROJECT_NAME} PUBLIC
-            "-sUSE_GLFW=3"
-            "-sFETCH=1"
-            "-sALLOW_MEMORY_GROWTH=1"
-            "-pthread"
-            "-sPTHREAD_POOL_SIZE=4"
-            "--llvm-lto 1"
-            "-fexceptions"
-            "-sMIN_WEBGL_VERSION=2"
-            "-sMAX_WEBGL_VERSION=2"
-            "-sGL_ASSERTIONS=0"
-            "SHELL:-lidbfs.js"
+if (NOT TARGET httplib)
+    FetchContent_Declare(
+            httplib
+            GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+            GIT_TAG v0.18.5
+            GIT_SHALLOW TRUE
     )
-else ()
-    if (NOT TARGET httplib)
-        FetchContent_Declare(
-                httplib
-                GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
-                GIT_TAG v0.18.5
-                GIT_SHALLOW TRUE
-        )
-        FetchContent_MakeAvailable(httplib)
-    endif ()
-
-    target_link_libraries(${PROJECT_NAME} PRIVATE httplib)
-
-    if (APPLE)
-        find_library(SECURITY_FRAMEWORK Security)
-        target_link_libraries(${PROJECT_NAME} PRIVATE ${SECURITY_FRAMEWORK})
-    endif ()
-
-    find_package(OpenSSL REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
+    FetchContent_MakeAvailable(httplib)
 endif ()
+
+target_link_libraries(${PROJECT_NAME} PRIVATE httplib)
+
+if (APPLE)
+    find_library(SECURITY_FRAMEWORK Security)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${SECURITY_FRAMEWORK})
+endif ()
+
+find_package(OpenSSL REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+target_compile_definitions(${PROJECT_NAME} PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
 
 
 if (NOT RAYTILES_BINDINGS_MODE)
@@ -137,10 +120,6 @@ if (NOT RAYTILES_BINDINGS_MODE)
     # sandbox example application
     add_executable(Sandbox sandbox/main.cpp)
     target_link_libraries(Sandbox PRIVATE ${PROJECT_NAME})
-
-    if (EMSCRIPTEN)
-        set_target_properties(Sandbox PROPERTIES SUFFIX ".html")
-    endif ()
 
     # demos creator
     add_executable(demo sandbox/demo.cpp)
