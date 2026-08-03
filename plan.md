@@ -1,6 +1,6 @@
 # Raytiles refactor plan — composition, fewer moving parts, simpler API
 
-Status: proposal (no code changes yet).
+Status: **implemented** (steps 1–7 landed on `fbl-refactor`, one commit per step).
 Scope: internal architecture, data flow (memory moves/copies), public API surface, Emscripten removal.
 Hard constraint: **default behavior must be preserved** — a zero-argument `streamer` (or `streamer(lat, lon)`) must produce the same world as today, with the same providers, zoom range, thresholds, and visuals.
 

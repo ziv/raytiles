@@ -9,9 +9,9 @@
 #define GLSL_VERSION_HEADER "#version 330\n"
 
 namespace raytiles {
-    namespace {
-        // language=GLSL
-        constexpr auto vertex_shader = GLSL_VERSION_HEADER R"glsl(
+namespace {
+// language=GLSL
+constexpr auto vertex_shader = GLSL_VERSION_HEADER R"glsl(
 in vec3 vertexPosition;         // current vertex position
 in vec2 vertexTexCoord;         // current vertex uv
 
@@ -59,8 +59,8 @@ void main()
 }
 )glsl";
 
-        // language=GLSL
-        constexpr auto fragment_shader = GLSL_VERSION_HEADER R"glsl(
+// language=GLSL
+constexpr auto fragment_shader = GLSL_VERSION_HEADER R"glsl(
 in vec2 fragTexCoord;
 in float fragCamDist;
 
@@ -98,188 +98,169 @@ void main()
     finalColor = mix(lit, fogColor, fogFactor);
 }
 )glsl";
+}  // namespace
+
+terrain_renderer::terrain_renderer(const rendering_config& conf) : options(conf), shader(raii::load_shader_from_memory(vertex_shader, fragment_shader)) {
+  // cache uniform locations
+  cam_pos_loc = GetShaderLocation(*shader, "cameraPosition");
+  ambient_loc = GetShaderLocation(*shader, "ambientLight");
+  fog_color_loc = GetShaderLocation(*shader, "fogColor");
+  tex_albedo_loc = GetShaderLocation(*shader, "texture0");
+  tex_height_loc = GetShaderLocation(*shader, "heightMap");
+  tex_normal_loc = GetShaderLocation(*shader, "normalMap");
+  sun_dir_loc = GetShaderLocation(*shader, "sunDir");
+  sun_scale_loc = GetShaderLocation(*shader, "sunScale");
+  height_scale_loc = GetShaderLocation(*shader, "heightScale");
+  normal_scale_loc = GetShaderLocation(*shader, "normalScale");
+  fog_start_loc = GetShaderLocation(*shader, "fogStart");
+  fog_end_loc = GetShaderLocation(*shader, "fogEnd");
+  skirt_drop_loc = GetShaderLocation(*shader, "skirtDrop");
+
+  // validate all slots populated
+  if (-1 == cam_pos_loc || -1 == ambient_loc || -1 == fog_color_loc || -1 == tex_albedo_loc || -1 == tex_height_loc || -1 == tex_normal_loc ||
+      -1 == sun_dir_loc || -1 == sun_scale_loc || -1 == height_scale_loc || -1 == normal_scale_loc || -1 == fog_start_loc || -1 == fog_end_loc ||
+      -1 == skirt_drop_loc) {
+    throw std::runtime_error("failed to get shader locations");
+  }
+
+  // define the slots used with the model
+  // we hack the SHADER_LOC_MAP_ROUGHNESS to be used as the heightmap input
+  shader->locs[SHADER_LOC_MAP_ALBEDO] = tex_albedo_loc;
+  shader->locs[SHADER_LOC_MAP_ROUGHNESS] = tex_height_loc;
+  shader->locs[SHADER_LOC_MAP_NORMAL] = tex_normal_loc;
+
+  // upload the initial uniform values from the config
+  SetShaderValue(*shader, height_scale_loc, &options.height_scale, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(*shader, normal_scale_loc, &options.normals_scale, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(*shader, fog_start_loc, &options.fog_start, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(*shader, fog_end_loc, &options.fog_end, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(*shader, sun_scale_loc, &options.sun_scale, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(*shader, skirt_drop_loc, &options.skirt_drop, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(*shader, ambient_loc, options.ambient_light, SHADER_UNIFORM_VEC4);
+  SetShaderValue(*shader, fog_color_loc, options.fog_color, SHADER_UNIFORM_VEC4);
+  SetShaderValue(*shader, sun_dir_loc, options.sun_direction, SHADER_UNIFORM_VEC3);
+
+  // the material all tile textures are bound through; it borrows the
+  // shader (SafeUnloadMaterial clears the reference before unload)
+  material = raii::material{LoadMaterialDefault()};
+  material->shader = *shader;
+}
+
+int terrain_renderer::draw(const Vector3& position, const Vector3& world_offset, const tile_store& store) {
+  // position is in user space; the shader fragment-distance term lives
+  // in user space as well (vertices are submitted post-MatrixTranslate
+  // with user-space coords), so this is the correct frame.
+  set_camera_location(position);
+
+  const auto off_x = static_cast<double>(world_offset.x);
+  const auto off_z = static_cast<double>(world_offset.z);
+
+  int rendered = 0;
+  for (const auto& tile : store.tiles() | std::views::values) {
+    if (!tile.in_frustum_this_frame) continue;
+
+    material->maps[MATERIAL_MAP_ALBEDO].texture = *tile.tx_texture;
+    material->maps[MATERIAL_MAP_ROUGHNESS].texture = *tile.hm_texture;
+    material->maps[MATERIAL_MAP_NORMAL].texture = *tile.nl_texture;
+
+    // Convert absolute tile center into user space for raylib's
+    // float-only matrix pipeline. Keep the addition in double so the
+    // huge-tile-coord + huge-offset cancellation happens at full
+    // precision before the float cast.
+    const auto user_tx = static_cast<float>(tile.tx + off_x);
+    const auto user_tz = static_cast<float>(tile.tz + off_z);
+    DrawMesh(*tile.mesh, *material, MatrixTranslate(user_tx, 0.0f, user_tz));
+    ++rendered;
+  }
+  return rendered;
+}
+
+void terrain_renderer::debug_3d(const Vector3& world_offset, const tile_store& store) {
+  const auto off_x = static_cast<double>(world_offset.x);
+  const auto off_z = static_cast<double>(world_offset.z);
+  for (const auto& tile : store.tiles() | std::views::values) {
+    if (tile.in_frustum_this_frame) {
+      const auto user_x = static_cast<float>(tile.tx + off_x);
+      const auto user_z = static_cast<float>(tile.tz + off_z);
+      DrawCubeWires({user_x, 0.0f, user_z}, tile.size, 1000.0f, tile.size, GREEN);
     }
+  }
+}
 
-    terrain_renderer::terrain_renderer(const rendering_config &conf)
-        : options(conf),
-          shader(raii::load_shader_from_memory(vertex_shader, fragment_shader)) {
-        // cache uniform locations
-        cam_pos_loc = GetShaderLocation(*shader, "cameraPosition");
-        ambient_loc = GetShaderLocation(*shader, "ambientLight");
-        fog_color_loc = GetShaderLocation(*shader, "fogColor");
-        tex_albedo_loc = GetShaderLocation(*shader, "texture0");
-        tex_height_loc = GetShaderLocation(*shader, "heightMap");
-        tex_normal_loc = GetShaderLocation(*shader, "normalMap");
-        sun_dir_loc = GetShaderLocation(*shader, "sunDir");
-        sun_scale_loc = GetShaderLocation(*shader, "sunScale");
-        height_scale_loc = GetShaderLocation(*shader, "heightScale");
-        normal_scale_loc = GetShaderLocation(*shader, "normalScale");
-        fog_start_loc = GetShaderLocation(*shader, "fogStart");
-        fog_end_loc = GetShaderLocation(*shader, "fogEnd");
-        skirt_drop_loc = GetShaderLocation(*shader, "skirtDrop");
+void terrain_renderer::debug(const Camera3D& camera, const Vector3& world_offset, const tile_store& store) {
+  const auto width = static_cast<float>(GetScreenWidth());
+  const auto height = static_cast<float>(GetScreenHeight());
+  const auto off_x = static_cast<double>(world_offset.x);
+  const auto off_z = static_cast<double>(world_offset.z);
+  for (const auto& [key, tile] : store.tiles()) {
+    if (tile.in_frustum_this_frame) {
+      const auto user_x = static_cast<float>(tile.tx + off_x);
+      const auto user_z = static_cast<float>(tile.tz + off_z);
+      const auto [x, y] = GetWorldToScreen({user_x, 0.0f, user_z}, camera);
+      if (x < 0 || x > width || y < 0 || y > height) continue;
 
-        // validate all slots populated
-        if (-1 == cam_pos_loc ||
-            -1 == ambient_loc ||
-            -1 == fog_color_loc ||
-            -1 == tex_albedo_loc ||
-            -1 == tex_height_loc ||
-            -1 == tex_normal_loc ||
-            -1 == sun_dir_loc ||
-            -1 == sun_scale_loc ||
-            -1 == height_scale_loc ||
-            -1 == normal_scale_loc ||
-            -1 == fog_start_loc ||
-            -1 == fog_end_loc ||
-            -1 == skirt_drop_loc
-        ) {
-            throw std::runtime_error("failed to get shader locations");
-        }
-
-        // define the slots used with the model
-        // we hack the SHADER_LOC_MAP_ROUGHNESS to be used as the heightmap input
-        shader->locs[SHADER_LOC_MAP_ALBEDO] = tex_albedo_loc;
-        shader->locs[SHADER_LOC_MAP_ROUGHNESS] = tex_height_loc;
-        shader->locs[SHADER_LOC_MAP_NORMAL] = tex_normal_loc;
-
-        // upload the initial uniform values from the config
-        SetShaderValue(*shader, height_scale_loc, &options.height_scale, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*shader, normal_scale_loc, &options.normals_scale, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*shader, fog_start_loc, &options.fog_start, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*shader, fog_end_loc, &options.fog_end, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*shader, sun_scale_loc, &options.sun_scale, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*shader, skirt_drop_loc, &options.skirt_drop, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*shader, ambient_loc, options.ambient_light, SHADER_UNIFORM_VEC4);
-        SetShaderValue(*shader, fog_color_loc, options.fog_color, SHADER_UNIFORM_VEC4);
-        SetShaderValue(*shader, sun_dir_loc, options.sun_direction, SHADER_UNIFORM_VEC3);
-
-        // the material all tile textures are bound through; it borrows the
-        // shader (SafeUnloadMaterial clears the reference before unload)
-        material = raii::material{LoadMaterialDefault()};
-        material->shader = *shader;
+      DrawText(TextFormat("%d", key.zoom), static_cast<int>(x), static_cast<int>(y), 15, store.desired().contains(key) ? GREEN : RED);
     }
+  }
+}
 
-    int terrain_renderer::draw(const Vector3 &position, const Vector3 &world_offset, const tile_store &store) {
-        // position is in user space; the shader fragment-distance term lives
-        // in user space as well (vertices are submitted post-MatrixTranslate
-        // with user-space coords), so this is the correct frame.
-        set_camera_location(position);
+void terrain_renderer::set_camera_location(const Vector3& position) { SetShaderValue(*shader, cam_pos_loc, &position, SHADER_UNIFORM_VEC3); }
 
-        const auto off_x = static_cast<double>(world_offset.x);
-        const auto off_z = static_cast<double>(world_offset.z);
+void terrain_renderer::set_ambient_light(const float r, const float g, const float b, const float a) {
+  options.ambient_light[0] = r;
+  options.ambient_light[1] = g;
+  options.ambient_light[2] = b;
+  options.ambient_light[3] = a;
+  SetShaderValue(*shader, ambient_loc, options.ambient_light, SHADER_UNIFORM_VEC4);
+}
 
-        int rendered = 0;
-        for (const auto &tile: store.tiles() | std::views::values) {
-            if (!tile.in_frustum_this_frame) continue;
+void terrain_renderer::set_ambient_light(const Color color) {
+  set_ambient_light(static_cast<float>(color.r) / 255.0f, static_cast<float>(color.g) / 255.0f, static_cast<float>(color.b) / 255.0f,
+                    static_cast<float>(color.a) / 255.0f);
+}
 
-            material->maps[MATERIAL_MAP_ALBEDO].texture = *tile.tx_texture;
-            material->maps[MATERIAL_MAP_ROUGHNESS].texture = *tile.hm_texture;
-            material->maps[MATERIAL_MAP_NORMAL].texture = *tile.nl_texture;
+void terrain_renderer::set_fog_color(const float r, const float g, const float b, const float a) {
+  options.fog_color[0] = r;
+  options.fog_color[1] = g;
+  options.fog_color[2] = b;
+  options.fog_color[3] = a;
+  SetShaderValue(*shader, fog_color_loc, options.fog_color, SHADER_UNIFORM_VEC4);
+}
 
-            // Convert absolute tile center into user space for raylib's
-            // float-only matrix pipeline. Keep the addition in double so the
-            // huge-tile-coord + huge-offset cancellation happens at full
-            // precision before the float cast.
-            const auto user_tx = static_cast<float>(tile.tx + off_x);
-            const auto user_tz = static_cast<float>(tile.tz + off_z);
-            DrawMesh(*tile.mesh, *material, MatrixTranslate(user_tx, 0.0f, user_tz));
-            ++rendered;
-        }
-        return rendered;
-    }
+void terrain_renderer::set_fog_color(const Color color) {
+  set_fog_color(static_cast<float>(color.r) / 255.0f, static_cast<float>(color.g) / 255.0f, static_cast<float>(color.b) / 255.0f,
+                static_cast<float>(color.a) / 255.0f);
+}
 
-    void terrain_renderer::debug_3d(const Vector3 &world_offset, const tile_store &store) {
-        const auto off_x = static_cast<double>(world_offset.x);
-        const auto off_z = static_cast<double>(world_offset.z);
-        for (const auto &tile: store.tiles() | std::views::values) {
-            if (tile.in_frustum_this_frame) {
-                const auto user_x = static_cast<float>(tile.tx + off_x);
-                const auto user_z = static_cast<float>(tile.tz + off_z);
-                DrawCubeWires({user_x, 0.0f, user_z}, tile.size, 1000.0f, tile.size, GREEN);
-            }
-        }
-    }
+void terrain_renderer::set_fog_start(const float distance) {
+  options.fog_start = distance;
+  SetShaderValue(*shader, fog_start_loc, &options.fog_start, SHADER_UNIFORM_FLOAT);
+}
 
-    void terrain_renderer::debug(const Camera3D &camera, const Vector3 &world_offset, const tile_store &store) {
-        const auto width = static_cast<float>(GetScreenWidth());
-        const auto height = static_cast<float>(GetScreenHeight());
-        const auto off_x = static_cast<double>(world_offset.x);
-        const auto off_z = static_cast<double>(world_offset.z);
-        for (const auto &[key, tile]: store.tiles()) {
-            if (tile.in_frustum_this_frame) {
-                const auto user_x = static_cast<float>(tile.tx + off_x);
-                const auto user_z = static_cast<float>(tile.tz + off_z);
-                const auto [x, y] = GetWorldToScreen({user_x, 0.0f, user_z}, camera);
-                if (x < 0 || x > width || y < 0 || y > height) continue;
+void terrain_renderer::set_fog_end(const float distance) {
+  options.fog_end = distance;
+  SetShaderValue(*shader, fog_end_loc, &options.fog_end, SHADER_UNIFORM_FLOAT);
+}
 
-                DrawText(TextFormat("%d", key.zoom), static_cast<int>(x), static_cast<int>(y), 15, store.desired().contains(key) ? GREEN : RED);
-            }
-        }
-    }
+void terrain_renderer::set_sun_direction(const Vector3 direction) {
+  options.sun_direction[0] = direction.x;
+  options.sun_direction[1] = direction.y;
+  options.sun_direction[2] = direction.z;
+  SetShaderValue(*shader, sun_dir_loc, options.sun_direction, SHADER_UNIFORM_VEC3);
+}
 
-    void terrain_renderer::set_camera_location(const Vector3 &position) {
-        SetShaderValue(*shader, cam_pos_loc, &position, SHADER_UNIFORM_VEC3);
-    }
+void terrain_renderer::set_sun_scale(const float scale) {
+  options.sun_scale = scale;
+  SetShaderValue(*shader, sun_scale_loc, &options.sun_scale, SHADER_UNIFORM_FLOAT);
+}
 
-    void terrain_renderer::set_ambient_light(const float r, const float g, const float b, const float a) {
-        options.ambient_light[0] = r;
-        options.ambient_light[1] = g;
-        options.ambient_light[2] = b;
-        options.ambient_light[3] = a;
-        SetShaderValue(*shader, ambient_loc, options.ambient_light, SHADER_UNIFORM_VEC4);
-    }
+void terrain_renderer::set_height_scale(const float scale) {
+  options.height_scale = scale;
+  SetShaderValue(*shader, height_scale_loc, &options.height_scale, SHADER_UNIFORM_FLOAT);
+}
 
-    void terrain_renderer::set_ambient_light(const Color color) {
-        set_ambient_light(static_cast<float>(color.r) / 255.0f,
-                          static_cast<float>(color.g) / 255.0f,
-                          static_cast<float>(color.b) / 255.0f,
-                          static_cast<float>(color.a) / 255.0f);
-    }
-
-    void terrain_renderer::set_fog_color(const float r, const float g, const float b, const float a) {
-        options.fog_color[0] = r;
-        options.fog_color[1] = g;
-        options.fog_color[2] = b;
-        options.fog_color[3] = a;
-        SetShaderValue(*shader, fog_color_loc, options.fog_color, SHADER_UNIFORM_VEC4);
-    }
-
-    void terrain_renderer::set_fog_color(const Color color) {
-        set_fog_color(static_cast<float>(color.r) / 255.0f,
-                      static_cast<float>(color.g) / 255.0f,
-                      static_cast<float>(color.b) / 255.0f,
-                      static_cast<float>(color.a) / 255.0f);
-    }
-
-    void terrain_renderer::set_fog_start(const float distance) {
-        options.fog_start = distance;
-        SetShaderValue(*shader, fog_start_loc, &options.fog_start, SHADER_UNIFORM_FLOAT);
-    }
-
-    void terrain_renderer::set_fog_end(const float distance) {
-        options.fog_end = distance;
-        SetShaderValue(*shader, fog_end_loc, &options.fog_end, SHADER_UNIFORM_FLOAT);
-    }
-
-    void terrain_renderer::set_sun_direction(const Vector3 direction) {
-        options.sun_direction[0] = direction.x;
-        options.sun_direction[1] = direction.y;
-        options.sun_direction[2] = direction.z;
-        SetShaderValue(*shader, sun_dir_loc, options.sun_direction, SHADER_UNIFORM_VEC3);
-    }
-
-    void terrain_renderer::set_sun_scale(const float scale) {
-        options.sun_scale = scale;
-        SetShaderValue(*shader, sun_scale_loc, &options.sun_scale, SHADER_UNIFORM_FLOAT);
-    }
-
-    void terrain_renderer::set_height_scale(const float scale) {
-        options.height_scale = scale;
-        SetShaderValue(*shader, height_scale_loc, &options.height_scale, SHADER_UNIFORM_FLOAT);
-    }
-
-    void terrain_renderer::set_normals_scale(const float scale) {
-        options.normals_scale = scale;
-        SetShaderValue(*shader, normal_scale_loc, &options.normals_scale, SHADER_UNIFORM_FLOAT);
-    }
-} // namespace raytiles
+void terrain_renderer::set_normals_scale(const float scale) {
+  options.normals_scale = scale;
+  SetShaderValue(*shader, normal_scale_loc, &options.normals_scale, SHADER_UNIFORM_FLOAT);
+}
+}  // namespace raytiles

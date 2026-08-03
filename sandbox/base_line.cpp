@@ -12,33 +12,33 @@
 //
 
 int main() {
-    SetTraceLogLevel(LOG_WARNING);
+  SetTraceLogLevel(LOG_WARNING);
 
-    InitWindow(800, 600, "raytiles");
-    double t = GetTime();
+  InitWindow(800, 600, "raytiles");
+  double t = GetTime();
 
-    raytiles::streamer streamer; // all defaults
+  raytiles::streamer streamer;  // all defaults
 
-    Camera3D camera;
-    camera.position = Vector3{2000.0f, 5000.0f, 2000.0f};
-    camera.target = Vector3{3000.0f, 4750.0f, 3000.0f};
-    camera.up = Vector3{0.0f, 1.0f, 0.0f};
-    camera.fovy = 60.0f;
-    camera.projection = CAMERA_PERSPECTIVE;
+  Camera3D camera;
+  camera.position = Vector3{2000.0f, 5000.0f, 2000.0f};
+  camera.target = Vector3{3000.0f, 4750.0f, 3000.0f};
+  camera.up = Vector3{0.0f, 1.0f, 0.0f};
+  camera.fovy = 60.0f;
+  camera.projection = CAMERA_PERSPECTIVE;
 
-    // loading loop
-    for (;;) {
-        streamer.update(camera);
-        if (!streamer.is_loading()) break;
+  // loading loop
+  for (;;) {
+    streamer.update(camera);
+    if (!streamer.is_loading()) break;
 
-        const auto loading = streamer.loading_progress();
-        BeginDrawing();
-        ClearBackground(BLACK);
-        DrawText(TextFormat("Loading... %.1f%%", loading * 100.0f), 350, 350, 50, WHITE);
-        EndDrawing();
-    }
+    const auto loading = streamer.loading_progress();
+    BeginDrawing();
+    ClearBackground(BLACK);
+    DrawText(TextFormat("Loading... %.1f%%", loading * 100.0f), 350, 350, 50, WHITE);
+    EndDrawing();
+  }
 
-    TraceLog(LOG_WARNING, "------------------ initial loading took %.2f seconds", GetTime() - t);
-    CloseWindow();
-    return 0;
+  TraceLog(LOG_WARNING, "------------------ initial loading took %.2f seconds", GetTime() - t);
+  CloseWindow();
+  return 0;
 }
