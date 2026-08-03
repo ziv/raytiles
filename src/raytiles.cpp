@@ -11,7 +11,7 @@
 #include <optional>
 #include <utility>
 
-#include "detail/tiles_renderer.h"
+#include "detail/terrain_renderer.h"
 #include "detail/tile_source.h"
 #include "detail/tile_store.h"
 #include "detail/utils.hpp"
@@ -97,7 +97,7 @@ namespace raytiles {
           far_plane(static_cast<float>(streaming_conf.far_plane)),
           update_distance_sq(streaming_conf.update_distance_sq),
           init_position(world_conf.offset),
-          tile_renderer(std::make_unique<tiles_renderer>(rendering_conf)),
+          renderer_(std::make_unique<terrain_renderer>(rendering_conf)),
           source_(std::make_unique<tile_source>(make_source_options(pool_conf))),
           store_(std::make_unique<tile_store>(make_store_options(world_conf, streaming_conf))) {
     }
@@ -160,27 +160,27 @@ namespace raytiles {
     }
 
     void streamer::draw() {
-        rendered = tile_renderer->draw(cached_camera_.position, cached_world_offset_, *store_);
+        rendered = renderer_->draw(cached_camera_.position, cached_world_offset_, *store_);
     }
 
     void streamer::draw_debug_3d() {
-        tiles_renderer::debug_3d(cached_world_offset_, *store_);
+        terrain_renderer::debug_3d(cached_world_offset_, *store_);
     }
 
     void streamer::draw_debug_labels() {
-        tiles_renderer::debug(cached_camera_, cached_world_offset_, *store_);
+        terrain_renderer::debug(cached_camera_, cached_world_offset_, *store_);
     }
 
-    void streamer::set_ambient_light(const Color color) const { tile_renderer->set_ambient_light(color); }
-    void streamer::set_ambient_light(const Vector4 color) const { tile_renderer->set_ambient_light(color); }
-    void streamer::set_ambient_light(const float r, const float g, const float b, const float a) const { tile_renderer->set_ambient_light(r, g, b, a); }
-    void streamer::set_fog_color(const Color color) const { tile_renderer->set_fog_color(color); }
-    void streamer::set_fog_color(const Vector4 color) const { tile_renderer->set_fog_color(color); }
-    void streamer::set_fog_color(const float r, const float g, const float b, const float a) const { tile_renderer->set_fog_color(r, g, b, a); }
-    void streamer::set_fog_start(const float distance) const { tile_renderer->set_fog_start(distance); }
-    void streamer::set_fog_end(const float distance) const { tile_renderer->set_fog_end(distance); }
-    void streamer::set_height_scale(const float scale) const { tile_renderer->set_height_scale(scale); }
-    void streamer::set_normals_scale(const float scale) const { tile_renderer->set_normals_scale(scale); }
-    void streamer::set_sun_direction(const Vector3 direction) const { tile_renderer->set_sun_direction(direction); }
-    void streamer::set_sun_scale(const float scale) const { tile_renderer->set_sun_scale(scale); }
+    void streamer::set_ambient_light(const Color color) const { renderer_->set_ambient_light(color); }
+    void streamer::set_ambient_light(const Vector4 color) const { renderer_->set_ambient_light(color); }
+    void streamer::set_ambient_light(const float r, const float g, const float b, const float a) const { renderer_->set_ambient_light(r, g, b, a); }
+    void streamer::set_fog_color(const Color color) const { renderer_->set_fog_color(color); }
+    void streamer::set_fog_color(const Vector4 color) const { renderer_->set_fog_color(color); }
+    void streamer::set_fog_color(const float r, const float g, const float b, const float a) const { renderer_->set_fog_color(r, g, b, a); }
+    void streamer::set_fog_start(const float distance) const { renderer_->set_fog_start(distance); }
+    void streamer::set_fog_end(const float distance) const { renderer_->set_fog_end(distance); }
+    void streamer::set_height_scale(const float scale) const { renderer_->set_height_scale(scale); }
+    void streamer::set_normals_scale(const float scale) const { renderer_->set_normals_scale(scale); }
+    void streamer::set_sun_direction(const Vector3 direction) const { renderer_->set_sun_direction(direction); }
+    void streamer::set_sun_scale(const float scale) const { renderer_->set_sun_scale(scale); }
 } // namespace raytiles

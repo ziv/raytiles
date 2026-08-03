@@ -215,7 +215,7 @@ namespace raytiles {
         float normals_scale = 1.0f;
     };
 
-    class tiles_renderer;
+    class terrain_renderer;
     class tile_source;
     class tile_store;
 
@@ -397,7 +397,7 @@ namespace raytiles {
         float update_distance_sq;
         Vector3 init_position;
 
-        std::unique_ptr<tiles_renderer> tile_renderer;
+        std::unique_ptr<terrain_renderer> renderer_;
         std::unique_ptr<tile_source> source_;
         std::unique_ptr<tile_store> store_;
 
