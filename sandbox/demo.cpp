@@ -33,8 +33,19 @@ int main() {
 
 
     // The Dolomites
-    constexpr double lat = 46.206889;
-    constexpr double lon = 9.497194;
+    // constexpr double lat = 46.206889;
+    // constexpr double lon = 9.497194;
+
+    // London
+    // constexpr double lat = 51.5074;
+    // constexpr double lon = 0.1278;
+
+    // Grand Canyon
+    // constexpr double lat = 36.056595;
+    // constexpr double lon = -112.125092;
+    constexpr double lat = 35.97391;
+    constexpr double lon = -113.76892;
+
 
     // My home
     // constexpr double lat = 32.11572;
