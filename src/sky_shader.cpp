@@ -2,11 +2,7 @@
 #include <stdexcept>
 
 // todo merge with the headers from tile_shader
-#ifdef __EMSCRIPTEN__
-#define GLSL_VERSION_HEADER_X "#version 300 es\nprecision mediump float;\n"
-#else
 #define GLSL_VERSION_HEADER_X "#version 330\n"
-#endif
 
 namespace raytiles::sky  {
     namespace {
