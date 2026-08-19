@@ -25,7 +25,7 @@ using raytiles::tile_key;
 using raytiles::tile_payload;
 using raytiles::tile_request;
 using raytiles::tile_source;
-using raytiles::tile_source_options;
+using raytiles::network_config;
 
 namespace {
     namespace fs = std::filesystem;
@@ -59,28 +59,28 @@ namespace {
     }
 
     // options rooted in `dir`, pointing at a host that refuses connections;
-    // tests that want HTTP override the host with a live local server
-    tile_source_options make_options(const fs::path &dir, const std::string &host = "http://127.0.0.1:9") {
-        tile_source_options opts;
-        opts.download_threads = 1; // deterministic pickup order for the cancel/dedup tests
-        opts.connection_timeout_sec = 1;
-        opts.read_timeout_sec = 5; // above the slow-route sleep so slow != timeout
-        opts.texture_cache_path = (dir / "tex" / "{}" / "{}" / "{}.png").string();
-        opts.heightmap_cache_path = (dir / "hm" / "{}" / "{}" / "{}.png").string();
-        opts.normals_cache_path = (dir / "nl" / "{}" / "{}" / "{}.png").string();
-        opts.texture_host = host;
-        opts.heightmap_host = host;
-        opts.normals_host = host;
-        opts.texture_url_path = "/tex/:zoom:/:x:/:y:.png";
-        opts.heightmap_url_path = "/hm/:zoom:/:x:/:y:.png";
-        opts.normals_url_path = "/nl/:zoom:/:x:/:y:.png";
-        return opts;
+    // tests that want HTTP override the URLs with a live local server
+    network_config make_options(const fs::path &dir, const std::string &host = "http://127.0.0.1:9") {
+        network_config net;
+        net.threads = 1; // deterministic pickup order for the cancel/dedup tests
+        net.connection_timeout_sec = 1;
+        net.read_timeout_sec = 5; // above the slow-route sleep so slow != timeout
+        net.cache_dir = dir.string();
+        net.texture_url = host + "/tex/:zoom:/:x:/:y:.png";
+        net.heightmap_url = host + "/hm/:zoom:/:x:/:y:.png";
+        net.normals_url = host + "/nl/:zoom:/:x:/:y:.png";
+        return net;
     }
 
-    void seed_cache(const tile_source_options &opts, const int zoom, const int x, const int z, const std::string &bytes) {
-        write_file(std::vformat(opts.texture_cache_path, std::make_format_args(zoom, x, z)), bytes);
-        write_file(std::vformat(opts.heightmap_cache_path, std::make_format_args(zoom, x, z)), bytes);
-        write_file(std::vformat(opts.normals_cache_path, std::make_format_args(zoom, x, z)), bytes);
+    // cache paths as tile_source derives them from cache_dir
+    fs::path cache_path(const network_config &net, const std::string &kind, const int zoom, const int x, const int z) {
+        return fs::path(net.cache_dir) / kind / std::to_string(zoom) / std::to_string(x) / (std::to_string(z) + ".png");
+    }
+
+    void seed_cache(const network_config &net, const int zoom, const int x, const int z, const std::string &bytes) {
+        write_file(cache_path(net, "texture", zoom, x, z), bytes);
+        write_file(cache_path(net, "heightmap", zoom, x, z), bytes);
+        write_file(cache_path(net, "normals", zoom, x, z), bytes);
     }
 
     // drains the source until `pred` holds or the deadline passes
@@ -89,7 +89,7 @@ namespace {
         std::vector<tile_payload> payloads;
         std::vector<tile_source::drop> drops;
 
-        explicit harness(tile_source_options opts) : src(std::move(opts)) {
+        explicit harness(const network_config &net) : src(net) {
         }
 
         template<typename Pred>
@@ -173,10 +173,9 @@ TEST_CASE("http fetch writes through to the cache") {
 
     // all three assets landed in the cache...
     const auto opts = make_options(dir);
-    const int zoom = 10, x = 3, z = 4;
-    CHECK(fs::exists(std::vformat(opts.texture_cache_path, std::make_format_args(zoom, x, z))));
-    CHECK(fs::exists(std::vformat(opts.heightmap_cache_path, std::make_format_args(zoom, x, z))));
-    CHECK(fs::exists(std::vformat(opts.normals_cache_path, std::make_format_args(zoom, x, z))));
+    CHECK(fs::exists(cache_path(opts, "texture", 10, 3, 4)));
+    CHECK(fs::exists(cache_path(opts, "heightmap", 10, 3, 4)));
+    CHECK(fs::exists(cache_path(opts, "normals", 10, 3, 4)));
 
     // ...so a second source with a dead host still succeeds
     harness h2(make_options(dir));
@@ -207,7 +206,7 @@ TEST_CASE("http error becomes a failure drop") {
     const auto dir = fresh_temp_dir();
     const test_server server;
     auto opts = make_options(dir, server.host());
-    opts.texture_url_path = "/no-such-route/:zoom:/:x:/:y:.png"; // 404
+    opts.texture_url = server.host() + "/no-such-route/:zoom:/:x:/:y:.png"; // 404
 
     harness h(std::move(opts));
     h.src.request(tile_request{tile_key{9, 2, 2}, 2, 2});
@@ -223,7 +222,7 @@ TEST_CASE("requests dedup by key while a job is in flight") {
     const auto dir = fresh_temp_dir();
     const test_server server;
     auto opts = make_options(dir, server.host());
-    opts.texture_url_path = "/slow/:zoom:/:x:/:y:.png"; // 2s busy window
+    opts.texture_url = server.host() + "/slow/:zoom:/:x:/:y:.png"; // 2s busy window
 
     harness h(std::move(opts));
     const tile_key key{9, 6, 6};
@@ -243,7 +242,7 @@ TEST_CASE("cancel before pickup yields a cancelled drop and no payload") {
     const auto dir = fresh_temp_dir();
     const test_server server;
     auto opts = make_options(dir, server.host());
-    opts.texture_url_path = "/slow/:zoom:/:x:/:y:.png";
+    opts.texture_url = server.host() + "/slow/:zoom:/:x:/:y:.png";
 
     harness h(std::move(opts));
     const tile_key busy{9, 8, 8};

@@ -91,13 +91,24 @@ namespace raytiles {
             return std::move(res->body);
         }
 
-        [[nodiscard]] httplib::Client create_client(const std::string &host, const tile_source_options &opts) {
+        std::pair<std::string, std::string> split_url(const std::string &url) {
+            const auto scheme = url.find("://");
+            if (scheme == std::string::npos) throw std::runtime_error("invalid url (no scheme): " + url);
+
+            const auto path_pos = url.find('/', scheme + 3);
+            if (path_pos == std::string::npos) return {url, "/"};
+
+            return {url.substr(0, path_pos), url.substr(path_pos)};
+        }
+
+        [[nodiscard]] httplib::Client create_client(const std::string &host, const int connection_timeout_sec, const int read_timeout_sec,
+                                                    const bool allow_insecure_tls) {
             httplib::Client cli(host);
             cli.set_follow_location(true);
-            cli.set_connection_timeout(opts.connection_timeout_sec);
-            cli.set_read_timeout(opts.read_timeout_sec);
+            cli.set_connection_timeout(connection_timeout_sec);
+            cli.set_read_timeout(read_timeout_sec);
             cli.set_keep_alive(true);
-            cli.enable_server_certificate_verification(!opts.allow_insecure_tls);
+            cli.enable_server_certificate_verification(!allow_insecure_tls);
             return cli;
         }
 
@@ -127,10 +138,31 @@ namespace raytiles {
         }
     } // namespace
 
-    tile_source::tile_source(tile_source_options opts)
-        : options(std::move(opts)) {
-        workers.reserve(static_cast<std::size_t>(options.download_threads));
-        for (int i = 0; i < options.download_threads; ++i) workers.emplace_back([this](const std::stop_token &st) { worker_loop(st); });
+    tile_source::resolved tile_source::resolve(const network_config &net) {
+        auto [texture_host, texture_url_path] = split_url(net.texture_url);
+        auto [heightmap_host, heightmap_url_path] = split_url(net.heightmap_url);
+        auto [normals_host, normals_url_path] = split_url(net.normals_url);
+        return resolved{
+            net.threads,
+            net.allow_insecure_tls,
+            net.connection_timeout_sec,
+            net.read_timeout_sec,
+            net.cache_dir + "/texture/{}/{}/{}.png",
+            net.cache_dir + "/heightmap/{}/{}/{}.png",
+            net.cache_dir + "/normals/{}/{}/{}.png",
+            std::move(texture_host),
+            std::move(texture_url_path),
+            std::move(heightmap_host),
+            std::move(heightmap_url_path),
+            std::move(normals_host),
+            std::move(normals_url_path),
+        };
+    }
+
+    tile_source::tile_source(const network_config &net)
+        : options(resolve(net)) {
+        workers.reserve(static_cast<std::size_t>(options.threads));
+        for (int i = 0; i < options.threads; ++i) workers.emplace_back([this](const std::stop_token &st) { worker_loop(st); });
     }
 
     tile_source::~tile_source() {
@@ -185,7 +217,7 @@ namespace raytiles {
             if (std::filesystem::exists(path)) {
                 bytes = read_file(path);
             } else {
-                if (!clients.contains(host)) clients.try_emplace(host, create_client(host, options));
+                if (!clients.contains(host)) clients.try_emplace(host, create_client(host, options.connection_timeout_sec, options.read_timeout_sec, options.allow_insecure_tls));
                 auto body = fetch(clients.at(host), get_url(url_path, req.key.zoom, req.x, req.z));
                 write_atomic(path, body);
                 bytes = std::move(body);

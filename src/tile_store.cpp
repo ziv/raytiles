@@ -11,27 +11,28 @@
 #include "detail/utils.hpp"
 
 namespace raytiles {
-    tile_store::tile_store(const tile_store_options &opts, tile_source_options source_opts)
-        : options(opts),
-          source(std::move(source_opts)) {
+    tile_store::tile_store(const config &conf)
+        : world(conf.world),
+          streaming(conf.streaming),
+          source(conf.network) {
         // input validation
-        if (options.base_zoom < min_supported_zoom) {
-            throw std::runtime_error(std::format("base_zoom {} is below min_supported_zoom {}", options.base_zoom, min_supported_zoom));
+        if (world.base_zoom < min_supported_zoom) {
+            throw std::runtime_error(std::format("base_zoom {} is below min_supported_zoom {}", world.base_zoom, min_supported_zoom));
         }
-        if (options.max_zoom > max_supported_zoom) {
-            throw std::runtime_error(std::format("max_zoom {} is above max_supported_zoom {}", options.max_zoom, max_supported_zoom));
+        if (world.max_zoom > max_supported_zoom) {
+            throw std::runtime_error(std::format("max_zoom {} is above max_supported_zoom {}", world.max_zoom, max_supported_zoom));
         }
-        if (options.max_zoom < options.base_zoom) {
-            throw std::runtime_error(std::format("max_zoom {} is below base_zoom {}", options.max_zoom, options.base_zoom));
+        if (world.max_zoom < world.base_zoom) {
+            throw std::runtime_error(std::format("max_zoom {} is below base_zoom {}", world.max_zoom, world.base_zoom));
         }
 
         // desired-set policy inputs (pure lod module)
         lod_opts = lod::options{
-            options.base_zoom,
-            options.max_zoom,
-            options.base_zoom_tile_size,
-            options.rendering_radius,
-            options.thresholds,
+            world.base_zoom,
+            world.max_zoom,
+            world.tile_size,
+            streaming.radius,
+            streaming.thresholds,
         };
 
         // construct the tiles map
@@ -39,12 +40,12 @@ namespace raytiles {
         // - metadata (size & threshold)
         // - mesh
         int res = min_resolution;
-        for (int zoom = options.base_zoom; zoom <= options.max_zoom; ++zoom) {
-            const auto idx = static_cast<std::size_t>(zoom - options.base_zoom);
-            const auto ratio = static_cast<float>(1 << (zoom - options.base_zoom));
-            const auto size = options.base_zoom_tile_size / ratio;
-            const auto th = options.thresholds[idx];
-            const auto skirt_factor = options.skirt_overlap[idx];
+        for (int zoom = world.base_zoom; zoom <= world.max_zoom; ++zoom) {
+            const auto idx = static_cast<std::size_t>(zoom - world.base_zoom);
+            const auto ratio = static_cast<float>(1 << (zoom - world.base_zoom));
+            const auto size = world.tile_size / ratio;
+            const auto th = streaming.thresholds[idx];
+            const auto skirt_factor = world.skirt_overlap[idx];
 
             tiles[idx] = tile_value{
                 size,
@@ -73,7 +74,7 @@ namespace raytiles {
         // walk from the highest available zoom down to base; whichever zoom holds the
         // tile that contains (position.x, position.z) wins. higher zoom = finer
         // sample, so we prefer it if loaded.
-        for (int zoom = options.max_zoom; zoom >= options.base_zoom; --zoom) {
+        for (int zoom = world.max_zoom; zoom >= world.base_zoom; --zoom) {
             const float size = zoom_value(zoom).size;
 
             const int tile_x = static_cast<int>(std::floor(position.x / size));
@@ -107,7 +108,7 @@ namespace raytiles {
 
                 // if it is base zoom and not desired, no need to
                 // check the rest, remove it. it the horizon.
-                if (key.zoom == options.base_zoom) return true;
+                if (key.zoom == world.base_zoom) return true;
 
                 // if not in desired and not in frustum, remove
                 // without thinking todo add softer eviction
@@ -215,7 +216,7 @@ namespace raytiles {
             SetTextureWrap(*normals_tex, TEXTURE_WRAP_CLAMP);
 
             // allow use of mipmaps (only for texture)
-            if (options.use_mipmap) {
+            if (world.mipmaps) {
                 GenTextureMipmaps(&texture_tex.get());
                 SetTextureFilter(*texture_tex, TEXTURE_FILTER_ANISOTROPIC_16X);
             }
@@ -257,8 +258,8 @@ namespace raytiles {
 
             ++promoted;
 
-            if (promoted >= options.max_uploads_per_frame) break;
-            if (GetTime() - frame_start >= options.upload_budget_sec) break;
+            if (promoted >= streaming.max_uploads_per_frame) break;
+            if (GetTime() - frame_start >= streaming.upload_budget_sec) break;
         }
 
         // keep the list front-to-back for early-Z. only membership changes
@@ -310,11 +311,11 @@ namespace raytiles {
     }
 
     void tile_store::spawn(const tile_key &tile) {
-        const auto scale = 1 << (tile.zoom - options.base_zoom);
+        const auto scale = 1 << (tile.zoom - world.base_zoom);
         source.request(tile_request{
             tile,
-            tile.x + options.anchor_x_tile * scale,
-            tile.z + options.anchor_z_tile * scale,
+            tile.x + world.anchor_x_tile * scale,
+            tile.z + world.anchor_z_tile * scale,
         });
         loading_keys.insert(tile);
     }
@@ -328,12 +329,12 @@ namespace raytiles {
         const auto contains = [&](const int zoom, const int x, const int z) { return resident_tiles.contains(tile_key{zoom, x, z}); };
 
         // check parent
-        if (key.zoom > options.base_zoom) {
+        if (key.zoom > world.base_zoom) {
             if (contains(key.zoom - 1, key.x >> 1, key.z >> 1)) return true;
         }
 
         // check children
-        if (key.zoom < options.max_zoom) {
+        if (key.zoom < world.max_zoom) {
             const int child_x = key.x * 2;
             const int child_z = key.z * 2;
             if (const int target_zoom = key.zoom + 1; contains(target_zoom, child_x, child_z) &&
@@ -346,12 +347,12 @@ namespace raytiles {
 
         // check grandparent. rare, but happens when zoom levels are skipped
         // due to distance-based loading in a very fast movement.
-        if (key.zoom - 1 > options.base_zoom) {
+        if (key.zoom - 1 > world.base_zoom) {
             if (contains(key.zoom - 2, key.x >> 2, key.z >> 2)) return true;
         }
 
         // check grandchildren. rare, the same reason.
-        if (key.zoom + 1 < options.max_zoom) {
+        if (key.zoom + 1 < world.max_zoom) {
             const int child_x = key.x * 4;
             const int child_z = key.z * 4;
             const int target_zoom = key.zoom + 2;

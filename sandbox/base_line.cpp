@@ -17,12 +17,7 @@ int main() {
     InitWindow(800, 600, "raytiles");
     double t = GetTime();
 
-    raytiles::world_config world;
-    raytiles::streaming_config streaming;
-    raytiles::rendering_config rendering;
-    raytiles::pool_config pool_conf;
-
-    raytiles::streamer streamer(world, streaming, rendering, pool_conf);
+    raytiles::streamer streamer;
 
     Camera3D camera;
     camera.position = Vector3{2000.0f, 5000.0f, 2000.0f};
@@ -36,7 +31,7 @@ int main() {
         streamer.update(camera);
         if (!streamer.is_loading()) break;
 
-        const auto loading = streamer.get_loading();
+        const auto loading = streamer.loading_progress();
         BeginDrawing();
         ClearBackground(BLACK);
         DrawText(TextFormat("Loading... %.1f%%", loading * 100.0f), 350, 350, 50, WHITE);

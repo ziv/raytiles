@@ -95,8 +95,8 @@ void main()
 )glsl";
     }
 
-    tile_shader::tile_shader(const tile_shader_options &opts)
-        : options(opts),
+    tile_shader::tile_shader(const rendering_config &conf)
+        : options(conf),
           shader(raii::load_shader_from_memory(vertex_shader, fragment_shader)) {
         // cache slots
         cam_pos_loc = GetShaderLocation(*shader, "cameraPosition");
@@ -111,7 +111,7 @@ void main()
         normal_scale_loc = GetShaderLocation(*shader, "normalScale");
         fog_start_loc = GetShaderLocation(*shader, "fogStart");
         fog_end_loc = GetShaderLocation(*shader, "fogEnd");
-        skirt_drop = GetShaderLocation(*shader, "skirtDrop");
+        skirt_drop_loc = GetShaderLocation(*shader, "skirtDrop");
 
         // validate all slots populated
         if (-1 == cam_pos_loc ||
@@ -126,7 +126,7 @@ void main()
             -1 == normal_scale_loc ||
             -1 == fog_start_loc ||
             -1 == fog_end_loc ||
-            -1 == skirt_drop
+            -1 == skirt_drop_loc
         ) {
             throw std::runtime_error("failed to get shader locations");
         }
@@ -137,64 +137,48 @@ void main()
         shader->locs[SHADER_LOC_MAP_ROUGHNESS] = tex_height_loc;
         shader->locs[SHADER_LOC_MAP_NORMAL] = tex_normal_loc;
 
+        upload_all();
+    }
+
+    void tile_shader::upload_all() {
         SetShaderValue(*shader, height_scale_loc, &options.height_scale, SHADER_UNIFORM_FLOAT);
         SetShaderValue(*shader, normal_scale_loc, &options.normals_scale, SHADER_UNIFORM_FLOAT);
         SetShaderValue(*shader, fog_start_loc, &options.fog_start, SHADER_UNIFORM_FLOAT);
         SetShaderValue(*shader, fog_end_loc, &options.fog_end, SHADER_UNIFORM_FLOAT);
         SetShaderValue(*shader, sun_scale_loc, &options.sun_scale, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(*shader, skirt_drop, &options.skirt_drop, SHADER_UNIFORM_FLOAT);
-        // set the ambient color (weather/day/night/...)
-        SetShaderValue(*shader, ambient_loc, options.ambient_light, SHADER_UNIFORM_VEC4);
-        // set the fog color (to match the sky)
-        SetShaderValue(*shader, fog_color_loc, options.fog_color, SHADER_UNIFORM_VEC4);
-        // set the sun direction
-        SetShaderValue(*shader, sun_dir_loc, options.sun_direction, SHADER_UNIFORM_VEC3);
+        SetShaderValue(*shader, skirt_drop_loc, &options.skirt_drop, SHADER_UNIFORM_FLOAT);
+        // ambient color (weather/day/night/...) and fog color (to match the
+        // sky): normalized to 0..1 floats at the GPU boundary
+        const Vector4 ambient = ColorNormalize(options.ambient_light);
+        SetShaderValue(*shader, ambient_loc, &ambient, SHADER_UNIFORM_VEC4);
+        const Vector4 fog = ColorNormalize(options.fog_color);
+        SetShaderValue(*shader, fog_color_loc, &fog, SHADER_UNIFORM_VEC4);
+        SetShaderValue(*shader, sun_dir_loc, &options.sun_direction, SHADER_UNIFORM_VEC3);
     }
 
+    tile_shader &tile_shader::apply(const rendering_config &conf) {
+        options = conf;
+        upload_all();
+        return *this;
+    }
 
     tile_shader &tile_shader::set_camera_location(const Vector3 &position) {
         SetShaderValue(*shader, cam_pos_loc, &position, SHADER_UNIFORM_VEC3);
         return *this;
     }
 
-    tile_shader &tile_shader::set_ambient_light(const float r, const float g, const float b, const float a) {
-        options.ambient_light[0] = r;
-        options.ambient_light[1] = g;
-        options.ambient_light[2] = b;
-        options.ambient_light[3] = a;
-        SetShaderValue(*shader, ambient_loc, options.ambient_light, SHADER_UNIFORM_VEC4);
-        return *this;
-    }
-
     tile_shader &tile_shader::set_ambient_light(const Color color) {
-        return set_ambient_light(static_cast<float>(color.r) / 255.0f,
-                                 static_cast<float>(color.g) / 255.0f,
-                                 static_cast<float>(color.b) / 255.0f,
-                                 static_cast<float>(color.a) / 255.0f);
-    }
-
-    tile_shader &tile_shader::set_ambient_light(const Vector4 color) {
-        return set_ambient_light(color.x, color.y, color.z, color.w);
-    }
-
-    tile_shader &tile_shader::set_fog_color(const float r, const float g, const float b, const float a) {
-        options.fog_color[0] = r;
-        options.fog_color[1] = g;
-        options.fog_color[2] = b;
-        options.fog_color[3] = a;
-        SetShaderValue(*shader, fog_color_loc, options.fog_color, SHADER_UNIFORM_VEC4);
+        options.ambient_light = color;
+        const Vector4 ambient = ColorNormalize(color);
+        SetShaderValue(*shader, ambient_loc, &ambient, SHADER_UNIFORM_VEC4);
         return *this;
     }
 
     tile_shader &tile_shader::set_fog_color(const Color color) {
-        return set_fog_color(static_cast<float>(color.r) / 255.0f,
-                             static_cast<float>(color.g) / 255.0f,
-                             static_cast<float>(color.b) / 255.0f,
-                             static_cast<float>(color.a) / 255.0f);
-    }
-
-    tile_shader &tile_shader::set_fog_color(const Vector4 color) {
-        return set_fog_color(color.x, color.y, color.z, color.w);
+        options.fog_color = color;
+        const Vector4 fog = ColorNormalize(color);
+        SetShaderValue(*shader, fog_color_loc, &fog, SHADER_UNIFORM_VEC4);
+        return *this;
     }
 
     tile_shader &tile_shader::set_fog_start(const float distance) {
@@ -211,15 +195,13 @@ void main()
 
     tile_shader &tile_shader::set_skirt_drop(const float drop) {
         options.skirt_drop = drop;
-        SetShaderValue(*shader, skirt_drop, &options.skirt_drop, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(*shader, skirt_drop_loc, &options.skirt_drop, SHADER_UNIFORM_FLOAT);
         return *this;
     }
 
     tile_shader &tile_shader::set_sun_direction(const Vector3 direction) {
-        options.sun_direction[0] = direction.x;
-        options.sun_direction[1] = direction.y;
-        options.sun_direction[2] = direction.z;
-        SetShaderValue(*shader, sun_dir_loc, options.sun_direction, SHADER_UNIFORM_VEC3);
+        options.sun_direction = direction;
+        SetShaderValue(*shader, sun_dir_loc, &options.sun_direction, SHADER_UNIFORM_VEC3);
         return *this;
     }
 

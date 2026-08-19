@@ -54,61 +54,58 @@ int main() {
 
     std::string token = required_env("MAPBOX_TOKEN", "Mapbox");
 
-    raytiles::world_config world;
-    raytiles::streaming_config streaming;
-    raytiles::rendering_config rendering;
-    raytiles::pool_config pool_conf;
+    raytiles::config conf;
 
     // pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
     pool_conf.download_threads = 8;
 
     // everest
-    // world.anchor_x_tile = 373;
-    // world.anchor_z_tile = 214;
+    // conf.world.anchor_x_tile = 373;
+    // conf.world.anchor_z_tile = 214;
 
     // scotland
-    // world.anchor_x_tile = 248;
-    // world.anchor_z_tile = 160;
-    // world.base_zoom_tile_size = 43769;
+    // conf.world.anchor_x_tile = 248;
+    // conf.world.anchor_z_tile = 160;
+    // conf.world.tile_size = 43769;
 
     // The Dolomites
-    world.anchor_x_tile = 273;
-    world.anchor_z_tile = 180;
+    conf.world.anchor_x_tile = 273;
+    conf.world.anchor_z_tile = 180;
 
     // The Grand Canyon
-    // world.anchor_x_tile = 97;
-    // world.anchor_z_tile = 200;
+    // conf.world.anchor_x_tile = 97;
+    // conf.world.anchor_z_tile = 200;
 
     // New Zealand
-    // world.anchor_x_tile = 494;
-    // world.anchor_z_tile = 332;
+    // conf.world.anchor_x_tile = 494;
+    // conf.world.anchor_z_tile = 332;
 
     // Haway
-    // world.anchor_x_tile = 29;
-    // world.anchor_z_tile = 223;
+    // conf.world.anchor_x_tile = 29;
+    // conf.world.anchor_z_tile = 223;
 
     // Norway
-    // world.anchor_x_tile = 265;
-    // world.anchor_z_tile = 143;
+    // conf.world.anchor_x_tile = 265;
+    // conf.world.anchor_z_tile = 143;
 
     // Grand Teton
-    // world.anchor_x_tile = 98;
-    // world.anchor_z_tile = 186;
+    // conf.world.anchor_x_tile = 98;
+    // conf.world.anchor_z_tile = 186;
 
     // Crete
-    // world.anchor_x_tile = 292;
-    // world.anchor_z_tile = 202;
+    // conf.world.anchor_x_tile = 292;
+    // conf.world.anchor_z_tile = 202;
 
 
     // Adjust to fit your scene
-    world.base_zoom_tile_size = 64000;
+    conf.world.tile_size = 64000;
     rendering.skirt_drop = 1000.0f;
     world.skirt_overlap = {
         1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.02f
     };
 
 
-    raytiles::streamer streamer(world, streaming, rendering, pool_conf);
+    raytiles::streamer streamer(conf);
     // streamer.set_normals_scale(5.0f);
 
     Vector3 world_offset = {0.0f, 0.0f, 0.0f};
@@ -145,7 +142,7 @@ int main() {
         streamer.update(camera, world_offset);
         if (!streamer.is_loading()) break;
 
-        const auto loading = streamer.get_loading();
+        const auto loading = streamer.loading_progress();
         BeginDrawing();
         ClearBackground(BLACK);
         DrawText(TextFormat("Loading... %.1f%%", loading * 100.0f), 350, 350, 50, WHITE);

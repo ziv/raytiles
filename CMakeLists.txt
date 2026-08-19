@@ -41,8 +41,8 @@ add_library(${PROJECT_NAME}
         src/detail/utils.hpp
         src/raytiles.cpp
         src/craytiles.cpp
-        src/tiles_renderer.cpp
-        src/detail/tiles_renderer.h
+        src/terrain_renderer.cpp
+        src/detail/terrain_renderer.h
         src/detail/tile_source.h
         src/tile_source.cpp
         src/tile_shader.cpp

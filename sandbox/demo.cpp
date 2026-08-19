@@ -21,15 +21,12 @@ int main() {
 
     std::string token = required_env();
 
-    raytiles::world_config word_conf;
-    raytiles::streaming_config streaming_conf;
-    raytiles::rendering_config rendering_conf;
-    raytiles::pool_config pool_conf;
+    raytiles::config conf;
 
-    // pool_conf.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
-    pool_conf.download_threads = 8;
-    // rendering_conf.skirt_drop = 1000.0f;
-    word_conf.skirt_overlap = {1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f};
+    // conf.network.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
+    conf.network.threads = 8;
+    // conf.rendering.skirt_drop = 1000.0f;
+    conf.world.skirt_overlap = {1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f};
 
 
     // The Dolomites
@@ -43,9 +40,13 @@ int main() {
     // Grand Canyon
     // constexpr double lat = 36.056595;
     // constexpr double lon = -112.125092;
-    constexpr double lat = 35.97391;
-    constexpr double lon = -113.76892;
+    // constexpr double lat = 35.97391;
+    // constexpr double lon = -113.76892;
 
+
+    // negev
+    constexpr double lat = 30.82691969172123;
+    constexpr double lon = 34.91386235622426;
 
     // My home
     // constexpr double lat = 32.11572;
@@ -55,7 +56,7 @@ int main() {
     // constexpr double lon = 34.95166;
 
     // init tiles streamer
-    raytiles::streamer streamer(lat, lon, word_conf, streaming_conf, rendering_conf, pool_conf);
+    raytiles::streamer streamer(lat, lon, conf);
 
     // init sky streamer
     raytiles::sky::sky_steamer sky;
@@ -67,7 +68,7 @@ int main() {
 
     Vector3 world_offset = {0.0f, 0.0f, 0.0f};
     free_camera::AdvancedFreeCamera adv_f{};
-    Camera3D camera = get_perspective_camera(streamer.get_initial_position(5000.0f));
+    Camera3D camera = get_perspective_camera(streamer.initial_position(5000.0f));
     Model tie = LoadModel("res/tie/scene.gltf");
 
     float sun = 1.0f;
@@ -79,7 +80,7 @@ int main() {
     loading_screen(streamer, camera, world_offset);
 
     // make sure we'll see the horizon
-    rlSetClipPlanes(streaming_conf.near_plane, streaming_conf.far_plane);
+    rlSetClipPlanes(conf.streaming.near_plane, conf.streaming.far_plane);
 
     while (!WindowShouldClose()) {
         constexpr float rebase_threshold = 4096.0f;

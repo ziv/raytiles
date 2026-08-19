@@ -16,29 +16,6 @@
 #include "tile.hpp"
 
 namespace raytiles {
-    struct tile_source_options {
-        int download_threads = 4;
-        bool allow_insecure_tls = false;
-
-        /// HTTP timeouts (seconds). Defaults match the previous hardcoded
-        /// values; the unit tests shorten them.
-        int connection_timeout_sec = 5;
-        int read_timeout_sec = 3;
-
-        std::string texture_cache_path = ".cache/texture/{}/{}/{}.png";
-        std::string heightmap_cache_path = ".cache/heightmap/{}/{}/{}.png";
-        std::string normals_cache_path = ".cache/normals/{}/{}/{}.png";
-
-        std::string texture_host{};
-        std::string texture_url_path{};
-
-        std::string heightmap_host{};
-        std::string heightmap_url_path{};
-
-        std::string normals_host{};
-        std::string normals_url_path{};
-    };
-
     /// One tile fetch: the anchor-relative identity plus the absolute provider
     /// coordinates at `key.zoom` (the caller resolves the anchor; the source
     /// knows nothing about world anchoring).
@@ -83,7 +60,10 @@ namespace raytiles {
             std::string reason;
         };
 
-        explicit tile_source(tile_source_options opts);
+        /// Splits each provider URL into host + path and derives the cache
+        /// path templates from `net.cache_dir`. Throws `std::runtime_error`
+        /// for URLs without a scheme.
+        explicit tile_source(const network_config &net);
 
         /// Blocks until workers exit; an in-flight HTTP fetch cannot be
         /// aborted, so this may wait out a network timeout.
@@ -110,23 +90,41 @@ namespace raytiles {
         void drain(std::vector<tile_payload> &ready_out, std::vector<drop> &dropped_out);
 
     private:
-        enum request_type {
-            TEXTURE,
-            HEIGHTMAP,
-            NORMALS
-        };
-
         struct job {
             tile_request req;
             std::shared_ptr<std::atomic_bool> cancelled;
         };
+
+        /// network_config resolved for fetching: URLs split into host + path,
+        /// cache templates derived from cache_dir.
+        struct resolved {
+            int threads;
+            bool allow_insecure_tls;
+            int connection_timeout_sec;
+            int read_timeout_sec;
+
+            std::string texture_cache_path;
+            std::string heightmap_cache_path;
+            std::string normals_cache_path;
+
+            std::string texture_host;
+            std::string texture_url_path;
+
+            std::string heightmap_host;
+            std::string heightmap_url_path;
+
+            std::string normals_host;
+            std::string normals_url_path;
+        };
+
+        [[nodiscard]] static resolved resolve(const network_config &net);
 
         void worker_loop(const std::stop_token &st);
 
         /// Erase from in_flight and record the drop, under the lock.
         void deliver_drop(const tile_key &key, bool cancelled, std::string reason);
 
-        tile_source_options options;
+        resolved options;
         std::vector<std::jthread> workers;
 
         std::queue<job> pending;
