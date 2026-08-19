@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cstdint>
 #include <format>
 #include <ranges>
 #include <unordered_map>
