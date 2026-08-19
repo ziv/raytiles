@@ -1,5 +1,10 @@
 # Raytiles terrain refactor plan
 
+> **Execution status (2026-08-19):** implemented on branch `refactor-composition-plan` — steps 1–8
+> and 10 are done (one conventional commit each), step 9 (R16 height texture) was skipped by
+> decision. Per-step specs, re-evaluations, and deviations live in [`refactor/`](refactor/README.md).
+> §1 below describes the *pre-refactor* code and is kept as the historical rationale.
+
 Scope: the **terrain module only** (`streamer`, `tiles_manager`, `pool`, `tiles_renderer`, `tile_shader`). The sky module is untouched. Each phase is independently shippable and leaves the build green; ordering matters — early phases build the safety net the later, riskier phases rely on.
 
 Goals, in the author's words:

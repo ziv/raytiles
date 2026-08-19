@@ -15,7 +15,7 @@ implementation + re-evaluation + green build/tests + commit.
 | 7 | Height grid (`uint16`) + bilinear `ground_height` | [step-07-height-grid.md](step-07-height-grid.md) | **done** |
 | 8 | Public API v2 (nested `config`, raylib types) + C wrapper + sandbox + README | [step-08-api-v2.md](step-08-api-v2.md) | **done** |
 | 9 | R16 height texture (**skipped** by decision 2026-08-19 — revisit post-refactor) | — | skipped |
-| 10 | Close-out: CLAUDE.md sync, clang-format, plan status sweep | step-10-close-out.md | pending |
+| 10 | Close-out: CLAUDE.md sync, clang-format, plan status sweep | [step-10-close-out.md](step-10-close-out.md) | **done** |
 
 Working agreements (locked in with the author, 2026-08-19):
 - One conventional commit per step on branch `refactor-composition-plan`; author reviews/pushes.
