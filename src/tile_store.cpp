@@ -82,21 +82,16 @@ namespace raytiles {
             const auto it = resident_tiles.find(tile_key{zoom, tile_x, tile_z});
             if (it == resident_tiles.end()) continue;
 
-            const auto &tile = it->second;
-            const Image &img = *tile.hm_image;
-
-            // defensive: promotion only stores decoded images, but a garbage
+            // defensive: promotion only stores populated grids, but a garbage
             // read here would be silent — keep the guard
-            if (!IsImageValid(img)) continue;
+            const auto &grid = it->second.heights;
+            if (grid.samples.empty()) continue;
 
             // local uv inside the tile, [0, 1)
             const float u = (position.x - static_cast<float>(tile_x) * size) / size;
             const float v = (position.z - static_cast<float>(tile_z) * size) / size;
 
-            const int px = static_cast<int>(u * static_cast<float>(img.width));
-            const int py = static_cast<int>(v * static_cast<float>(img.height));
-
-            return utils::get_height_from_image(img, px, py);
+            return utils::sample_height_grid(grid, u, v);
         }
         return std::nullopt;
     }
@@ -208,12 +203,11 @@ namespace raytiles {
             // do we still need it? (raii frees the images if not)
             if (!desired_keys.contains(key)) continue;
 
-            // upload to GPU. the heightmap CPU image is kept in the resident_tile
-            // for ground_height() queries (recast, collision).
+            // upload to GPU. all three CPU images are freed at the end of this
+            // iteration — the worker-built uint16 grid serves ground_height().
             raii::texture texture_tex = raii::load_texture_from_image(*payload.albedo);
             raii::texture height_tex = raii::load_texture_from_image(*payload.height);
             raii::texture normals_tex = raii::load_texture_from_image(*payload.normals);
-            raii::image height_img = std::move(payload.height);
 
             // don't clamp the ends
             SetTextureWrap(*texture_tex, TEXTURE_WRAP_CLAMP);
@@ -251,12 +245,12 @@ namespace raytiles {
                 // defensive: key already resident (shouldn't happen via the
                 // spawn/promote flow) — replace resources in place, keep the slot
                 render_list[existing->second.slot] = item;
-                existing->second = resident_tile{std::move(texture_tex), std::move(height_tex), std::move(height_img), std::move(normals_tex),
+                existing->second = resident_tile{std::move(texture_tex), std::move(height_tex), std::move(normals_tex), std::move(payload.heights),
                                                existing->second.slot};
             } else {
                 render_list.push_back(item);
                 const auto slot = static_cast<std::uint32_t>(render_list.size() - 1);
-                resident_tiles.emplace(key, resident_tile{std::move(texture_tex), std::move(height_tex), std::move(height_img), std::move(normals_tex), slot});
+                resident_tiles.emplace(key, resident_tile{std::move(texture_tex), std::move(height_tex), std::move(normals_tex), std::move(payload.heights), slot});
                 order_dirty = true;
                 coverage_dirty = true; // a new resident can cover its parent/children
             }

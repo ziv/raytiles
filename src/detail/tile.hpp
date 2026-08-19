@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include "raytiles/raytiles.h" // Meters/Zoom aliases (also pulls raylib.h)
 #include "raii.hpp"
@@ -21,15 +22,26 @@ namespace raytiles {
         auto operator<=>(const tile_key &) const = default;
     };
 
+    /// CPU-side height samples for one tile, kept for `ground_height()`
+    /// queries. Encoding: `round(height_m) + 32768` per texel — integer-meter
+    /// resolution (the Terrarium source is only meter-accurate anyway); the
+    /// bilinear sampler in utils.hpp smooths between texels. 128 KB per
+    /// 256x256 tile vs 192-256 KB for the decoded RGB(A) image it replaces.
+    struct height_grid {
+        int width = 0;
+        int height = 0;
+        std::vector<std::uint16_t> samples;
+    };
+
     /// Fully promoted tile — the *owner* record. Holds the RAII resources plus
     /// the tile's slot in the flat render list. Everything the draw loop needs
     /// lives in the matching `render_item`; this record exists for resource
-    /// lifetime, `ground_height()` (CPU heightmap), and slot bookkeeping.
+    /// lifetime, `ground_height()` (CPU height grid), and slot bookkeeping.
     struct resident_tile {
         raii::texture tx_texture;
         raii::texture hm_texture;
-        raii::image hm_image;
         raii::texture nl_texture;
+        height_grid heights;
         std::uint32_t slot;
     };
 

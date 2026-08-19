@@ -93,6 +93,48 @@ TEST_CASE("unsupported pixel formats return 0") {
     CHECK(raytiles::utils::get_height_from_image(img, 0, 0) == 0.0f);
 }
 
+TEST_CASE("build_height_grid encodes rounded meters offset by 32768") {
+    const float heights[] = {0.0f, 8848.0f, -415.0f, 100.5f};
+    std::vector<unsigned char> pixels(4 * 1 * 3);
+    for (int i = 0; i < 4; ++i) {
+        const auto [r, g, b] = encode_terrarium(heights[i]);
+        pixels[i * 3 + 0] = r;
+        pixels[i * 3 + 1] = g;
+        pixels[i * 3 + 2] = b;
+    }
+    const Image img = make_image(pixels, 4, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+
+    const auto grid = raytiles::utils::build_height_grid(img);
+    REQUIRE(grid.width == 4);
+    REQUIRE(grid.height == 1);
+    REQUIRE(grid.samples.size() == 4);
+    CHECK(grid.samples[0] == 32768); // 0 m
+    CHECK(grid.samples[1] == 32768 + 8848);
+    CHECK(grid.samples[2] == 32768 - 415);
+    const bool half_rounded_to_neighbor = grid.samples[3] == 32768 + 100 || grid.samples[3] == 32768 + 101;
+    CHECK(half_rounded_to_neighbor); // .5 rounds either way per lround
+}
+
+TEST_CASE("sample_height_grid: texel centers, midpoints, and edge clamping") {
+    // 2x1 grid: 100 m and 300 m
+    raytiles::height_grid grid{2, 1, {32768 + 100, 32768 + 300}};
+
+    // texel centers: u = 0.25 and 0.75
+    CHECK(raytiles::utils::sample_height_grid(grid, 0.25f, 0.5f) == doctest::Approx(100.0f));
+    CHECK(raytiles::utils::sample_height_grid(grid, 0.75f, 0.5f) == doctest::Approx(300.0f));
+
+    // midpoint between the two texels: average
+    CHECK(raytiles::utils::sample_height_grid(grid, 0.5f, 0.5f) == doctest::Approx(200.0f));
+
+    // edges clamp to the border texels
+    CHECK(raytiles::utils::sample_height_grid(grid, 0.0f, 0.0f) == doctest::Approx(100.0f));
+    CHECK(raytiles::utils::sample_height_grid(grid, 1.0f, 1.0f) == doctest::Approx(300.0f));
+
+    // vertical interpolation on a 1x2 grid
+    raytiles::height_grid vgrid{1, 2, {32768 + 0, 32768 + 1000}};
+    CHECK(raytiles::utils::sample_height_grid(vgrid, 0.5f, 0.5f) == doctest::Approx(500.0f));
+}
+
 TEST_CASE("tile_key hash: deterministic, equality-consistent, collision-free on a working-set grid") {
     constexpr std::hash<tile_key> hasher{};
 

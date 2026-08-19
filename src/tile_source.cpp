@@ -1,4 +1,5 @@
 #include "detail/tile_source.h"
+#include "detail/utils.hpp" // build_height_grid (pure CPU math, worker-safe)
 
 #include <cstdio>
 #include <exception>
@@ -233,9 +234,13 @@ namespace raytiles {
                 continue;
             }
 
+            // derive the CPU query grid here so the main thread's upload
+            // budget never pays for it (pure math, no raylib)
+            height_grid heights = utils::build_height_grid(hm);
+
             std::lock_guard lock(mtx);
             in_flight.erase(j.req.key);
-            ready.push_back(tile_payload{j.req.key, raii::image{tex}, raii::image{hm}, raii::image{nl}});
+            ready.push_back(tile_payload{j.req.key, raii::image{tex}, raii::image{hm}, raii::image{nl}, std::move(heights)});
         }
     }
 } // namespace raytiles

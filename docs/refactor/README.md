@@ -12,7 +12,7 @@ implementation + re-evaluation + green build/tests + commit.
 | 4 | Draw-order policy (front-to-back on membership change) | [step-04-draw-order.md](step-04-draw-order.md) | **done** |
 | 5 | `pool` → `tile_source` (one job/tile, ready queue, cancel by key) + tests | [step-05-tile-source.md](step-05-tile-source.md) | **done** |
 | 6 | `tiles_manager` → `tile_store` (reconcile/promote/update_desired/cull) | [step-06-tile-store.md](step-06-tile-store.md) | **done** |
-| 7 | Height grid (`uint16`) + bilinear `ground_height` | step-07-height-grid.md | pending |
+| 7 | Height grid (`uint16`) + bilinear `ground_height` | [step-07-height-grid.md](step-07-height-grid.md) | **done** |
 | 8 | Public API v2 (nested `config`, raylib types) + C wrapper + sandbox + README | step-08-api-v2.md | pending |
 | 9 | R16 height texture (**skipped** by decision 2026-08-19 — revisit post-refactor) | — | skipped |
 | 10 | Close-out: CLAUDE.md sync, clang-format, plan status sweep | step-10-close-out.md | pending |

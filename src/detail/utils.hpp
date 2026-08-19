@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <vector>
@@ -84,6 +85,43 @@ namespace raytiles::utils {
         }
 
         return static_cast<float>(r) * 256.0f + static_cast<float>(g) + static_cast<float>(b) / 256.0f - 32768.0f;
+    }
+
+    /// Convert a decoded Terrarium image into a compact query grid
+    /// (see `height_grid` for the encoding). Pure CPU math — safe on workers.
+    inline height_grid build_height_grid(const Image &img) {
+        height_grid grid{img.width, img.height, {}};
+        grid.samples.resize(static_cast<std::size_t>(img.width) * static_cast<std::size_t>(img.height));
+        for (int y = 0; y < img.height; ++y) {
+            for (int x = 0; x < img.width; ++x) {
+                const float h = get_height_from_image(img, x, y);
+                const long rounded = std::lround(h) + 32768L;
+                grid.samples[static_cast<std::size_t>(y) * static_cast<std::size_t>(img.width) + static_cast<std::size_t>(x)] =
+                        static_cast<std::uint16_t>(std::clamp(rounded, 0L, 65535L));
+            }
+        }
+        return grid;
+    }
+
+    /// Bilinear height sample at normalized tile coordinates (u, v) in [0, 1].
+    /// Texel centers sit at (i + 0.5) / n; edges clamp to the border texels.
+    inline Meters sample_height_grid(const height_grid &grid, const float u, const float v) {
+        const auto sample = [&](int x, int y) {
+            x = std::clamp(x, 0, grid.width - 1);
+            y = std::clamp(y, 0, grid.height - 1);
+            return static_cast<float>(grid.samples[static_cast<std::size_t>(y) * static_cast<std::size_t>(grid.width) + static_cast<std::size_t>(x)]);
+        };
+
+        const float fx = u * static_cast<float>(grid.width) - 0.5f;
+        const float fy = v * static_cast<float>(grid.height) - 0.5f;
+        const int x0 = static_cast<int>(std::floor(fx));
+        const int y0 = static_cast<int>(std::floor(fy));
+        const float tx = fx - static_cast<float>(x0);
+        const float ty = fy - static_cast<float>(y0);
+
+        const float top = std::lerp(sample(x0, y0), sample(x0 + 1, y0), tx);
+        const float bottom = std::lerp(sample(x0, y0 + 1), sample(x0 + 1, y0 + 1), tx);
+        return std::lerp(top, bottom, ty) - 32768.0f;
     }
 
     inline void normalize_plane(Plane &p) {

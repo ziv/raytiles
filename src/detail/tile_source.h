@@ -48,7 +48,9 @@ namespace raytiles {
         int z;
     };
 
-    /// A completed tile: all three assets decoded to CPU images. Move-only;
+    /// A completed tile: all three assets decoded to CPU images, plus the
+    /// compact height grid derived on the worker (main-thread upload budget is
+    /// the scarce resource; worker time is free parallelism). Move-only;
     /// images are freed by raii on whatever thread destroys the payload — the
     /// source guarantees that is always the main thread (drain or destructor).
     struct tile_payload {
@@ -56,6 +58,7 @@ namespace raytiles {
         raii::image albedo;
         raii::image height;
         raii::image normals;
+        height_grid heights;
     };
 
     /// Background tile fetcher. One job per tile fetches texture + heightmap +
