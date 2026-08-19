@@ -10,7 +10,7 @@ implementation + re-evaluation + green build/tests + commit.
 | 2 | Per-zoom array, `get_loading` fix, dead-code removal | [step-02-small-fixes.md](step-02-small-fixes.md) | **done** |
 | 3 | `render_item` list, renderer consumes span, delete `data_view` | [step-03-render-list.md](step-03-render-list.md) | **done** (visual check pending) |
 | 4 | Draw-order policy (front-to-back on membership change) | [step-04-draw-order.md](step-04-draw-order.md) | **done** |
-| 5 | `pool` → `tile_source` (one job/tile, ready queue, cancel by key) + tests | step-05-tile-source.md | pending |
+| 5 | `pool` → `tile_source` (one job/tile, ready queue, cancel by key) + tests | [step-05-tile-source.md](step-05-tile-source.md) | **done** |
 | 6 | `tiles_manager` → `tile_store` (reconcile/promote/update_desired/cull) | step-06-tile-store.md | pending |
 | 7 | Height grid (`uint16`) + bilinear `ground_height` | step-07-height-grid.md | pending |
 | 8 | Public API v2 (nested `config`, raylib types) + C wrapper + sandbox + README | step-08-api-v2.md | pending |

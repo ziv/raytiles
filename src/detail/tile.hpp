@@ -2,10 +2,8 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <future>
-#include <string>
 
-#include "raylib.h"
+#include "raytiles/raytiles.h" // Meters/Zoom aliases (also pulls raylib.h)
 #include "raii.hpp"
 
 namespace raytiles {
@@ -21,24 +19,6 @@ namespace raytiles {
         int z;
 
         auto operator<=>(const tile_key &) const = default;
-    };
-
-    /// In-flight download record. Holds the three shared_futures (texture,
-    /// heightmap, normals) the worker pool resolves with already-decoded
-    /// raylib `Image` structs (pixels malloc'd by stb_image, owned by
-    /// whoever consumes the future). The world-space center of the tile is
-    /// also precomputed.
-    ///
-    /// Image is the raylib POD (data + w/h/mipmaps/format). The pool does
-    /// NOT wrap it in raii::image so the consumer can decide whether to
-    /// adopt it into a raii::image (heightmap path), upload-and-UnloadImage
-    /// (texture / normals path), or UnloadImage on cancellation.
-    struct loading_tile {
-        double tx;
-        double tz;
-        std::shared_future<Image> tx_future;
-        std::shared_future<Image> hm_future;
-        std::shared_future<Image> nl_future;
     };
 
     /// Fully promoted tile — the *owner* record. Holds the RAII resources plus

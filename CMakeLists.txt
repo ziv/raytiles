@@ -43,8 +43,8 @@ add_library(${PROJECT_NAME}
         src/craytiles.cpp
         src/tiles_renderer.cpp
         src/detail/tiles_renderer.h
-        src/detail/downloader.h
-        src/downloader.cpp
+        src/detail/tile_source.h
+        src/tile_source.cpp
         src/tile_shader.cpp
         src/detail/tile_shader.h
         src/tiles_manager.cpp
@@ -154,17 +154,21 @@ if (NOT RAYTILES_BINDINGS_MODE)
             tests/tests_main.cpp
             tests/lod_tests.cpp
             tests/utils_tests.cpp
+            tests/tile_source_tests.cpp
     )
 
-    # headers only: the suites exercise header-only policy/util code and must
-    # keep linking without raylib (raylib functions are never instantiated)
     target_include_directories(run_tests PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/include
             ${CMAKE_CURRENT_SOURCE_DIR}/src
-            $<TARGET_PROPERTY:raylib,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
-    target_link_libraries(run_tests PRIVATE doctest::doctest)
+    # tile_source tests drive the real worker pool against a local httplib
+    # server, so the tests link the library (raylib arrives transitively —
+    # everything stays windowless: CPU-side raylib calls only). The OpenSSL
+    # define must match the library's httplib configuration to avoid ODR
+    # mismatches between the two httplib TUs.
+    target_compile_definitions(run_tests PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
+    target_link_libraries(run_tests PRIVATE ${PROJECT_NAME} doctest::doctest httplib OpenSSL::SSL OpenSSL::Crypto)
 
     include(CTest)
     add_test(NAME AllTests COMMAND run_tests)

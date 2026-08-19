@@ -8,9 +8,9 @@
 #include <vector>
 
 #include "raylib.h"
-#include "downloader.h"
 #include "lod.hpp"
 #include "tile.hpp"
+#include "tile_source.h"
 #include "utils.hpp"
 
 namespace raytiles {
@@ -79,13 +79,11 @@ namespace raytiles {
 
     class tiles_manager {
     public:
-        tiles_manager(const tiles_manager_options &opts, pool_options pool_opts);
+        tiles_manager(const tiles_manager_options &opts, tile_source_options source_opts);
 
         [[nodiscard]] std::optional<float> ground_height(const Vector3 &position) const;
 
         [[nodiscard]] bool is_loading() const;
-
-        [[nodiscard]] std::size_t loading_count() const;
 
         [[nodiscard]] float get_loading() const;
 
@@ -118,7 +116,9 @@ namespace raytiles {
 
         void process_current_location(const Vector3 &position);
 
-        [[nodiscard]] loading_tile spawn(const tile_key &tile);
+        /// Resolve the anchor and hand the tile to the source; tracked in
+        /// `loading_keys` until a payload or drop comes back.
+        void spawn(const tile_key &tile);
 
         [[nodiscard]] bool is_tile_out_of_area(const tile_key &key, const Vector3 &position) const;
 
@@ -141,8 +141,16 @@ namespace raytiles {
         // updates only when "process_current_location" triggered
         std::unordered_set<tile_key> desired_keys;
 
-        // map of current loading tiles and their futures
-        std::unordered_map<tile_key, loading_tile> loading_tiles;
+        // keys handed to the source and not yet answered (payload or drop)
+        std::unordered_set<tile_key> loading_keys;
+
+        // payloads drained from the source but not yet uploaded — the budgeted
+        // promote loop consumes from here; leftovers wait for the next frame
+        std::vector<tile_payload> upload_queue;
+
+        // drain scratch buffers (reused so steady-state drains allocate nothing)
+        std::vector<tile_payload> ready_scratch;
+        std::vector<tile_source::drop> dropped_scratch;
 
         // owner records of resident tiles (RAII resources + render-list slot)
         std::unordered_map<tile_key, loaded_tile> rendering_tiles;
@@ -164,6 +172,6 @@ namespace raytiles {
         std::array<tile_value, zoom_levels> tiles;
 
         // background download workers
-        pool tile_downloader;
+        tile_source source;
     };
 }
