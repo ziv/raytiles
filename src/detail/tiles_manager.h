@@ -4,8 +4,11 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <vector>
+
 #include "raylib.h"
 #include "downloader.h"
+#include "lod.hpp"
 #include "tile.hpp"
 #include "utils.hpp"
 
@@ -109,8 +112,6 @@ namespace raytiles {
 
         void process_current_location(const Vector3 &position);
 
-        void build_required(const Vector3 &position, Zoom zoom, int tx, int tz, float render_radius_sq);
-
         [[nodiscard]] loading_tile spawn(const tile_key &tile);
 
         [[nodiscard]] bool is_tile_out_of_area(const tile_key &key, const Vector3 &position) const;
@@ -119,7 +120,13 @@ namespace raytiles {
 
         tiles_manager_options options;
         bool loading = true;
-        // Vector3 last_position = {-9999.9f, -9999.9f, -9999.9f};
+
+        // desired-set policy inputs, derived once from `options`
+        lod::options lod_opts;
+
+        // scratch buffer reused by every desired-set rebuild so steady-state
+        // recomputes allocate nothing
+        std::vector<tile_key> desired_scratch;
 
         // set of desired keys required for current location
         // updates only when "process_current_location" triggered

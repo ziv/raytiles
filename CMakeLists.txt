@@ -36,6 +36,7 @@ add_library(${PROJECT_NAME}
         include/raytiles/raytiles.h
         include/raytiles/craytiles.h
         src/detail/raii.hpp
+        src/detail/lod.hpp
         src/detail/tile.hpp
         src/detail/utils.hpp
         src/raytiles.cpp
@@ -151,7 +152,16 @@ if (NOT RAYTILES_BINDINGS_MODE)
     FetchContent_MakeAvailable(doctest)
     add_executable(run_tests
             tests/tests_main.cpp
-            tests/example_tests.cpp
+            tests/lod_tests.cpp
+            tests/utils_tests.cpp
+    )
+
+    # headers only: the suites exercise header-only policy/util code and must
+    # keep linking without raylib (raylib functions are never instantiated)
+    target_include_directories(run_tests PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            $<TARGET_PROPERTY:raylib,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
     target_link_libraries(run_tests PRIVATE doctest::doctest)

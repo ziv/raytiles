@@ -26,6 +26,15 @@ namespace raytiles {
             throw std::runtime_error(std::format("max_zoom {} is below base_zoom {}", options.max_zoom, options.base_zoom));
         }
 
+        // desired-set policy inputs (pure lod module)
+        lod_opts = lod::options{
+            options.base_zoom,
+            options.max_zoom,
+            options.base_zoom_tile_size,
+            options.rendering_radius,
+            options.thresholds,
+        };
+
         // construct the tiles map
         // for each zoom level:
         // - metadata (size & threshold)
@@ -241,58 +250,17 @@ namespace raytiles {
     }
 
     void tiles_manager::process_current_location(const Vector3 &position) {
+        // the policy is pure; membership indexing stays here
+        desired_scratch.clear();
+        lod::desired_tiles(lod_opts, position, desired_scratch);
+
         desired_keys.clear();
-        const int current_tile_x = static_cast<int>(std::floor(position.x / options.base_zoom_tile_size));
-        const int current_tile_z = static_cast<int>(std::floor(position.z / options.base_zoom_tile_size));
-
-        // scanning radius: 10 -> is ((10 * 2 + 1) * 33km) width -> ~ 700km -> max horizon distance * 2
-        const auto r = options.rendering_radius;
-        const auto allowed_radius = (r - 1) * (r - 1);
-
-        // rendering limit radius based on the horizon distance from the current camera height.
-        // we use the horizon distance as a limit because tiles beyond that point won't be visible anyway,
-        // so no need to even request them.
-        const auto render_radius_sq = static_cast<float>(utils::calculate_horizon(position));
-
-        for (int dx = -r; dx <= r; ++dx)
-            for (int dz = -r; dz <= r; ++dz)
-                if (dz * dz + dx * dx < allowed_radius)
-                    build_required(position, options.base_zoom, current_tile_x + dx, current_tile_z + dz, render_radius_sq);
-
+        desired_keys.insert(desired_scratch.begin(), desired_scratch.end());
 
         // spawn new if not in rendering list
         for (const auto &key: desired_keys)
             if (!rendering_tiles.contains(key) && !loading_tiles.contains(key))
                 loading_tiles.try_emplace(key, spawn(key));
-    }
-
-    void tiles_manager::build_required(const Vector3 &position, const Zoom zoom, const int tx, const int tz, const float render_radius_sq) {
-        if (zoom == options.max_zoom) {
-            desired_keys.insert({zoom, tx, tz});
-            return;
-        }
-
-        const auto tile = &tiles[zoom];
-
-        // calculate distance of the tile from the camera
-        const MetersDSq distance_sq = utils::distance_sq_to_tile(position, {zoom, tx, tz}, tile->size);
-
-        // not in the area we render at all
-        if (distance_sq > render_radius_sq) {
-            return;
-        }
-
-        // do we need to subdivide?
-        if (distance_sq >= tile->threshold) {
-            desired_keys.insert({zoom, tx, tz});
-            return;
-        }
-
-        const int child_zoom = zoom + 1;
-        const int cx0 = tx * 2;
-        const int cz0 = tz * 2;
-        for (int ox = 0; ox < 2; ++ox)
-            for (int oz = 0; oz < 2; ++oz) build_required(position, child_zoom, cx0 + ox, cz0 + oz, render_radius_sq);
     }
 
     loading_tile tiles_manager::spawn(const tile_key &tile) {
