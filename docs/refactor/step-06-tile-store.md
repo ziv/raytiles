@@ -62,6 +62,13 @@ by promote (≥1 promotion) and by update_desired (set rebuilt), cleared after t
   header doc explains both parameters.
 - `streamer::update` now reads as the intended orchestration: `reconcile → promote →
   (moved? update_desired) → cull`, each name saying what it does.
+- **Errata (found by the author running the demo, fixed after close-out):** moving the
+  loading-finished flip from `post_process` into `promote` was *not* behavior-identical as claimed
+  in the Design section — `promote` runs before the first `update_desired`, so the flag flipped on
+  frame one with nothing yet requested and the loading screen never showed. Fixed by guarding the
+  flip on `!desired_keys.empty()` ("a desired set exists and is fully serviced"). Lesson recorded:
+  "X is only observed after update() returns" does not make intra-frame reordering safe when the
+  state X reads is written *later in the same frame*.
 - Coverage gate wired exactly as argued: producers are promote (`coverage_dirty` on new resident)
   and update_desired (candidate set changed); reconcile consumes and clears. Eviction deliberately
   does *not* set it (removals only un-cover, which biases toward "keep" — fail-safe).

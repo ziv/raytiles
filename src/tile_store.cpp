@@ -261,8 +261,12 @@ void tile_store::promote(const Vector3& position, const Vector3& world_offset) {
   for (std::uint32_t i = 0; i < render_list.size(); ++i) assert(resident_tiles.at(render_list[i].key).slot == i);
 #endif
 
-  // first time nothing is in flight or awaiting upload, loading is done
-  if (loading && loading_keys.empty() && upload_queue.empty()) {
+  // initial loading is over once a desired set exists and nothing is in
+  // flight or awaiting upload. the desired_keys guard is load-bearing:
+  // promote runs BEFORE the first update_desired in the frame order, so
+  // without it the flag would flip on frame one, before anything was ever
+  // requested — and the caller's loading screen would never show.
+  if (loading && !desired_keys.empty() && loading_keys.empty() && upload_queue.empty()) {
     loading = false;
   }
 }
