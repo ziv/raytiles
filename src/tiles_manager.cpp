@@ -1,5 +1,6 @@
 #include "raytiles/raytiles.h"
 #include "detail/tiles_manager.h"
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cstdint>
@@ -138,11 +139,6 @@ namespace raytiles {
             return remove;
         });
 
-#ifndef NDEBUG
-        // render-list/owner lockstep invariant (swap-remove bookkeeping)
-        for (std::uint32_t i = 0; i < render_list.size(); ++i) assert(rendering_tiles.at(render_list[i].key).slot == i);
-#endif
-
         for (auto &key: loading_tiles | std::views::keys) {
             if (!desired_keys.contains(key)) {
                 tile_downloader.cancel(key.zoom, key.x, key.z);
@@ -150,11 +146,31 @@ namespace raytiles {
         }
 
         process_loaded_tiles(world_offset);
+
+        // keep the list front-to-back for early-Z. only membership changes
+        // (promote/evict) disturb the order, so steady-state frames skip this;
+        // opaque rendering means order is a perf policy, never a visual one.
+        if (order_dirty) {
+            order_dirty = false;
+            const auto dist_sq = [&](const render_item &item) {
+                const double dx = item.abs_x - static_cast<double>(position.x);
+                const double dz = item.abs_z - static_cast<double>(position.z);
+                return dx * dx + dz * dz;
+            };
+            std::ranges::sort(render_list, [&](const render_item &a, const render_item &b) { return dist_sq(a) < dist_sq(b); });
+            for (std::uint32_t i = 0; i < render_list.size(); ++i) rendering_tiles.at(render_list[i].key).slot = i;
+        }
+
+#ifndef NDEBUG
+        // render-list/owner lockstep invariant (swap-remove + sort bookkeeping)
+        for (std::uint32_t i = 0; i < render_list.size(); ++i) assert(rendering_tiles.at(render_list[i].key).slot == i);
+#endif
     }
 
     void tiles_manager::evict(loaded_tile &tile) {
         // swap-with-last removal from the flat list; the moved item's owner
         // record is re-pointed via the item's key backlink
+        order_dirty = true;
         const auto slot = tile.slot;
         const auto last = static_cast<std::uint32_t>(render_list.size() - 1);
         if (slot != last) {
@@ -289,6 +305,7 @@ namespace raytiles {
                 render_list.push_back(item);
                 const auto slot = static_cast<std::uint32_t>(render_list.size() - 1);
                 rendering_tiles.emplace(key, loaded_tile{std::move(texture_tex), std::move(height_tex), std::move(height_img), std::move(normals_tex), slot});
+                order_dirty = true;
             }
 
             it = loading_tiles.erase(it);

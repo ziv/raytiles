@@ -155,6 +155,10 @@ namespace raytiles {
         // are rebaked only when this changes (large-world rebase)
         Vector3 baked_offset = {0.0f, 0.0f, 0.0f};
 
+        // set when promotion/eviction disturbs the front-to-back order;
+        // consumed at the end of pre_process (sort + slot rebuild)
+        bool order_dirty = false;
+
         // metadata about tiles by their zoom, indexed zoom - base_zoom;
         // slots beyond max_zoom - base_zoom stay default-constructed and unused
         std::array<tile_value, zoom_levels> tiles;
