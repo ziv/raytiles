@@ -64,7 +64,7 @@ int main() {
     // runtime configuration
     sky.set_horizon_color(SKYBLUE);
     streamer.set_fog_color(SKYBLUE);
-    streamer.set_ambient_light(Color{200, 200, 200, 255});
+    // streamer.set_ambient_light(Color{200, 200, 200, 255});
 
     Vector3 world_offset = {0.0f, 0.0f, 0.0f};
     free_camera::AdvancedFreeCamera adv_f{};

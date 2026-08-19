@@ -94,7 +94,7 @@ std::optional<float> streamer::ground_height(const Vector3 position) const {
   return impl_->store.ground_height(Vector3Subtract(position, impl_->cached_world_offset));
 }
 
-void streamer::update(const Camera3D& camera, const Vector3 world_offset) {
+void streamer::update(const Camera3D& camera, const Vector3 world_offset) const {
   auto& m = *impl_;
 
   // Cache for draw() and ground_height(); they are forbidden to take

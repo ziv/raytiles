@@ -278,7 +278,7 @@ class streamer {
   ///                      space via `absolute = user - offset`. Default
   ///                      `{0,0,0}` means user space *is* absolute space
   ///                      (no shifting).
-  void update(const Camera3D& camera, Vector3 world_offset = {0, 0, 0});
+  void update(const Camera3D& camera, Vector3 world_offset = {0, 0, 0}) const;
 
   /// Renders all currently loaded tiles in view. Must be called between
   /// `BeginMode3D` / `EndMode3D` after `update()` in the same frame.
