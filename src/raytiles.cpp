@@ -12,7 +12,7 @@
 #include <utility>
 
 #include "detail/tiles_renderer.h"
-#include "detail/tiles_manager.h"
+#include "detail/tile_store.h"
 #include "detail/utils.hpp"
 
 namespace raytiles {
@@ -51,10 +51,10 @@ namespace raytiles {
         }
 
         // Translates the streamer's public config triplet into the
-        // tiles_manager's own option struct. Mirrors `make_shader_options`
+        // tile_store's own option struct. Mirrors `make_shader_options`
         // in renderer.cpp.
-        tiles_manager_options make_tiles_manager_options(const world_config &world, const streaming_config &streaming) {
-            return tiles_manager_options{
+        tile_store_options make_tile_store_options(const world_config &world, const streaming_config &streaming) {
+            return tile_store_options{
                 .base_zoom = world.base_zoom,
                 .max_zoom = world.max_zoom,
                 .base_zoom_tile_size = world.base_zoom_tile_size,
@@ -100,7 +100,7 @@ namespace raytiles {
           update_distance_sq(streaming_conf.update_distance_sq),
           init_position(world_conf.offset),
           tile_renderer(std::make_unique<tiles_renderer>(rendering_conf)),
-          tile_manager(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming_conf), make_tile_source_options(pool_conf))) {
+          store(std::make_unique<tile_store>(make_tile_store_options(world_conf, streaming_conf), make_tile_source_options(pool_conf))) {
     }
 
     streamer::streamer(const double latitude,
@@ -119,11 +119,11 @@ namespace raytiles {
     streamer &streamer::operator=(streamer &&) noexcept = default;
 
     bool streamer::is_loading() const {
-        return tile_manager->is_loading();
+        return store->is_loading();
     }
 
     float streamer::get_loading() const {
-        return tile_manager->get_loading();
+        return store->get_loading();
     }
 
     Vector3 streamer::get_initial_position(const float y) const {
@@ -131,7 +131,7 @@ namespace raytiles {
     }
 
     std::optional<float> streamer::ground_height(const Vector3 position) const {
-        return tile_manager->ground_height(Vector3Subtract(position, cached_world_offset_));
+        return store->ground_height(Vector3Subtract(position, cached_world_offset_));
     }
 
     void streamer::update(const Camera3D &camera, const Vector3 world_offset) {
@@ -141,35 +141,36 @@ namespace raytiles {
         cached_world_offset_ = world_offset;
 
         // Convert camera position from user space to absolute world space.
-        // Internal pipeline (tile_manager) operates in absolute space because
-        // tile coordinates (tile.tx, tile.tz) are stored absolute.
+        // Internal pipeline (tile_store) operates in absolute space because
+        // tile coordinates are stored absolute.
         const Vector3 abs_position = Vector3Subtract(camera.position, world_offset);
 
-        tile_manager->pre_process(abs_position, world_offset);
+        store->reconcile(abs_position);
+        store->promote(abs_position, world_offset);
 
         if (Vector3DistanceSqr(abs_position, last_position) > update_distance_sq) {
             last_position = abs_position;
-            tile_manager->process(abs_position);
+            store->update_desired(abs_position);
         }
 
         // Frustum is built from the user-space camera (small floats) and is
-        // therefore in user space. post_process shifts each tile to user space
-        // (tile.tx + offset.x) before the in-frustum test.
+        // therefore in user space. cull shifts each tile to user space
+        // (abs + offset, baked into the item transform) before the test.
         last_frustum = utils::extract_frustum(camera, near_plane, far_plane);
 
-        tile_manager->post_process(last_frustum, world_offset);
+        store->cull(last_frustum, world_offset);
     }
 
     void streamer::draw() {
-        rendered = tile_renderer->draw(cached_camera_.position, tile_manager->render_items());
+        rendered = tile_renderer->draw(cached_camera_.position, store->render_items());
     }
 
     void streamer::draw_debug_3d() {
-        tiles_renderer::debug_3d(tile_manager->render_items());
+        tiles_renderer::debug_3d(store->render_items());
     }
 
     void streamer::draw_debug_labels() {
-        tiles_renderer::debug(cached_camera_, tile_manager->render_items());
+        tiles_renderer::debug(cached_camera_, store->render_items());
     }
 
     void streamer::set_ambient_light(const Color color) const { tile_renderer->set_ambient_light(color); }

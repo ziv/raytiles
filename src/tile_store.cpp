@@ -1,5 +1,5 @@
 #include "raytiles/raytiles.h"
-#include "detail/tiles_manager.h"
+#include "detail/tile_store.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -11,7 +11,7 @@
 #include "detail/utils.hpp"
 
 namespace raytiles {
-    tiles_manager::tiles_manager(const tiles_manager_options &opts, tile_source_options source_opts)
+    tile_store::tile_store(const tile_store_options &opts, tile_source_options source_opts)
         : options(opts),
           source(std::move(source_opts)) {
         // input validation
@@ -55,21 +55,21 @@ namespace raytiles {
         }
     }
 
-    bool tiles_manager::is_loading() const {
+    bool tile_store::is_loading() const {
         return loading;
     }
 
-    float tiles_manager::get_loading() const {
+    float tile_store::get_loading() const {
         // fraction of the desired set that is resident. monotonic during the
         // initial load, 1.0 when everything desired is on the GPU.
         if (desired_keys.empty()) return 0.0f;
         std::size_t resident = 0;
         for (const auto &key: desired_keys)
-            if (rendering_tiles.contains(key)) ++resident;
+            if (resident_tiles.contains(key)) ++resident;
         return static_cast<float>(resident) / static_cast<float>(desired_keys.size());
     }
 
-    std::optional<float> tiles_manager::ground_height(const Vector3 &position) const {
+    std::optional<float> tile_store::ground_height(const Vector3 &position) const {
         // walk from the highest available zoom down to base; whichever zoom holds the
         // tile that contains (position.x, position.z) wins. higher zoom = finer
         // sample, so we prefer it if loaded.
@@ -79,8 +79,8 @@ namespace raytiles {
             const int tile_x = static_cast<int>(std::floor(position.x / size));
             const int tile_z = static_cast<int>(std::floor(position.z / size));
 
-            const auto it = rendering_tiles.find(tile_key{zoom, tile_x, tile_z});
-            if (it == rendering_tiles.end()) continue;
+            const auto it = resident_tiles.find(tile_key{zoom, tile_x, tile_z});
+            if (it == resident_tiles.end()) continue;
 
             const auto &tile = it->second;
             const Image &img = *tile.hm_image;
@@ -102,9 +102,9 @@ namespace raytiles {
     }
 
 
-    void tiles_manager::pre_process(const Vector3 &position, const Vector3 &world_offset) {
+    void tile_store::reconcile(const Vector3 &position) {
         // gc
-        std::erase_if(rendering_tiles, [&](auto &entry) {
+        std::erase_if(resident_tiles, [&](auto &entry) {
             auto &[key, tile] = entry;
             const bool remove = [&] {
                 // if it in desired, keep it
@@ -122,7 +122,11 @@ namespace raytiles {
                 // without thinking
                 if (is_tile_out_of_area(key, position)) return true;
 
-                // here we stop to think (this is the "slow" path)
+                // here we stop to think (this is the "slow" path). coverage
+                // can only have changed since the last pass if something was
+                // promoted or the desired set was rebuilt — otherwise skip.
+                if (!coverage_dirty) return false;
+
                 // if the tile is not covered by other tiles, keep
                 // it to avoid holes in the surface
                 if (!is_tile_covered(key)) return false;
@@ -131,30 +135,10 @@ namespace raytiles {
             if (remove) evict(tile);
             return remove;
         });
-
-        process_loaded_tiles(world_offset);
-
-        // keep the list front-to-back for early-Z. only membership changes
-        // (promote/evict) disturb the order, so steady-state frames skip this;
-        // opaque rendering means order is a perf policy, never a visual one.
-        if (order_dirty) {
-            order_dirty = false;
-            const auto dist_sq = [&](const render_item &item) {
-                const double dx = item.abs_x - static_cast<double>(position.x);
-                const double dz = item.abs_z - static_cast<double>(position.z);
-                return dx * dx + dz * dz;
-            };
-            std::ranges::sort(render_list, [&](const render_item &a, const render_item &b) { return dist_sq(a) < dist_sq(b); });
-            for (std::uint32_t i = 0; i < render_list.size(); ++i) rendering_tiles.at(render_list[i].key).slot = i;
-        }
-
-#ifndef NDEBUG
-        // render-list/owner lockstep invariant (swap-remove + sort bookkeeping)
-        for (std::uint32_t i = 0; i < render_list.size(); ++i) assert(rendering_tiles.at(render_list[i].key).slot == i);
-#endif
+        coverage_dirty = false;
     }
 
-    void tiles_manager::evict(loaded_tile &tile) {
+    void tile_store::evict(resident_tile &tile) {
         // swap-with-last removal from the flat list; the moved item's owner
         // record is re-pointed via the item's key backlink
         order_dirty = true;
@@ -162,16 +146,12 @@ namespace raytiles {
         const auto last = static_cast<std::uint32_t>(render_list.size() - 1);
         if (slot != last) {
             render_list[slot] = render_list[last];
-            rendering_tiles.at(render_list[slot].key).slot = slot;
+            resident_tiles.at(render_list[slot].key).slot = slot;
         }
         render_list.pop_back();
     }
 
-    void tiles_manager::process(const Vector3 &position) {
-        process_current_location(position);
-    }
-
-    void tiles_manager::post_process(const Frustum &frustum, const Vector3 &world_offset) {
+    void tile_store::cull(const Frustum &frustum, const Vector3 &world_offset) {
         // rebake transforms only after a large-world rebase. exact compare is
         // correct: the caller passes the same bits every frame until it rebases.
         if (world_offset.x != baked_offset.x || world_offset.z != baked_offset.z) {
@@ -188,14 +168,9 @@ namespace raytiles {
         for (auto &item: render_list) {
             item.visible = utils::is_tile_in_frustum(item.transform.m12, item.transform.m14, item.size, frustum);
         }
-
-        // first time nothing is in flight or awaiting upload, loading is done
-        if (loading && loading_keys.empty() && upload_queue.empty()) {
-            loading = false;
-        }
     }
 
-    void tiles_manager::process_loaded_tiles(const Vector3 &world_offset) {
+    void tile_store::promote(const Vector3 &position, const Vector3 &world_offset) {
         // collect everything the source finished since last frame: one lock,
         // no polling. drops clear the loading bookkeeping (and log real
         // failures — cancellations are routine and stay quiet); payloads join
@@ -208,7 +183,7 @@ namespace raytiles {
                 // real failure: log it and let the next desired-set rebuild
                 // retry — an immediate retry would hammer a failing server
                 TraceLog(LOG_WARNING, "tile %d/%d/%d download failed: %s - dropping", d.key.zoom, d.key.x, d.key.z, d.reason.c_str());
-            } else if (desired_keys.contains(d.key) && !rendering_tiles.contains(d.key)) {
+            } else if (desired_keys.contains(d.key) && !resident_tiles.contains(d.key)) {
                 // cancelled, but wanted again by the time the drop arrived
                 // (camera came back) — request it right away
                 spawn(d.key);
@@ -233,7 +208,7 @@ namespace raytiles {
             // do we still need it? (raii frees the images if not)
             if (!desired_keys.contains(key)) continue;
 
-            // upload to GPU. the heightmap CPU image is kept in the loaded_tile
+            // upload to GPU. the heightmap CPU image is kept in the resident_tile
             // for ground_height() queries (recast, collision).
             raii::texture texture_tex = raii::load_texture_from_image(*payload.albedo);
             raii::texture height_tex = raii::load_texture_from_image(*payload.height);
@@ -268,21 +243,22 @@ namespace raytiles {
                 abs_x,
                 abs_z,
                 key,
-                false, // visible: decided by post_process later this frame
+                false, // visible: decided by cull later this frame
                 true, // desired: promotion only happens for still-desired keys
             };
 
-            if (const auto existing = rendering_tiles.find(key); existing != rendering_tiles.end()) {
+            if (const auto existing = resident_tiles.find(key); existing != resident_tiles.end()) {
                 // defensive: key already resident (shouldn't happen via the
                 // spawn/promote flow) — replace resources in place, keep the slot
                 render_list[existing->second.slot] = item;
-                existing->second = loaded_tile{std::move(texture_tex), std::move(height_tex), std::move(height_img), std::move(normals_tex),
+                existing->second = resident_tile{std::move(texture_tex), std::move(height_tex), std::move(height_img), std::move(normals_tex),
                                                existing->second.slot};
             } else {
                 render_list.push_back(item);
                 const auto slot = static_cast<std::uint32_t>(render_list.size() - 1);
-                rendering_tiles.emplace(key, loaded_tile{std::move(texture_tex), std::move(height_tex), std::move(height_img), std::move(normals_tex), slot});
+                resident_tiles.emplace(key, resident_tile{std::move(texture_tex), std::move(height_tex), std::move(height_img), std::move(normals_tex), slot});
                 order_dirty = true;
+                coverage_dirty = true; // a new resident can cover its parent/children
             }
 
             ++promoted;
@@ -290,15 +266,40 @@ namespace raytiles {
             if (promoted >= options.max_uploads_per_frame) break;
             if (GetTime() - frame_start >= options.upload_budget_sec) break;
         }
+
+        // keep the list front-to-back for early-Z. only membership changes
+        // (promote/evict) disturb the order, so steady-state frames skip this;
+        // opaque rendering means order is a perf policy, never a visual one.
+        if (order_dirty) {
+            order_dirty = false;
+            const auto dist_sq = [&](const render_item &item) {
+                const double dx = item.abs_x - static_cast<double>(position.x);
+                const double dz = item.abs_z - static_cast<double>(position.z);
+                return dx * dx + dz * dz;
+            };
+            std::ranges::sort(render_list, [&](const render_item &a, const render_item &b) { return dist_sq(a) < dist_sq(b); });
+            for (std::uint32_t i = 0; i < render_list.size(); ++i) resident_tiles.at(render_list[i].key).slot = i;
+        }
+
+#ifndef NDEBUG
+        // render-list/owner lockstep invariant (swap-remove + sort bookkeeping)
+        for (std::uint32_t i = 0; i < render_list.size(); ++i) assert(resident_tiles.at(render_list[i].key).slot == i);
+#endif
+
+        // first time nothing is in flight or awaiting upload, loading is done
+        if (loading && loading_keys.empty() && upload_queue.empty()) {
+            loading = false;
+        }
     }
 
-    void tiles_manager::process_current_location(const Vector3 &position) {
+    void tile_store::update_desired(const Vector3 &position) {
         // the policy is pure; membership indexing stays here
         desired_scratch.clear();
         lod::desired_tiles(lod_opts, position, desired_scratch);
 
         desired_keys.clear();
         desired_keys.insert(desired_scratch.begin(), desired_scratch.end());
+        coverage_dirty = true; // eviction candidates changed with the set
 
         // refresh the debug-overlay flag on resident items (rebuilds are rare)
         for (auto &item: render_list) item.desired = desired_keys.contains(item.key);
@@ -310,11 +311,11 @@ namespace raytiles {
 
         // spawn new if not in rendering list
         for (const auto &key: desired_keys)
-            if (!rendering_tiles.contains(key) && !loading_keys.contains(key))
+            if (!resident_tiles.contains(key) && !loading_keys.contains(key))
                 spawn(key);
     }
 
-    void tiles_manager::spawn(const tile_key &tile) {
+    void tile_store::spawn(const tile_key &tile) {
         const auto scale = 1 << (tile.zoom - options.base_zoom);
         source.request(tile_request{
             tile,
@@ -324,13 +325,13 @@ namespace raytiles {
         loading_keys.insert(tile);
     }
 
-    bool tiles_manager::is_tile_out_of_area(const tile_key &key, const Vector3 &position) const {
+    bool tile_store::is_tile_out_of_area(const tile_key &key, const Vector3 &position) const {
         const MetersDSq distance_sq = utils::distance_sq_to_tile_xz(position, key, zoom_value(key.zoom).size);
         return distance_sq > utils::calculate_horizon(position);
     }
 
-    bool tiles_manager::is_tile_covered(const tile_key &key) const {
-        const auto contains = [&](const int zoom, const int x, const int z) { return rendering_tiles.contains(tile_key{zoom, x, z}); };
+    bool tile_store::is_tile_covered(const tile_key &key) const {
+        const auto contains = [&](const int zoom, const int x, const int z) { return resident_tiles.contains(tile_key{zoom, x, z}); };
 
         // check parent
         if (key.zoom > options.base_zoom) {

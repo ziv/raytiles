@@ -25,7 +25,7 @@ namespace raytiles {
     /// the tile's slot in the flat render list. Everything the draw loop needs
     /// lives in the matching `render_item`; this record exists for resource
     /// lifetime, `ground_height()` (CPU heightmap), and slot bookkeeping.
-    struct loaded_tile {
+    struct resident_tile {
         raii::texture tx_texture;
         raii::texture hm_texture;
         raii::image hm_image;

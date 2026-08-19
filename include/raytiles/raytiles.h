@@ -216,7 +216,7 @@ namespace raytiles {
     };
 
     class tiles_renderer;
-    class tiles_manager;
+    class tile_store;
 
     /// Per-frame driver that maintains the working set of tiles around a camera
     /// and renders them. One streamer manages one world; create more if you need
@@ -389,7 +389,7 @@ namespace raytiles {
     private:
         // streamer keeps only the streaming-policy bits it actually uses
         // (update gating, near/far for frustum extraction). All tile
-        // lifecycle state lives in `tile_manager`.
+        // lifecycle state lives in `tile_store`.
         // streaming_config streaming;
         float near_plane;
         float far_plane;
@@ -397,7 +397,7 @@ namespace raytiles {
         Vector3 init_position;
 
         std::unique_ptr<tiles_renderer> tile_renderer;
-        std::unique_ptr<tiles_manager> tile_manager;
+        std::unique_ptr<tile_store> store;
 
         int rendered = 0;
 

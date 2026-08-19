@@ -14,7 +14,7 @@
 #include "utils.hpp"
 
 namespace raytiles {
-    struct tiles_manager_options {
+    struct tile_store_options {
         /// Lowest level-of-detail zoom that will ever be loaded. Tiles outside the
         /// camera's near radius are kept at this zoom to bound the working set.
         /// Changing this value also requires updating `streaming_config::thresholds`
@@ -77,9 +77,9 @@ namespace raytiles {
         };
     };
 
-    class tiles_manager {
+    class tile_store {
     public:
-        tiles_manager(const tiles_manager_options &opts, tile_source_options source_opts);
+        tile_store(const tile_store_options &opts, tile_source_options source_opts);
 
         [[nodiscard]] std::optional<float> ground_height(const Vector3 &position) const;
 
@@ -87,22 +87,31 @@ namespace raytiles {
 
         [[nodiscard]] float get_loading() const;
 
-        //// Pre-processing tiles.
-        /// Should be called every frame and before "process".
+        /// Evicts resident tiles that are no longer needed (not desired and
+        /// out of frustum / beyond the horizon / covered by other zooms).
+        /// Call every frame, before `promote`.
+        void reconcile(const Vector3 &position);
+
+        /// Drains the source and uploads finished tiles to the GPU under the
+        /// per-frame budget; keeps the render list sorted front-to-back.
+        /// Call every frame, after `reconcile`.
+        /// @param position     Camera position in absolute space — the origin
+        ///                     the front-to-back sort measures from.
         /// @param world_offset Maps absolute tile coords to user space via
         ///                     `user = absolute + offset`; needed to bake the
         ///                     transform of tiles promoted this frame.
-        void pre_process(const Vector3 &position, const Vector3 &world_offset);
+        void promote(const Vector3 &position, const Vector3 &world_offset);
 
-        /// Process tiles for current location.
-        /// Must be called once, and then after position changed.
-        void process(const Vector3 &position);
+        /// Rebuilds the desired set for `position` (pure lod policy), cancels
+        /// loading tiles that fell out of it, and requests the missing ones.
+        /// Call once at startup and whenever the camera moved far enough.
+        void update_desired(const Vector3 &position);
 
-        /// Post-process tiles.
-        /// Should be called every frame and after "process".
+        /// Frustum-tests every render item in place (and rebakes transforms
+        /// after a large-world rebase). Call every frame, after `update_desired`.
         /// @param world_offset Maps absolute tile coords to user space (the
         ///                     `frustum`'s frame) via `user = absolute + offset`.
-        void post_process(const Frustum &frustum, const Vector3 &world_offset);
+        void cull(const Frustum &frustum, const Vector3 &world_offset);
 
         /// The flat render list: everything the renderer needs, one entry per
         /// resident tile. Borrowed view — only valid within the current frame
@@ -110,11 +119,7 @@ namespace raytiles {
         [[nodiscard]] std::span<const render_item> render_items() const { return render_list; }
 
     private:
-        void process_loaded_tiles(const Vector3 &world_offset);
-
-        void evict(loaded_tile &tile);
-
-        void process_current_location(const Vector3 &position);
+        void evict(resident_tile &tile);
 
         /// Resolve the anchor and hand the tile to the source; tracked in
         /// `loading_keys` until a payload or drop comes back.
@@ -127,7 +132,7 @@ namespace raytiles {
         /// Per-zoom metadata lookup; valid for zoom in [base_zoom, max_zoom].
         [[nodiscard]] const tile_value &zoom_value(Zoom zoom) const { return tiles[static_cast<std::size_t>(zoom - options.base_zoom)]; }
 
-        tiles_manager_options options;
+        tile_store_options options;
         bool loading = true;
 
         // desired-set policy inputs, derived once from `options`
@@ -138,7 +143,7 @@ namespace raytiles {
         std::vector<tile_key> desired_scratch;
 
         // set of desired keys required for current location
-        // updates only when "process_current_location" triggered
+        // updates only when "update_desired" triggered
         std::unordered_set<tile_key> desired_keys;
 
         // keys handed to the source and not yet answered (payload or drop)
@@ -153,10 +158,10 @@ namespace raytiles {
         std::vector<tile_source::drop> dropped_scratch;
 
         // owner records of resident tiles (RAII resources + render-list slot)
-        std::unordered_map<tile_key, loaded_tile> rendering_tiles;
+        std::unordered_map<tile_key, resident_tile> resident_tiles;
 
         // flat render list: one draw-ready entry per resident tile, kept in
-        // lockstep with `rendering_tiles` (promote appends, evict swap-removes)
+        // lockstep with `resident_tiles` (promote appends, evict swap-removes)
         std::vector<render_item> render_list;
 
         // world offset the render-list transforms were baked with; transforms
@@ -164,8 +169,15 @@ namespace raytiles {
         Vector3 baked_offset = {0.0f, 0.0f, 0.0f};
 
         // set when promotion/eviction disturbs the front-to-back order;
-        // consumed at the end of pre_process (sort + slot rebuild)
+        // consumed at the end of promote (sort + slot rebuild)
         bool order_dirty = false;
+
+        // coverage relations only change when tiles are promoted or the
+        // desired set rebuilds; reconcile skips the (comparatively expensive)
+        // is_tile_covered evictions while this is clear. exact, not a
+        // heuristic: evictions only remove cover, which can only flip the
+        // answer toward "keep".
+        bool coverage_dirty = true;
 
         // metadata about tiles by their zoom, indexed zoom - base_zoom;
         // slots beyond max_zoom - base_zoom stay default-constructed and unused
