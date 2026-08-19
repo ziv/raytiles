@@ -42,7 +42,7 @@ namespace raytiles {
         int rendered = 0;
         for (auto &[key, tile]: draw_view.rendering_tiles) {
             if (!tile.in_frustum_this_frame) continue;
-            const auto it = draw_view.tiles.find(key.zoom);
+            const auto &tv = draw_view.tiles[static_cast<std::size_t>(key.zoom - draw_view.base_zoom)];
 
             material->maps[MATERIAL_MAP_ALBEDO].texture = *tile.tx_texture;
             material->maps[MATERIAL_MAP_ROUGHNESS].texture = *tile.hm_texture;
@@ -54,7 +54,7 @@ namespace raytiles {
             // precision before the float cast.
             const auto user_tx = static_cast<float>(tile.tx + off_x);
             const auto user_tz = static_cast<float>(tile.tz + off_z);
-            DrawMesh(*it->second.mesh, *material, MatrixTranslate(user_tx, 0.0f, user_tz));
+            DrawMesh(*tv.mesh, *material, MatrixTranslate(user_tx, 0.0f, user_tz));
             ++rendered;
         }
         return rendered;
@@ -65,7 +65,7 @@ namespace raytiles {
         const auto off_z = static_cast<double>(world_offset.z);
         for (const auto &[key, tile]: draw_view.rendering_tiles) {
             if (tile.in_frustum_this_frame) {
-                const auto &t = draw_view.tiles.at(key.zoom);
+                const auto &t = draw_view.tiles[static_cast<std::size_t>(key.zoom - draw_view.base_zoom)];
                 const auto user_x = static_cast<float>(tile.tx + off_x);
                 const auto user_z = static_cast<float>(tile.tz + off_z);
                 DrawCubeWires({user_x, 0.0f, user_z}, t.size, 1000.0f, t.size, GREEN);

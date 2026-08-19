@@ -97,7 +97,7 @@ namespace raytiles {
         void process(const Vector3 &position);
 
         /// Post-process tiles.
-        /// Should be called evry frame and after "process".
+        /// Should be called every frame and after "process".
         /// @param world_offset Maps absolute tile coords to user space (the
         ///                     `frustum`'s frame) via `user = absolute + offset`.
         void post_process(const Frustum &frustum, const Vector3 &world_offset);
@@ -118,6 +118,9 @@ namespace raytiles {
 
         [[nodiscard]] bool is_tile_covered(const tile_key &key) const;
 
+        /// Per-zoom metadata lookup; valid for zoom in [base_zoom, max_zoom].
+        [[nodiscard]] const tile_value &zoom_value(Zoom zoom) const { return tiles[static_cast<std::size_t>(zoom - options.base_zoom)]; }
+
         tiles_manager_options options;
         bool loading = true;
 
@@ -136,11 +139,12 @@ namespace raytiles {
         std::unordered_map<tile_key, loading_tile> loading_tiles;
 
         // map of tiles that may be rendered if in frustum
-        // contain reference to the GPU nad CPU loaded resources
+        // contain reference to the GPU and CPU loaded resources
         std::unordered_map<tile_key, loaded_tile> rendering_tiles;
 
-        // metadata about tiles by their zoom
-        std::unordered_map<Zoom, tile_value> tiles;
+        // metadata about tiles by their zoom, indexed zoom - base_zoom;
+        // slots beyond max_zoom - base_zoom stay default-constructed and unused
+        std::array<tile_value, zoom_levels> tiles;
 
         // background download workers
         pool tile_downloader;

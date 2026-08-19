@@ -47,7 +47,7 @@ namespace raytiles {
             const auto th = options.thresholds[idx];
             const auto skirt_factor = options.skirt_overlap[idx];
 
-            tiles[zoom] = tile_value{
+            tiles[idx] = tile_value{
                 size,
                 th * th,
                 raii::mesh{GenMeshPlane(size * skirt_factor, size * skirt_factor, res, res)}
@@ -65,11 +65,13 @@ namespace raytiles {
     }
 
     float tiles_manager::get_loading() const {
-        if (loading_tiles.empty()) return 0.0f;
-        const auto required = static_cast<float>(desired_keys.size());
-        if (required == 0.0f) return 0.0f; // avoid division by zero, should not happen but just in case
-        const auto loaded = static_cast<float>(loading_tiles.size());
-        return 1 - loaded / required;
+        // fraction of the desired set that is resident. monotonic during the
+        // initial load, 1.0 when everything desired is on the GPU.
+        if (desired_keys.empty()) return 0.0f;
+        std::size_t resident = 0;
+        for (const auto &key: desired_keys)
+            if (rendering_tiles.contains(key)) ++resident;
+        return static_cast<float>(resident) / static_cast<float>(desired_keys.size());
     }
 
     std::optional<float> tiles_manager::ground_height(const Vector3 &position) const {
@@ -77,9 +79,7 @@ namespace raytiles {
         // tile that contains (position.x, position.z) wins. higher zoom = finer
         // sample, so we prefer it if loaded.
         for (int zoom = options.max_zoom; zoom >= options.base_zoom; --zoom) {
-            const auto &t = tiles.at(zoom);
-            // const float size = tile_sizes[zoom - conf.base_zoom];
-            const float size = t.size;
+            const float size = zoom_value(zoom).size;
 
             const int tile_x = static_cast<int>(std::floor(position.x / size));
             const int tile_z = static_cast<int>(std::floor(position.z / size));
@@ -90,7 +90,8 @@ namespace raytiles {
             const auto &tile = it->second;
             const Image &img = *tile.hm_image;
 
-            // todo never suppose to happen, renderer holds only valid images. remove?
+            // defensive: promotion only stores decoded images, but a garbage
+            // read here would be silent — keep the guard
             if (!IsImageValid(img)) continue;
 
             // local uv inside the tile, [0, 1)
@@ -159,7 +160,7 @@ namespace raytiles {
     }
 
     data_view tiles_manager::make_debug_view(Frustum &frustum) {
-        return data_view{frustum, rendering_tiles, tiles, desired_keys};
+        return data_view{frustum, rendering_tiles, tiles, options.base_zoom, desired_keys};
     }
 
     void tiles_manager::process_loaded_tiles() {
@@ -231,7 +232,7 @@ namespace raytiles {
             }
 
             rendering_tiles.insert_or_assign(key, loaded_tile{
-                                                 tiles.at(key.zoom).size,
+                                                 zoom_value(key.zoom).size,
                                                  tile.tx,
                                                  tile.tz,
                                                  std::move(texture_tex),
@@ -264,7 +265,7 @@ namespace raytiles {
     }
 
     loading_tile tiles_manager::spawn(const tile_key &tile) {
-        const auto &te = tiles.at(tile.zoom);
+        const auto &te = zoom_value(tile.zoom);
         const auto scale = 1 << (tile.zoom - options.base_zoom);
         const auto tx = tile.x + options.anchor_x_tile * scale;
         const auto tz = tile.z + options.anchor_z_tile * scale;
@@ -283,8 +284,7 @@ namespace raytiles {
     }
 
     bool tiles_manager::is_tile_out_of_area(const tile_key &key, const Vector3 &position) const {
-        const auto &t = tiles.at(key.zoom);
-        const MetersDSq distance_sq = utils::distance_sq_to_tile_xz(position, key, t.size);
+        const MetersDSq distance_sq = utils::distance_sq_to_tile_xz(position, key, zoom_value(key.zoom).size);
         return distance_sq > utils::calculate_horizon(position);
     }
 

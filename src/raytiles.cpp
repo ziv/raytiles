@@ -36,7 +36,7 @@ namespace raytiles {
             const auto offset_z = static_cast<float>((y - conf.anchor_z_tile) * tile_size);
             conf.offset = {offset_x, 0.0f, offset_z};
 
-            TraceLog(LOG_WARNING, "tiles anchore %d %d", conf.anchor_x_tile, conf.anchor_z_tile);
+            TraceLog(LOG_INFO, "raytiles anchor tile %d %d", conf.anchor_x_tile, conf.anchor_z_tile);
             return conf;
         }
 

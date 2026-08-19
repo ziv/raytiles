@@ -67,10 +67,6 @@ namespace raytiles {
         // - workers would never wake up on shutdown and ~pool would hang forever.
         std::condition_variable_any cv;
 
-        // tiny thread-safe logger: serializes writes to stderr behind a single mutex
-        // so log lines never interleave. used in workers in place of TraceLog.
-        void log_line(std::string_view level, std::string_view msg) ;
-
         [[nodiscard]] std::string get_host(request_type type) const;
 
         void worker_loop(const std::stop_token &st);

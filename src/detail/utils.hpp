@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <cmath>
 #include <vector>
 #include <unordered_map>
@@ -16,7 +17,8 @@ namespace raytiles {
     struct data_view {
         Frustum &frustum;
         std::unordered_map<tile_key, loaded_tile> &rendering_tiles;
-        std::unordered_map<Zoom, tile_value> &tiles; // todo replace with array (perf)
+        const std::array<tile_value, zoom_levels> &tiles; // per-zoom metadata, indexed zoom - base_zoom
+        int base_zoom;
         std::unordered_set<tile_key> &desired_keys;
     };
 }

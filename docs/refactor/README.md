@@ -7,7 +7,7 @@ implementation + re-evaluation + green build/tests + commit.
 | # | Step | Doc | Status |
 |---|------|-----|--------|
 | 1 | Extract pure `lod` policy + real test suite | [step-01-lod-extraction.md](step-01-lod-extraction.md) | **done** |
-| 2 | Per-zoom array, `get_loading` fix, dead-code removal | step-02-small-fixes.md | pending |
+| 2 | Per-zoom array, `get_loading` fix, dead-code removal | [step-02-small-fixes.md](step-02-small-fixes.md) | **done** |
 | 3 | `render_item` list, renderer consumes span, delete `data_view` | step-03-render-list.md | pending |
 | 4 | Draw-order policy (front-to-back on membership change) | step-04-draw-order.md | pending |
 | 5 | `pool` → `tile_source` (one job/tile, ready queue, cancel by key) + tests | step-05-tile-source.md | pending |
