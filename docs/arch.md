@@ -123,13 +123,13 @@ sequenceDiagram
 
     Streamer->>Store: promote(abs, offset)
     Store->>Src: drain(ready, dropped)   [one lock: swap]
-    Note over Store: drops → clear loading key; log real failures;<br/>re-request cancelled-but-desired-again keys<br/>payloads → upload_queue
+    Note over Store: drops → clear loading key log real failures<br/>re-request cancelled-but-desired-again keys<br/>payloads → upload_queue
     Note over Store: budgeted upload loop (wall-clock + count caps):<br/>skip undesired, LoadTexture ×3, mipmaps,<br/>append render_item + resident_tile<br/>then: front-to-back sort iff membership changed
 
     alt moved > update_distance
         Streamer->>Store: update_desired(abs)
         Store->>Lod: desired_tiles(options, abs)
-        Lod-->>Store: vector&lt;tile_key&gt;
+        Lod-->>Store: vector[tile_key]
         Note over Store: refresh item.desired flags<br/>cancel loading keys ∉ desired (once, here)
         Store->>Src: request({key, abs provider x/z}) for missing keys
     end
@@ -139,7 +139,7 @@ sequenceDiagram
 
     App->>Streamer: draw()
     Streamer->>Rend: draw(camera.pos, store.render_items())
-    Note over Rend: linear scan; bind item textures;<br/>DrawMesh(item.mesh, material, item.transform)
+    Note over Rend: linear scan bind item textures<br/>DrawMesh(item.mesh, material, item.transform)
 ```
 
 Why this order: `reconcile` runs against *last frame's* visibility flags (cheap, already computed);
