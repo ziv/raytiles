@@ -1,12 +1,13 @@
 #include "raytiles/raytiles.h"
 #include "detail/tiles_manager.h"
+#include <cassert>
+#include <chrono>
+#include <cstdint>
 #include <format>
 #include <ranges>
-#include <utility>
-#include <chrono>
 #include <unordered_map>
+#include <utility>
 #include <vector>
-#include <ranges>
 #include "detail/utils.hpp"
 
 using namespace std::chrono_literals;
@@ -107,30 +108,40 @@ namespace raytiles {
     }
 
 
-    void tiles_manager::pre_process(const Vector3 &position) {
+    void tiles_manager::pre_process(const Vector3 &position, const Vector3 &world_offset) {
         // gc
-        std::erase_if(rendering_tiles, [&](const auto &item) {
-            // if it in desired, keep it
-            if (desired_keys.contains(item.first)) return false;
+        std::erase_if(rendering_tiles, [&](auto &entry) {
+            auto &[key, tile] = entry;
+            const bool remove = [&] {
+                // if it in desired, keep it
+                if (desired_keys.contains(key)) return false;
 
-            // if it is base zoom and not desired, no need to
-            // check the rest, remove it. it the horizon.
-            if (item.first.zoom == options.base_zoom) return true;
+                // if it is base zoom and not desired, no need to
+                // check the rest, remove it. it the horizon.
+                if (key.zoom == options.base_zoom) return true;
 
-            // if not in desired and not in frustum, remove
-            // without thinking todo add softer eviction
-            if (!item.second.in_frustum_this_frame) return true;
+                // if not in desired and not in frustum, remove
+                // without thinking todo add softer eviction
+                if (!render_list[tile.slot].visible) return true;
 
-            // if the tile is far beyond the horizon, remove
-            // without thinking
-            if (is_tile_out_of_area(item.first, position)) return true;
+                // if the tile is far beyond the horizon, remove
+                // without thinking
+                if (is_tile_out_of_area(key, position)) return true;
 
-            // here we stop to think (this is the "slow" path)
-            // if the tile is not covered by other tiles, keep
-            // it to avoid holes in the surface
-            if (!is_tile_covered(item.first)) return false;
-            return true;
+                // here we stop to think (this is the "slow" path)
+                // if the tile is not covered by other tiles, keep
+                // it to avoid holes in the surface
+                if (!is_tile_covered(key)) return false;
+                return true;
+            }();
+            if (remove) evict(tile);
+            return remove;
         });
+
+#ifndef NDEBUG
+        // render-list/owner lockstep invariant (swap-remove bookkeeping)
+        for (std::uint32_t i = 0; i < render_list.size(); ++i) assert(rendering_tiles.at(render_list[i].key).slot == i);
+#endif
 
         for (auto &key: loading_tiles | std::views::keys) {
             if (!desired_keys.contains(key)) {
@@ -138,7 +149,19 @@ namespace raytiles {
             }
         }
 
-        process_loaded_tiles();
+        process_loaded_tiles(world_offset);
+    }
+
+    void tiles_manager::evict(loaded_tile &tile) {
+        // swap-with-last removal from the flat list; the moved item's owner
+        // record is re-pointed via the item's key backlink
+        const auto slot = tile.slot;
+        const auto last = static_cast<std::uint32_t>(render_list.size() - 1);
+        if (slot != last) {
+            render_list[slot] = render_list[last];
+            rendering_tiles.at(render_list[slot].key).slot = slot;
+        }
+        render_list.pop_back();
     }
 
     void tiles_manager::process(const Vector3 &position) {
@@ -146,24 +169,30 @@ namespace raytiles {
     }
 
     void tiles_manager::post_process(const Frustum &frustum, const Vector3 &world_offset) {
-        for (auto &tile: rendering_tiles | std::views::values) {
-            // Shift absolute tile center into user space before testing
-            // against the user-space frustum.
-            const auto user_x = static_cast<float>(tile.tx + static_cast<double>(world_offset.x));
-            const auto user_z = static_cast<float>(tile.tz + static_cast<double>(world_offset.z));
-            tile.in_frustum_this_frame = utils::is_tile_in_frustum(user_x, user_z, tile.size, frustum);
+        // rebake transforms only after a large-world rebase. exact compare is
+        // correct: the caller passes the same bits every frame until it rebases.
+        if (world_offset.x != baked_offset.x || world_offset.z != baked_offset.z) {
+            baked_offset = world_offset;
+            const auto off_x = static_cast<double>(world_offset.x);
+            const auto off_z = static_cast<double>(world_offset.z);
+            for (auto &item: render_list) {
+                // keep the addition in double so the huge-tile-coord + huge-offset
+                // cancellation happens at full precision before the float cast
+                item.transform = MatrixTranslate(static_cast<float>(item.abs_x + off_x), 0.0f, static_cast<float>(item.abs_z + off_z));
+            }
         }
+
+        for (auto &item: render_list) {
+            item.visible = utils::is_tile_in_frustum(item.transform.m12, item.transform.m14, item.size, frustum);
+        }
+
         // first time the loading list is empty, means we finished loading
         if (loading && loading_tiles.empty()) {
             loading = false;
         }
     }
 
-    data_view tiles_manager::make_debug_view(Frustum &frustum) {
-        return data_view{frustum, rendering_tiles, tiles, options.base_zoom, desired_keys};
-    }
-
-    void tiles_manager::process_loaded_tiles() {
+    void tiles_manager::process_loaded_tiles(const Vector3 &world_offset) {
         // walk loading tiles; for each entry where all three downloads finished, either
         // promote it to rendering_tiles or drop it (no longer desired). entries are
         // erased immediately on the iterator. uploads are bounded both by a wall-clock
@@ -231,16 +260,36 @@ namespace raytiles {
                 SetTextureFilter(*texture_tex, TEXTURE_FILTER_ANISOTROPIC_16X);
             }
 
-            rendering_tiles.insert_or_assign(key, loaded_tile{
-                                                 zoom_value(key.zoom).size,
-                                                 tile.tx,
-                                                 tile.tz,
-                                                 std::move(texture_tex),
-                                                 std::move(height_tex),
-                                                 std::move(height_img),
-                                                 std::move(normals_tex),
-                                                 false
-                                             });
+            // draw-ready entry for the flat render list. transform is baked in
+            // user space; the double add preserves precision before the float cast.
+            const auto &tv = zoom_value(key.zoom);
+            const auto user_x = static_cast<float>(tile.tx + static_cast<double>(world_offset.x));
+            const auto user_z = static_cast<float>(tile.tz + static_cast<double>(world_offset.z));
+            const render_item item{
+                *tv.mesh,
+                *texture_tex,
+                *height_tex,
+                *normals_tex,
+                MatrixTranslate(user_x, 0.0f, user_z),
+                tv.size,
+                tile.tx,
+                tile.tz,
+                key,
+                false, // visible: decided by post_process later this frame
+                true, // desired: promotion only happens for still-desired keys
+            };
+
+            if (const auto existing = rendering_tiles.find(key); existing != rendering_tiles.end()) {
+                // defensive: key already resident (shouldn't happen via the
+                // spawn/promote flow) — replace resources in place, keep the slot
+                render_list[existing->second.slot] = item;
+                existing->second = loaded_tile{std::move(texture_tex), std::move(height_tex), std::move(height_img), std::move(normals_tex),
+                                               existing->second.slot};
+            } else {
+                render_list.push_back(item);
+                const auto slot = static_cast<std::uint32_t>(render_list.size() - 1);
+                rendering_tiles.emplace(key, loaded_tile{std::move(texture_tex), std::move(height_tex), std::move(height_img), std::move(normals_tex), slot});
+            }
 
             it = loading_tiles.erase(it);
             ++promoted;
@@ -257,6 +306,9 @@ namespace raytiles {
 
         desired_keys.clear();
         desired_keys.insert(desired_scratch.begin(), desired_scratch.end());
+
+        // refresh the debug-overlay flag on resident items (rebuilds are rare)
+        for (auto &item: render_list) item.desired = desired_keys.contains(item.key);
 
         // spawn new if not in rendering list
         for (const auto &key: desired_keys)

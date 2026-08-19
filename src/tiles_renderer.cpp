@@ -1,10 +1,9 @@
-#include <algorithm>
+#include <span>
 
 #include "raytiles/raytiles.h"
 #include "detail/tiles_renderer.h"
 #include "detail/raii.hpp"
 #include "detail/tile_shader.h"
-#include "detail/utils.hpp"
 
 namespace raytiles {
     namespace {
@@ -30,62 +29,43 @@ namespace raytiles {
         material->shader = shader_();
     }
 
-    int tiles_renderer::draw(const Vector3 &position, const Vector3 &world_offset, const data_view &draw_view) {
-        // position is in user space; the shader fragment-distance term lives
-        // in user space as well (vertices are submitted post-MatrixTranslate
-        // with user-space coords), so this is the correct frame.
-        shader_.set_camera_location(position);
-
-        const auto off_x = static_cast<double>(world_offset.x);
-        const auto off_z = static_cast<double>(world_offset.z);
+    int tiles_renderer::draw(const Vector3 &camera_position, const std::span<const render_item> items) {
+        // camera_position is in user space; the shader fragment-distance term
+        // lives in user space as well (vertices are submitted with the baked
+        // user-space transform), so this is the correct frame.
+        shader_.set_camera_location(camera_position);
 
         int rendered = 0;
-        for (auto &[key, tile]: draw_view.rendering_tiles) {
-            if (!tile.in_frustum_this_frame) continue;
-            const auto &tv = draw_view.tiles[static_cast<std::size_t>(key.zoom - draw_view.base_zoom)];
+        for (const auto &item: items) {
+            if (!item.visible) continue;
 
-            material->maps[MATERIAL_MAP_ALBEDO].texture = *tile.tx_texture;
-            material->maps[MATERIAL_MAP_ROUGHNESS].texture = *tile.hm_texture;
-            material->maps[MATERIAL_MAP_NORMAL].texture = *tile.nl_texture;
+            material->maps[MATERIAL_MAP_ALBEDO].texture = item.albedo;
+            material->maps[MATERIAL_MAP_ROUGHNESS].texture = item.heightmap;
+            material->maps[MATERIAL_MAP_NORMAL].texture = item.normals;
 
-            // Convert absolute tile center into user space for raylib's
-            // float-only matrix pipeline. Keep the addition in double so the
-            // huge-tile-coord + huge-offset cancellation happens at full
-            // precision before the float cast.
-            const auto user_tx = static_cast<float>(tile.tx + off_x);
-            const auto user_tz = static_cast<float>(tile.tz + off_z);
-            DrawMesh(*tv.mesh, *material, MatrixTranslate(user_tx, 0.0f, user_tz));
+            DrawMesh(item.mesh, *material, item.transform);
             ++rendered;
         }
         return rendered;
     }
 
-    void tiles_renderer::debug_3d(const Vector3 &world_offset, const data_view &draw_view) {
-        const auto off_x = static_cast<double>(world_offset.x);
-        const auto off_z = static_cast<double>(world_offset.z);
-        for (const auto &[key, tile]: draw_view.rendering_tiles) {
-            if (tile.in_frustum_this_frame) {
-                const auto &t = draw_view.tiles[static_cast<std::size_t>(key.zoom - draw_view.base_zoom)];
-                const auto user_x = static_cast<float>(tile.tx + off_x);
-                const auto user_z = static_cast<float>(tile.tz + off_z);
-                DrawCubeWires({user_x, 0.0f, user_z}, t.size, 1000.0f, t.size, GREEN);
+    void tiles_renderer::debug_3d(const std::span<const render_item> items) {
+        for (const auto &item: items) {
+            if (item.visible) {
+                DrawCubeWires({item.transform.m12, 0.0f, item.transform.m14}, item.size, 1000.0f, item.size, GREEN);
             }
         }
     }
 
-    void tiles_renderer::debug(const Camera3D &camera, const Vector3 &world_offset, const data_view &draw_view) {
+    void tiles_renderer::debug(const Camera3D &camera, const std::span<const render_item> items) {
         const auto width = static_cast<float>(GetScreenWidth());
         const auto height = static_cast<float>(GetScreenHeight());
-        const auto off_x = static_cast<double>(world_offset.x);
-        const auto off_z = static_cast<double>(world_offset.z);
-        for (const auto &[key, tile]: draw_view.rendering_tiles) {
-            if (tile.in_frustum_this_frame) {
-                const auto user_x = static_cast<float>(tile.tx + off_x);
-                const auto user_z = static_cast<float>(tile.tz + off_z);
-                const auto [x, y] = GetWorldToScreen({user_x, 0.0f, user_z}, camera);
+        for (const auto &item: items) {
+            if (item.visible) {
+                const auto [x, y] = GetWorldToScreen({item.transform.m12, 0.0f, item.transform.m14}, camera);
                 if (x < 0 || x > width || y < 0 || y > height) continue;
 
-                DrawText(TextFormat("%d", key.zoom), static_cast<int>(x), static_cast<int>(y), 15, draw_view.desired_keys.contains(key) ? GREEN : RED);
+                DrawText(TextFormat("%d", item.key.zoom), static_cast<int>(x), static_cast<int>(y), 15, item.desired ? GREEN : RED);
             }
         }
     }

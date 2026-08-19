@@ -1,12 +1,11 @@
 #pragma once
 
-#include <vector>
+#include <span>
 
 #include "raylib.h"
 #include "raii.hpp"
 #include "tile.hpp"
 #include "tile_shader.h"
-#include "utils.hpp"
 
 namespace raytiles {
     struct rendering_config;
@@ -15,16 +14,19 @@ namespace raytiles {
     public:
         explicit tiles_renderer(const rendering_config &conf);
 
-        int draw(const Vector3 &position, const Vector3 &world_offset, const data_view &draw_view);
+        /// Draws every visible entry of the flat render list. The items carry
+        /// everything needed (mesh, textures, baked transform) — no further
+        /// lookups happen here. Returns the number of tiles drawn.
+        int draw(const Vector3 &camera_position, std::span<const render_item> items);
 
-        /// Draws a 2D HUD with streamer statistics (loaded / loading counts, etc.)
-        /// and zoom labels above the tiles
+        /// Draws a 2D HUD with zoom labels above the tiles (green = desired,
+        /// red = resident but no longer desired).
         /// Call between `BeginDrawing` / `EndDrawing`, after `EndMode3D`.
-        static void debug(const Camera3D &camera, const Vector3 &world_offset, const data_view &draw_view);
+        static void debug(const Camera3D &camera, std::span<const render_item> items);
 
         /// Draws 3D debug overlays (tile bounds). Call inside the same
         /// `BeginMode3D` / `EndMode3D` block as `draw`.
-        static void debug_3d(const Vector3 &world_offset, const data_view &draw_view);
+        static void debug_3d(std::span<const render_item> items);
 
         /// Sets the ambient light color sent to the displacement shader. Use this
         /// to drive day / night / weather lighting changes.

@@ -41,17 +41,35 @@ namespace raytiles {
         std::shared_future<Image> nl_future;
     };
 
-    /// Fully promoted tile: GPU textures uploaded, heightmap CPU image
-    /// retained for `ground_height()` queries.
+    /// Fully promoted tile — the *owner* record. Holds the RAII resources plus
+    /// the tile's slot in the flat render list. Everything the draw loop needs
+    /// lives in the matching `render_item`; this record exists for resource
+    /// lifetime, `ground_height()` (CPU heightmap), and slot bookkeeping.
     struct loaded_tile {
-        Meters size;
-        double tx;
-        double tz;
         raii::texture tx_texture;
         raii::texture hm_texture;
         raii::image hm_image;
         raii::texture nl_texture;
-        bool in_frustum_this_frame;
+        std::uint32_t slot;
+    };
+
+    /// One entry of the flat render list: everything needed to draw one tile,
+    /// with zero further lookups. All raylib handles are non-owning copies of
+    /// small PODs; ownership stays in the manager's resident map, and an item
+    /// never outlives its owner (evicted together). Only valid within the
+    /// frame it was obtained.
+    struct render_item {
+        Mesh mesh; // shared per-zoom mesh
+        Texture2D albedo;
+        Texture2D heightmap;
+        Texture2D normals;
+        Matrix transform; // user-space translate; m12/m14 double as the cull center
+        float size; // world size, for the cull AABB
+        double abs_x; // absolute tile center, kept in double for offset rebakes
+        double abs_z;
+        tile_key key; // backlink for eviction slot-fixups + debug labels
+        bool visible; // frustum result, written in place each frame
+        bool desired; // desired-set membership, for the debug overlay
     };
 } // namespace raytiles
 

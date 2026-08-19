@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <optional>
+#include <span>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -90,7 +91,10 @@ namespace raytiles {
 
         //// Pre-processing tiles.
         /// Should be called every frame and before "process".
-        void pre_process(const Vector3 &position);
+        /// @param world_offset Maps absolute tile coords to user space via
+        ///                     `user = absolute + offset`; needed to bake the
+        ///                     transform of tiles promoted this frame.
+        void pre_process(const Vector3 &position, const Vector3 &world_offset);
 
         /// Process tiles for current location.
         /// Must be called once, and then after position changed.
@@ -102,13 +106,15 @@ namespace raytiles {
         ///                     `frustum`'s frame) via `user = absolute + offset`.
         void post_process(const Frustum &frustum, const Vector3 &world_offset);
 
-        /// Bundles internal state into a `DebugView` for the renderer's draw /
-        /// debug paths. The returned view borrows references to this manager's
-        /// internal maps; do not retain it beyond the current frame.
-        [[nodiscard]] data_view make_debug_view(Frustum &frustum);
+        /// The flat render list: everything the renderer needs, one entry per
+        /// resident tile. Borrowed view — only valid within the current frame
+        /// (promotion/eviction reallocate and reorder it).
+        [[nodiscard]] std::span<const render_item> render_items() const { return render_list; }
 
     private:
-        void process_loaded_tiles();
+        void process_loaded_tiles(const Vector3 &world_offset);
+
+        void evict(loaded_tile &tile);
 
         void process_current_location(const Vector3 &position);
 
@@ -138,9 +144,16 @@ namespace raytiles {
         // map of current loading tiles and their futures
         std::unordered_map<tile_key, loading_tile> loading_tiles;
 
-        // map of tiles that may be rendered if in frustum
-        // contain reference to the GPU and CPU loaded resources
+        // owner records of resident tiles (RAII resources + render-list slot)
         std::unordered_map<tile_key, loaded_tile> rendering_tiles;
+
+        // flat render list: one draw-ready entry per resident tile, kept in
+        // lockstep with `rendering_tiles` (promote appends, evict swap-removes)
+        std::vector<render_item> render_list;
+
+        // world offset the render-list transforms were baked with; transforms
+        // are rebaked only when this changes (large-world rebase)
+        Vector3 baked_offset = {0.0f, 0.0f, 0.0f};
 
         // metadata about tiles by their zoom, indexed zoom - base_zoom;
         // slots beyond max_zoom - base_zoom stay default-constructed and unused

@@ -14,13 +14,6 @@ namespace raytiles {
     constexpr int min_resolution = 4;
     constexpr int max_resolution = 256;
 
-    struct data_view {
-        Frustum &frustum;
-        std::unordered_map<tile_key, loaded_tile> &rendering_tiles;
-        const std::array<tile_value, zoom_levels> &tiles; // per-zoom metadata, indexed zoom - base_zoom
-        int base_zoom;
-        std::unordered_set<tile_key> &desired_keys;
-    };
 }
 
 namespace raytiles::utils {
