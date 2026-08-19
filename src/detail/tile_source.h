@@ -9,6 +9,7 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "raii.hpp"
@@ -95,6 +96,17 @@ class tile_source {
     std::shared_ptr<std::atomic_bool> cancelled;
   };
 
+  /// Low-priority synthesis work: generate every missing derived heightmap
+  /// under one native-zoom parent down to `target_zoom`. Enqueued after a
+  /// synchronous derivation served its requested tile; processed only when
+  /// no real job is pending. Best-effort (no cancellation, dropped at
+  /// shutdown).
+  struct derive_task {
+    int parent_x;  // absolute provider coords at the native zoom
+    int parent_z;
+    int target_zoom;
+  };
+
   /// network_config resolved for fetching: URLs split into host + path,
   /// cache templates derived from cache_dir.
   struct resolved {
@@ -102,6 +114,7 @@ class tile_source {
     bool allow_insecure_tls;
     int connection_timeout_sec;
     int read_timeout_sec;
+    int native_terrain_zoom;
 
     std::string texture_cache_path;
     std::string heightmap_cache_path;
@@ -124,6 +137,12 @@ class tile_source {
   /// Erase from in_flight and record the drop, under the lock.
   void deliver_drop(const tile_key& key, bool cancelled, std::string reason);
 
+  /// Enqueue a derive task unless an identical one already ran (dedup).
+  void enqueue_derive(int parent_x, int parent_z, int target_zoom);
+
+  /// Execute one derive task (worker thread, no lock held).
+  void run_derive(const derive_task& task, const std::stop_token& st);
+
   resolved options;
   std::vector<std::jthread> workers;
 
@@ -131,6 +150,12 @@ class tile_source {
   std::unordered_map<tile_key, std::shared_ptr<std::atomic_bool> > in_flight;
   std::vector<tile_payload> ready;
   std::vector<drop> dropped;
+
+  // low-priority synthesis work (see derive_task); background_done keys are
+  // tile_key{target_zoom, parent_x, parent_z} — a dedup token, not a tile
+  std::queue<derive_task> background;
+  std::unordered_set<tile_key> background_done;
+
   std::mutex mtx;
   std::condition_variable_any cv;
 };

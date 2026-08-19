@@ -38,8 +38,11 @@ constexpr Zoom min_supported_zoom = 9;
 
 /// Highest zoom level supported by the library. `world_config::max_zoom`
 /// must be `<= max_supported_zoom`; constructing a streamer with a higher
-/// `max_zoom` throws `std::runtime_error`.
-constexpr Zoom max_supported_zoom = 15;
+/// `max_zoom` throws `std::runtime_error`. Above
+/// `network_config::native_terrain_zoom`, heightmaps are synthesized from
+/// their native-zoom ancestors and normals fall back to flat defaults —
+/// only imagery is fetched natively that deep.
+constexpr Zoom max_supported_zoom = 18;
 
 /// Number of zoom levels in `[min_supported_zoom, max_supported_zoom]`.
 /// Sizes the per-zoom arrays `world_config::skirt_overlap` and
@@ -70,7 +73,10 @@ struct world_config {
   /// camera are subdivided up to this zoom. Changing this also requires
   /// updating `streaming_config::thresholds`.
   /// Must be `<= max_supported_zoom` and `>= base_zoom`.
-  Zoom max_zoom = max_supported_zoom;
+  /// Defaults to the native terrain ceiling (15); raising it beyond
+  /// `network_config::native_terrain_zoom` (up to `max_supported_zoom`)
+  /// opts into synthesized heightmaps and default normals — see those docs.
+  Zoom max_zoom = 15;
 
   /// World size (in meters) of one tile at `base_zoom`. Tiles at higher
   /// zooms are scaled by `1 / (1 << (zoom - base_zoom))`. The lat/lon
@@ -81,7 +87,7 @@ struct world_config {
   /// overlap (and thus fill rate) at different zoom levels. Baked into
   /// generated meshes. Indexed as `skirt_overlap[zoom - base_zoom]`;
   /// slots beyond `max_zoom - base_zoom` are ignored.
-  std::array<float, zoom_levels> skirt_overlap = {1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f};
+  std::array<float, zoom_levels> skirt_overlap = {1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f};
 
   /// Generate trilinear / anisotropic mipmaps for the albedo texture on
   /// upload. Strongly recommended; avoids shimmering at distance.
@@ -106,7 +112,7 @@ struct streaming_config {
   /// the resident tile count under 600. Indexed as
   /// `thresholds[zoom - base_zoom]`; slots beyond `max_zoom - base_zoom`
   /// are ignored.
-  std::array<Meters, zoom_levels> thresholds = {100000.0f, 80000.0f, 40000.0f, 20000.0f, 10000.0f, 5000.0f, 2500.0f};
+  std::array<Meters, zoom_levels> thresholds = {100000.0f, 80000.0f, 40000.0f, 20000.0f, 10000.0f, 5000.0f, 2500.0f, 1250.0f, 625.0f, 312.0f};
 
   /// Distance (in meters) the camera must travel to trigger a
   /// desired-set recomputation. Keep this large enough that small
@@ -183,6 +189,13 @@ struct network_config {
   /// HTTP connection / read timeouts (seconds).
   int connection_timeout_sec = 5;
   int read_timeout_sec = 3;
+
+  /// Highest zoom the terrain providers serve natively (Mapzen Terrarium and
+  /// its normals stop at 15). Above it, heightmaps are synthesized by
+  /// upsampling the native-zoom ancestor (cached like fetched tiles) and
+  /// normals fall back to flat defaults — no HTTP is attempted for either.
+  /// Must be in `[min_supported_zoom, max_supported_zoom]`.
+  Zoom native_terrain_zoom = 15;
 
   /// Root directory of the on-disk tile cache. Layout:
   /// `cache_dir/{texture,heightmap,normals}/zoom/x/y.png` (the same

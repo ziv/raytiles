@@ -37,6 +37,7 @@ add_library(${PROJECT_NAME}
         include/raytiles/craytiles.h
         src/detail/raii.hpp
         src/detail/lod.hpp
+        src/detail/terrain_synth.hpp
         src/detail/tile.hpp
         src/detail/utils.hpp
         src/raytiles.cpp
@@ -154,6 +155,7 @@ if (NOT RAYTILES_BINDINGS_MODE)
             tests/tests_main.cpp
             tests/lod_tests.cpp
             tests/utils_tests.cpp
+            tests/terrain_synth_tests.cpp
             tests/tile_source_tests.cpp
     )
 

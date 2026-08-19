@@ -25,10 +25,10 @@
 
 #include "raylib.h"
 
-/// Number of zoom levels in `[9, 15]`. Sizes the per-zoom arrays
+/// Number of zoom levels in `[9, 18]`. Sizes the per-zoom arrays
 /// `RaytilesWorldConfig::skirt_overlap` and `RaytilesStreamingConfig::thresholds`.
 /// Must match `raytiles::zoom_levels` on the C++ side.
-#define RAYTILES_ZOOM_LEVELS 7
+#define RAYTILES_ZOOM_LEVELS 10
 
 #ifdef __cplusplus
 extern "C" {
@@ -134,6 +134,11 @@ typedef struct RaytilesNetworkConfig {
   /// HTTP connection / read timeouts (seconds).
   int connection_timeout_sec;
   int read_timeout_sec;
+
+  /// Highest zoom the terrain providers serve natively; above it heightmaps
+  /// are synthesized and normals default. Mirrors
+  /// `raytiles::network_config::native_terrain_zoom`.
+  int native_terrain_zoom;
 
   /// Root directory of the on-disk tile cache
   /// (`cache_dir/{texture,heightmap,normals}/zoom/x/y.png`).

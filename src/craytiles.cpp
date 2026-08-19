@@ -70,6 +70,7 @@ raytiles::config to_cpp_config(const RaytilesConfig* c) {
   conf.network.allow_insecure_tls = c->network.allow_insecure_tls;
   conf.network.connection_timeout_sec = c->network.connection_timeout_sec;
   conf.network.read_timeout_sec = c->network.read_timeout_sec;
+  conf.network.native_terrain_zoom = c->network.native_terrain_zoom;
   if (c->network.cache_dir) conf.network.cache_dir = c->network.cache_dir;
   if (c->network.texture_url) conf.network.texture_url = c->network.texture_url;
   if (c->network.heightmap_url) conf.network.heightmap_url = c->network.heightmap_url;
@@ -121,6 +122,7 @@ RaytilesConfig RaytilesConfigDefault(void) {
   out.network.allow_insecure_tls = d.network.allow_insecure_tls;
   out.network.connection_timeout_sec = d.network.connection_timeout_sec;
   out.network.read_timeout_sec = d.network.read_timeout_sec;
+  out.network.native_terrain_zoom = d.network.native_terrain_zoom;
   out.network.cache_dir = d.network.cache_dir.c_str();
   out.network.texture_url = d.network.texture_url.c_str();
   out.network.heightmap_url = d.network.heightmap_url.c_str();

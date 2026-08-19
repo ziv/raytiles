@@ -1,6 +1,7 @@
 /// Tests for tile_source (src/detail/tile_source.h): the real worker pool
 /// driven against pre-seeded disk caches and a local httplib server. Fully
 /// offline and windowless — only CPU-side raylib calls (image authoring).
+#include "detail/terrain_synth.hpp"
 #include "detail/tile_source.h"
 #include "doctest.h"
 
@@ -10,6 +11,8 @@
 #endif
 #include <atomic>
 #include <chrono>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -74,6 +77,38 @@ network_config make_options(const fs::path& dir, const std::string& host = "http
 // cache paths as tile_source derives them from cache_dir
 fs::path cache_path(const network_config& net, const std::string& kind, const int zoom, const int x, const int z) {
   return fs::path(net.cache_dir) / kind / std::to_string(zoom) / std::to_string(x) / (std::to_string(z) + ".png");
+}
+
+// a size×size Terrarium gradient: h(x, y) = 16·x + y
+std::vector<float> gradient_heights(const int size) {
+  std::vector<float> heights(static_cast<std::size_t>(size) * static_cast<std::size_t>(size));
+  for (int y = 0; y < size; ++y)
+    for (int x = 0; x < size; ++x) heights[static_cast<std::size_t>(y) * size + x] = 16.0f * static_cast<float>(x) + static_cast<float>(y);
+  return heights;
+}
+
+// PNG bytes of a Terrarium-encoded gradient (main-thread raylib exporter)
+std::string terrarium_png_bytes(const int size) {
+  const auto heights = gradient_heights(size);
+  Image img = raytiles::synth::encode_terrarium(heights, size, size);
+  int len = 0;
+  unsigned char* data = ExportImageToMemory(img, ".png", &len);
+  std::string out(reinterpret_cast<const char*>(data), static_cast<std::size_t>(len));
+  MemFree(data);
+  std::free(img.data);
+  return out;
+}
+
+// the exact bytes the synthesis path must produce for a lineage walk from a
+// gradient ancestor: repeated quadrant upsampling then Terrarium encoding
+std::vector<unsigned char> expected_derived_pixels(const int size, const std::vector<std::pair<int, int>>& quadrants) {
+  auto floats = gradient_heights(size);
+  for (const auto& [qx, qz] : quadrants) floats = raytiles::synth::upsample_quadrant(floats, size, size, qx, qz);
+  Image img = raytiles::synth::encode_terrarium(floats, size, size);
+  const auto* p = static_cast<const unsigned char*>(img.data);
+  std::vector<unsigned char> out(p, p + static_cast<std::size_t>(size) * size * 3);
+  std::free(img.data);
+  return out;
 }
 
 void seed_cache(const network_config& net, const int zoom, const int x, const int z, const std::string& bytes) {
@@ -195,6 +230,163 @@ TEST_CASE("corrupt cached bytes become a failure drop") {
   CHECK(h.drops.front().key == key);
   CHECK_FALSE(h.drops.front().cancelled);
   CHECK_FALSE(h.drops.front().reason.empty());
+  fs::remove_all(dir);
+}
+
+TEST_CASE("z16 heightmap is derived from a seeded z15 ancestor") {
+  const auto dir = fresh_temp_dir();
+  auto opts = make_options(dir);  // dead host: everything must come from cache/synthesis
+  constexpr int size = 16;
+
+  // ancestor at native zoom 15, absolute coords (10, 20); its q(1,0) child
+  // at z16 is (21, 40)
+  write_file(cache_path(opts, "heightmap", 15, 10, 20), terrarium_png_bytes(size));
+  write_file(cache_path(opts, "texture", 16, 21, 40), png_bytes());
+
+  harness h(std::move(opts));
+  const tile_key key{16, 21, 40};
+  h.src.request(tile_request{key, 21, 40});
+
+  REQUIRE(h.pump_until([&] { return !h.payloads.empty(); }));
+  CHECK(h.drops.empty());
+
+  // the payload's height image must be byte-identical to an independently
+  // computed decode → upsample(q1,0) → encode of the seeded ancestor
+  const auto& hm = *h.payloads.front().height;
+  REQUIRE(hm.width == size);
+  REQUIRE(hm.format == PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+  const auto expected = expected_derived_pixels(size, {{1, 0}});
+  CHECK(std::memcmp(hm.data, expected.data(), expected.size()) == 0);
+
+  // the derived tile was cached, and the background task eventually
+  // materializes all four z16 children of the ancestor
+  const auto opts2 = make_options(dir);
+  CHECK(fs::exists(cache_path(opts2, "heightmap", 16, 21, 40)));
+  const auto all_siblings = [&] {
+    return fs::exists(cache_path(opts2, "heightmap", 16, 20, 40)) && fs::exists(cache_path(opts2, "heightmap", 16, 21, 40)) &&
+           fs::exists(cache_path(opts2, "heightmap", 16, 20, 41)) && fs::exists(cache_path(opts2, "heightmap", 16, 21, 41));
+  };
+  CHECK(h.pump_until(all_siblings));
+  fs::remove_all(dir);
+}
+
+TEST_CASE("z17 heightmap derives through the z16 chain from a z15 ancestor") {
+  const auto dir = fresh_temp_dir();
+  auto opts = make_options(dir);
+  constexpr int size = 16;
+
+  // ancestor (3, 5) at z15; target z17 tile (14, 21):
+  // level 16 quadrant = ((14>>1)&1, (21>>1)&1) = (1, 0)
+  // level 17 quadrant = (14&1, 21&1) = (0, 1)
+  write_file(cache_path(opts, "heightmap", 15, 3, 5), terrarium_png_bytes(size));
+  write_file(cache_path(opts, "texture", 17, 14, 21), png_bytes());
+
+  harness h(std::move(opts));
+  h.src.request(tile_request{tile_key{17, 14, 21}, 14, 21});
+
+  REQUIRE(h.pump_until([&] { return !h.payloads.empty(); }));
+  CHECK(h.drops.empty());
+  const auto expected = expected_derived_pixels(size, {{1, 0}, {0, 1}});
+  CHECK(std::memcmp(h.payloads.front().height->data, expected.data(), expected.size()) == 0);
+
+  // background generation fills the whole 4 + 16 descendant set
+  const auto opts2 = make_options(dir);
+  const auto full_set = [&] {
+    for (int x = 6; x < 8; ++x)
+      for (int z = 10; z < 12; ++z)
+        if (!fs::exists(cache_path(opts2, "heightmap", 16, x, z))) return false;
+    for (int x = 12; x < 16; ++x)
+      for (int z = 20; z < 24; ++z)
+        if (!fs::exists(cache_path(opts2, "heightmap", 17, x, z))) return false;
+    return true;
+  };
+  CHECK(h.pump_until(full_set));
+  fs::remove_all(dir);
+}
+
+TEST_CASE("corrupt z15 ancestor drops the derived tile with a reason") {
+  const auto dir = fresh_temp_dir();
+  auto opts = make_options(dir);
+  write_file(cache_path(opts, "heightmap", 15, 7, 7), "definitely not a png");
+  write_file(cache_path(opts, "texture", 16, 14, 14), png_bytes());
+
+  harness h(std::move(opts));
+  h.src.request(tile_request{tile_key{16, 14, 14}, 14, 14});
+
+  REQUIRE(h.pump_until([&] { return !h.drops.empty(); }));
+  CHECK(h.payloads.empty());
+  CHECK_FALSE(h.drops.front().cancelled);
+  CHECK_FALSE(h.drops.front().reason.empty());
+  fs::remove_all(dir);
+}
+
+TEST_CASE("above the native zoom, normals default without any network") {
+  const auto dir = fresh_temp_dir();
+  auto opts = make_options(dir);  // dead host
+  constexpr int size = 16;
+  write_file(cache_path(opts, "heightmap", 15, 2, 2), terrarium_png_bytes(size));
+  write_file(cache_path(opts, "texture", 16, 4, 4), png_bytes());
+
+  harness h(std::move(opts));
+  h.src.request(tile_request{tile_key{16, 4, 4}, 4, 4});
+
+  REQUIRE(h.pump_until([&] { return !h.payloads.empty(); }));
+  const auto* p = static_cast<const unsigned char*>(h.payloads.front().normals->data);
+  CHECK(p[0] == 128);
+  CHECK(p[1] == 128);
+  CHECK(p[2] == 255);
+  fs::remove_all(dir);
+}
+
+TEST_CASE("missing normals fall back to flat defaults instead of dropping") {
+  const auto dir = fresh_temp_dir();
+  const test_server server;
+  auto opts = make_options(dir, server.host());
+  opts.normals_url = server.host() + "/no-such-route/:zoom:/:x:/:y:.png";  // 404
+
+  harness h(std::move(opts));
+  const tile_key key{9, 4, 4};
+  h.src.request(tile_request{key, 4, 4});
+
+  REQUIRE(h.pump_until([&] { return !h.payloads.empty(); }));
+  CHECK(h.drops.empty());
+  const auto& nl = *h.payloads.front().normals;
+  CHECK(nl.format == PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+  const auto* p = static_cast<const unsigned char*>(nl.data);
+  CHECK(p[0] == 128);
+  CHECK(p[1] == 128);
+  CHECK(p[2] == 255);
+  fs::remove_all(dir);
+}
+
+TEST_CASE("corrupt cached normals fall back to flat defaults") {
+  const auto dir = fresh_temp_dir();
+  const test_server server;
+  auto opts = make_options(dir, server.host());
+  write_file(cache_path(opts, "normals", 9, 5, 5), "definitely not a png");
+
+  harness h(std::move(opts));
+  h.src.request(tile_request{tile_key{9, 5, 5}, 5, 5});
+
+  REQUIRE(h.pump_until([&] { return !h.payloads.empty(); }));
+  CHECK(h.drops.empty());
+  const auto* p = static_cast<const unsigned char*>(h.payloads.front().normals->data);
+  CHECK(p[2] == 255);
+  fs::remove_all(dir);
+}
+
+TEST_CASE("missing heightmap still drops the tile") {
+  const auto dir = fresh_temp_dir();
+  const test_server server;
+  auto opts = make_options(dir, server.host());
+  opts.heightmap_url = server.host() + "/no-such-route/:zoom:/:x:/:y:.png";  // 404
+
+  harness h(std::move(opts));
+  h.src.request(tile_request{tile_key{9, 6, 7}, 6, 7});
+
+  REQUIRE(h.pump_until([&] { return !h.drops.empty(); }));
+  CHECK(h.payloads.empty());
+  CHECK_FALSE(h.drops.front().cancelled);
   fs::remove_all(dir);
 }
 

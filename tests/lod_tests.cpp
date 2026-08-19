@@ -159,6 +159,35 @@ TEST_CASE("lod::desired_tiles matches the reference on non-default options") {
   }
 }
 
+TEST_CASE("lod::desired_tiles matches the reference above the old z15 ceiling") {
+  raytiles::lod::options opts{};
+  opts.base_zoom = 9;
+  opts.max_zoom = 17;
+  opts.base_tile_size = 66400.0f;
+  opts.rendering_radius = 4;
+  opts.thresholds = {100000.0f, 80000.0f, 40000.0f, 20000.0f, 10000.0f, 5000.0f, 2500.0f, 1250.0f, 625.0f};
+
+  ref_impl ref(opts);
+  for (const auto& pos : probe_positions()) {
+    CAPTURE(pos.x);
+    CAPTURE(pos.y);
+    CAPTURE(pos.z);
+
+    const auto expected = ref.run(pos);
+    const auto actual = run_lod(opts, pos);
+
+    REQUIRE(actual.size() == expected.size());
+    for (const auto& key : actual) CHECK(expected.contains(key));
+  }
+
+  // a low camera over a base-tile center reaches z16+ (a corner probe would
+  // not: the horizon cap measures to tile centers, a pre-existing quirk the
+  // equivalence suite pins)
+  const auto low = run_lod(opts, Vector3{33200.0f, 500.0f, 33200.0f});
+  const bool has_beyond_15 = std::ranges::any_of(low, [](const tile_key& k) { return k.zoom > 15; });
+  CHECK(has_beyond_15);
+}
+
 TEST_CASE("desired sets hold structural invariants") {
   const raytiles::lod::options opts{};
 

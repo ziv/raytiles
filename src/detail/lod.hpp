@@ -22,7 +22,7 @@ namespace raytiles::lod {
 /// are computed inside `desired_tiles` so the policy stays stateless.
 struct options {
   int base_zoom = min_supported_zoom;
-  int max_zoom = max_supported_zoom;
+  int max_zoom = 15;  // matches world_config::max_zoom default
 
   /// World size (meters) of one tile at `base_zoom`.
   float base_tile_size = 66400.0f;
@@ -31,7 +31,7 @@ struct options {
   int rendering_radius = 6;
 
   /// Per-zoom subdivision thresholds, indexed `thresholds[zoom - base_zoom]`.
-  std::array<Meters, zoom_levels> thresholds = {100000.0f, 80000.0f, 40000.0f, 20000.0f, 10000.0f, 5000.0f, 2500.0f};
+  std::array<Meters, zoom_levels> thresholds = {100000.0f, 80000.0f, 40000.0f, 20000.0f, 10000.0f, 5000.0f, 2500.0f, 1250.0f, 625.0f, 312.0f};
 };
 
 namespace detail {
