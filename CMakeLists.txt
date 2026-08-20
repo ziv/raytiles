@@ -36,18 +36,20 @@ add_library(${PROJECT_NAME}
         include/raytiles/raytiles.h
         include/raytiles/craytiles.h
         src/detail/raii.hpp
+        src/detail/lod.hpp
+        src/detail/terrain_synth.hpp
         src/detail/tile.hpp
         src/detail/utils.hpp
         src/raytiles.cpp
         src/craytiles.cpp
-        src/tiles_renderer.cpp
-        src/detail/tiles_renderer.h
-        src/detail/downloader.h
-        src/downloader.cpp
+        src/terrain_renderer.cpp
+        src/detail/terrain_renderer.h
+        src/detail/tile_source.h
+        src/tile_source.cpp
         src/tile_shader.cpp
         src/detail/tile_shader.h
-        src/tiles_manager.cpp
-        src/detail/tiles_manager.h
+        src/tile_store.cpp
+        src/detail/tile_store.h
         src/detail/sky_shader.h
         src/sky_shader.cpp
         src/detail/sky_renderer.h
@@ -151,10 +153,24 @@ if (NOT RAYTILES_BINDINGS_MODE)
     FetchContent_MakeAvailable(doctest)
     add_executable(run_tests
             tests/tests_main.cpp
-            tests/example_tests.cpp
+            tests/lod_tests.cpp
+            tests/utils_tests.cpp
+            tests/terrain_synth_tests.cpp
+            tests/tile_source_tests.cpp
     )
 
-    target_link_libraries(run_tests PRIVATE doctest::doctest)
+    target_include_directories(run_tests PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+
+    # tile_source tests drive the real worker pool against a local httplib
+    # server, so the tests link the library (raylib arrives transitively —
+    # everything stays windowless: CPU-side raylib calls only). The OpenSSL
+    # define must match the library's httplib configuration to avoid ODR
+    # mismatches between the two httplib TUs.
+    target_compile_definitions(run_tests PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
+    target_link_libraries(run_tests PRIVATE ${PROJECT_NAME} doctest::doctest httplib OpenSSL::SSL OpenSSL::Crypto)
 
     include(CTest)
     add_test(NAME AllTests COMMAND run_tests)

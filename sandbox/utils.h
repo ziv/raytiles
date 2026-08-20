@@ -34,7 +34,7 @@ inline void loading_screen(raytiles::streamer &streamer, const Camera &camera, c
         streamer.update(camera, world_offset);
         if (!streamer.is_loading()) break;
 
-        const auto loading = streamer.get_loading();
+        const auto loading = streamer.loading_progress();
         BeginDrawing();
         ClearBackground(BLACK);
         DrawText(TextFormat("Loading... %.1f%%", loading * 100.0f), 350, 350, 50, WHITE);

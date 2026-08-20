@@ -1,13 +1,14 @@
 #include "detail/sky_shader.h"
+
 #include <stdexcept>
 
 // todo merge with the headers from tile_shader
 #define GLSL_VERSION_HEADER_X "#version 330\n"
 
-namespace raytiles::sky  {
-    namespace {
-        // language=GLSL
-        constexpr auto vertex_shader = GLSL_VERSION_HEADER_X R"glsl(
+namespace raytiles::sky {
+namespace {
+// language=GLSL
+constexpr auto vertex_shader = GLSL_VERSION_HEADER_X R"glsl(
 // Input vertex attributes
 in vec3 vertexPosition;
 
@@ -26,8 +27,8 @@ void main()
 }
 )glsl";
 
-        // language=GLSL
-        constexpr auto fragment_shader = GLSL_VERSION_HEADER_X R"glsl(
+// language=GLSL
+constexpr auto fragment_shader = GLSL_VERSION_HEADER_X R"glsl(
 in vec3 fragLocalPos;
 
 uniform vec3 zenithColor;
@@ -109,44 +110,40 @@ void main()
     finalColor = vec4(skyColor, 1.0);
 }
 )glsl";
-    }
+}  // namespace
 
-    sky_shader::sky_shader(const sky_config &opts)
-        : options(opts),
-          shader(raii::load_shader_from_memory(vertex_shader, fragment_shader)) {
-        // cache slots
-        zenith_color_loc = GetShaderLocation(*shader, "zenithColor");
-        horizon_color_loc = GetShaderLocation(*shader, "horizonColor");
-        // time_loc = GetShaderLocation(*shader, "time"); todo complete time with API
+sky_shader::sky_shader(const sky_config& opts) : options(opts), shader(raii::load_shader_from_memory(vertex_shader, fragment_shader)) {
+  // cache slots
+  zenith_color_loc = GetShaderLocation(*shader, "zenithColor");
+  horizon_color_loc = GetShaderLocation(*shader, "horizonColor");
+  // time_loc = GetShaderLocation(*shader, "time"); todo complete time with API
 
-        if (-1 == zenith_color_loc ||
-            -1 == horizon_color_loc
-        ) {
-            throw std::runtime_error("Failed to get shader uniform locations");
-        }
+  if (-1 == zenith_color_loc || -1 == horizon_color_loc) {
+    throw std::runtime_error("Failed to get shader uniform locations");
+  }
 
-        SetShaderValue(*shader, zenith_color_loc, options.zenith_color, SHADER_UNIFORM_VEC3);
-        SetShaderValue(*shader, horizon_color_loc, options.horizon_color, SHADER_UNIFORM_VEC3);
-    }
-
-    sky_shader &sky_shader::set_zenith_color(float r, float g, float b) {
-        options.zenith_color[0] = r;
-        options.zenith_color[1] = g;
-        options.zenith_color[2] = b;
-        SetShaderValue(*shader, zenith_color_loc, options.zenith_color, SHADER_UNIFORM_VEC3);
-        return *this;
-    }
-
-    sky_shader &sky_shader::set_horizon_color(float r, float g, float b) {
-        options.horizon_color[0] = r;
-        options.horizon_color[1] = g;
-        options.horizon_color[2] = b;
-        SetShaderValue(*shader, horizon_color_loc, options.horizon_color, SHADER_UNIFORM_VEC3);
-        return *this;
-    }
-
-    sky_shader &sky_shader::set_time(const float time) {
-        SetShaderValue(*shader, time_loc, &time, SHADER_UNIFORM_FLOAT);
-        return *this;
-    }
+  SetShaderValue(*shader, zenith_color_loc, options.zenith_color, SHADER_UNIFORM_VEC3);
+  SetShaderValue(*shader, horizon_color_loc, options.horizon_color, SHADER_UNIFORM_VEC3);
 }
+
+sky_shader& sky_shader::set_zenith_color(float r, float g, float b) {
+  options.zenith_color[0] = r;
+  options.zenith_color[1] = g;
+  options.zenith_color[2] = b;
+  SetShaderValue(*shader, zenith_color_loc, options.zenith_color, SHADER_UNIFORM_VEC3);
+  return *this;
+}
+
+sky_shader& sky_shader::set_horizon_color(float r, float g, float b) {
+  options.horizon_color[0] = r;
+  options.horizon_color[1] = g;
+  options.horizon_color[2] = b;
+  SetShaderValue(*shader, horizon_color_loc, options.horizon_color, SHADER_UNIFORM_VEC3);
+  return *this;
+}
+
+sky_shader& sky_shader::set_time(const float time) {
+  SetShaderValue(*shader, time_loc, &time, SHADER_UNIFORM_FLOAT);
+  return *this;
+}
+}  // namespace raytiles::sky
