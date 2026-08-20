@@ -34,7 +34,11 @@ struct ref_impl {
       const auto idx = static_cast<std::size_t>(zoom - opts.base_zoom);
       const auto ratio = static_cast<float>(1 << (zoom - opts.base_zoom));
       const auto size = opts.base_tile_size / ratio;
-      const auto th = opts.thresholds[idx];
+      // deliberate deviation from the verbatim copy: squared in double, in
+      // lockstep with lod.hpp (float multiply could overflow — CodeQL).
+      // bit-identical for any threshold whose square is float-exact, which
+      // covers every default and test value; the snapshots prove it.
+      const auto th = static_cast<raytiles::MetersDSq>(opts.thresholds[idx]);
       tiles[zoom] = ref_tile_meta{size, th * th};
     }
   }

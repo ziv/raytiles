@@ -26,7 +26,7 @@ int main() {
 
   conf.network.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
   conf.network.threads = 8;
-  conf.rendering.skirt_drop = 1000.0f;
+  // conf.rendering.skirt_drop = 1000.0f;
   conf.world.skirt_overlap = {1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f};
 
   // opt into greater zoom: z16-17 imagery is fetched natively, heightmaps

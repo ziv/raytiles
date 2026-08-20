@@ -88,14 +88,18 @@ inline void build_required(const build_ctx& ctx, const Zoom zoom, const int tx, 
 /// Does not clear `out`; the produced keys are duplicate-free. Callers reuse
 /// the vector across invocations so steady-state runs allocation-free.
 inline void desired_tiles(const options& opts, const Vector3& position, std::vector<tile_key>& out) {
-  // per-zoom size / squared threshold, derived exactly as the streamer
-  // constructor derives them (float math, then widened) so behavior is
-  // identical to the pre-extraction implementation
+  // per-zoom size / squared threshold. the threshold is widened to double
+  // BEFORE squaring (a float multiply could overflow for extreme configs —
+  // CodeQL cpp/integer-multiplication-cast-to-long analog for FP); for every
+  // realistic threshold the square is exactly representable in float, so
+  // this matches the pre-extraction behavior bit-for-bit — the equivalence
+  // reference in tests/lod_tests.cpp squares the same way, and the snapshot
+  // suite pins the default-config results
   std::array<detail::zoom_meta, zoom_levels> metas{};
   for (int zoom = opts.base_zoom; zoom <= opts.max_zoom; ++zoom) {
     const auto idx = static_cast<std::size_t>(zoom - opts.base_zoom);
     const auto ratio = static_cast<float>(1 << (zoom - opts.base_zoom));
-    const auto th = opts.thresholds[idx];
+    const auto th = static_cast<MetersDSq>(opts.thresholds[idx]);
     metas[idx] = detail::zoom_meta{opts.base_tile_size / ratio, th * th};
   }
 

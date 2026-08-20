@@ -39,7 +39,9 @@ tile_store::tile_store(const config& conf) : world(conf.world), streaming(conf.s
     const auto idx = static_cast<std::size_t>(zoom - world.base_zoom);
     const auto ratio = static_cast<float>(1 << (zoom - world.base_zoom));
     const auto size = world.tile_size / ratio;
-    const auto th = streaming.thresholds[idx];
+    // squared in double (same pattern CodeQL flags in lod.hpp; kept in
+    // lockstep even though this stored threshold is currently unread)
+    const auto th = static_cast<MetersDSq>(streaming.thresholds[idx]);
     const auto skirt_factor = world.skirt_overlap[idx];
 
     tiles[idx] = tile_value{size, th * th, raii::mesh{GenMeshPlane(size * skirt_factor, size * skirt_factor, res, res)}};
