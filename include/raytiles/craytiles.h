@@ -25,10 +25,10 @@
 
 #include "raylib.h"
 
-/// Number of zoom levels in `[9, 18]`. Sizes the per-zoom arrays
+/// Number of zoom levels in `[9, 22]`. Sizes the per-zoom arrays
 /// `RaytilesWorldConfig::skirt_overlap` and `RaytilesStreamingConfig::thresholds`.
 /// Must match `raytiles::zoom_levels` on the C++ side.
-#define RAYTILES_ZOOM_LEVELS 10
+#define RAYTILES_ZOOM_LEVELS 14
 
 #ifdef __cplusplus
 extern "C" {

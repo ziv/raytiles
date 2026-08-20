@@ -5,12 +5,15 @@ but the Mapzen Terrarium heightmaps and normal maps stop at 15 — so today `max
 is a hard wall. This plan removes the wall by **synthesizing** heightmaps above the native ceiling
 and by making normals non-fatal everywhere.
 
-> **Execution status (2026-08):** implemented — all 6 steps, living in the working tree awaiting
-> the author's review (per the no-commit rule). Per-step docs: [`greater-zoom/`](greater-zoom/README.md).
+> **Execution status (2026-08):** implemented — all 6 steps (committed as `be87a81`), then the
+> ceiling was raised again **18 → 22** at the author's request, which also forced the background
+> backfill to switch from full-subtree to lineage-siblings (see §1.3). Per-step docs:
+> [`greater-zoom/`](greater-zoom/README.md).
 
 Decisions locked with the author (2026-08):
-- **Ceiling: 18 for now** (§1.7). Making the ceiling truly dynamic (runtime/provider-driven instead
-  of a compile-time constant) is a recognized follow-up, not part of this plan.
+- **Ceiling: 18 for now** (§1.7) — *superseded: raised to 22 while testing; see the §1.7 addendum.*
+  Making the ceiling truly dynamic (runtime/provider-driven instead of a compile-time constant) is
+  a recognized follow-up, not part of this plan.
 - **Normals: default flat normals** above the native zoom, and whenever HTTP doesn't return a valid
   image (§1.6). No normals derivation from parents in this plan.
 
@@ -78,6 +81,12 @@ Rationale for pre-generating rather than deriving each sibling on demand: when t
 the desired set requests the siblings almost immediately — pre-generation turns those into cache
 hits instead of N independent parent-decodes.
 
+*Addendum (ceiling 22):* the original task generated the parent's **full subtree** down to the
+target — 20 tiles at z17, but ~21 800 tiles (~1 GB) per parent at z22. With the ceiling at 22 the
+task instead generates the **lineage siblings**: the 4 children of each node along the requested
+tile's ancestry (28 PNGs at z22). Cousins outside the lineage derive on demand (~ms per tile,
+served synchronously) and enqueue their own lineage backfill. Dedup is per requested tile.
+
 ### 1.4 Seams and alignment
 
 Sampling is texel-center aligned: child texel `i` maps to parent coordinate
@@ -106,7 +115,13 @@ This removes the need for a structured 404-vs-error fetch result: normals are ca
 other two assets keep throw-on-failure. (Deriving normals from the z15 parent was considered and
 parked — see Non-goals.)
 
-### 1.7 The ceiling *(decided: 18 now, dynamic later)*
+### 1.7 The ceiling *(decided: 18 → raised to 22 while testing; dynamic later)*
+
+*Addendum:* now **22** (`zoom_levels` = 14; thresholds continue halving to
+`…156, 78, 39, 20`). At z19–22 tile sizes are ~130/65/32/16 m with the 256-res mesh — far beyond
+the data's real resolution; heights there are pure smooth magnification of z15. This is a
+"see how it behaves" setting per the author; the original 18 rationale below stands as the
+technical argument.
 
 `max_supported_zoom` becomes **18**: z16/17/18 tile sizes ≈ 1037/518/259 m with the 256-res mesh ≈
 4/2/1 m per vertex — already below the source data's real resolution, so deeper synthesis adds

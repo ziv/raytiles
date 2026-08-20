@@ -31,7 +31,8 @@ struct options {
   int rendering_radius = 6;
 
   /// Per-zoom subdivision thresholds, indexed `thresholds[zoom - base_zoom]`.
-  std::array<Meters, zoom_levels> thresholds = {100000.0f, 80000.0f, 40000.0f, 20000.0f, 10000.0f, 5000.0f, 2500.0f, 1250.0f, 625.0f, 312.0f};
+  std::array<Meters, zoom_levels> thresholds = {100000.0f, 80000.0f, 40000.0f, 20000.0f, 10000.0f, 5000.0f, 2500.0f,
+                                                1250.0f,   625.0f,   312.0f,   156.0f,   78.0f,    39.0f,   20.0f};
 };
 
 namespace detail {

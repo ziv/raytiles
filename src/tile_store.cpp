@@ -4,6 +4,7 @@
 #include <cassert>
 #include <format>
 #include <ranges>
+#include <stdexcept>
 #include <unordered_map>
 #include <utility>
 #include <vector>

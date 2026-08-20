@@ -42,7 +42,7 @@ constexpr Zoom min_supported_zoom = 9;
 /// `network_config::native_terrain_zoom`, heightmaps are synthesized from
 /// their native-zoom ancestors and normals fall back to flat defaults —
 /// only imagery is fetched natively that deep.
-constexpr Zoom max_supported_zoom = 18;
+constexpr Zoom max_supported_zoom = 22;
 
 /// Number of zoom levels in `[min_supported_zoom, max_supported_zoom]`.
 /// Sizes the per-zoom arrays `world_config::skirt_overlap` and
@@ -87,7 +87,7 @@ struct world_config {
   /// overlap (and thus fill rate) at different zoom levels. Baked into
   /// generated meshes. Indexed as `skirt_overlap[zoom - base_zoom]`;
   /// slots beyond `max_zoom - base_zoom` are ignored.
-  std::array<float, zoom_levels> skirt_overlap = {1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f};
+  std::array<float, zoom_levels> skirt_overlap = {1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f};
 
   /// Generate trilinear / anisotropic mipmaps for the albedo texture on
   /// upload. Strongly recommended; avoids shimmering at distance.
@@ -112,12 +112,13 @@ struct streaming_config {
   /// the resident tile count under 600. Indexed as
   /// `thresholds[zoom - base_zoom]`; slots beyond `max_zoom - base_zoom`
   /// are ignored.
-  std::array<Meters, zoom_levels> thresholds = {100000.0f, 80000.0f, 40000.0f, 20000.0f, 10000.0f, 5000.0f, 2500.0f, 1250.0f, 625.0f, 312.0f};
+  std::array<Meters, zoom_levels> thresholds = {100000.0f, 80000.0f, 40000.0f, 20000.0f, 10000.0f, 5000.0f, 2500.0f,
+                                                1250.0f,   625.0f,   312.0f,   156.0f,   78.0f,    39.0f,   20.0f};
 
   /// Distance (in meters) the camera must travel to trigger a
   /// desired-set recomputation. Keep this large enough that small
   /// movements don't churn the working set.
-  Meters update_distance = 500.0f;
+  Meters update_distance = 100.0f;
 
   /// Wall-clock budget (in seconds) per frame for promoting downloaded
   /// tiles into GPU resources. Caps the cost of a single bursty frame.

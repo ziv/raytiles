@@ -289,18 +289,49 @@ TEST_CASE("z17 heightmap derives through the z16 chain from a z15 ancestor") {
   const auto expected = expected_derived_pixels(size, {{1, 0}, {0, 1}});
   CHECK(std::memcmp(h.payloads.front().height->data, expected.data(), expected.size()) == 0);
 
-  // background generation fills the whole 4 + 16 descendant set
+  // background generation fills the LINEAGE siblings only: the four z16
+  // children of the ancestor, and the four z17 children of the lineage z16
+  // node (7, 10) — never the whole subtree (which would explode at deep
+  // zooms: ~21k tiles per parent at z22)
   const auto opts2 = make_options(dir);
-  const auto full_set = [&] {
+  const auto lineage_set = [&] {
     for (int x = 6; x < 8; ++x)
       for (int z = 10; z < 12; ++z)
         if (!fs::exists(cache_path(opts2, "heightmap", 16, x, z))) return false;
-    for (int x = 12; x < 16; ++x)
-      for (int z = 20; z < 24; ++z)
+    for (int x = 14; x < 16; ++x)
+      for (int z = 20; z < 22; ++z)
         if (!fs::exists(cache_path(opts2, "heightmap", 17, x, z))) return false;
     return true;
   };
-  CHECK(h.pump_until(full_set));
+  CHECK(h.pump_until(lineage_set));
+
+  // a z17 cousin outside the lineage stays on-demand
+  CHECK_FALSE(fs::exists(cache_path(opts2, "heightmap", 17, 12, 20)));
+  fs::remove_all(dir);
+}
+
+TEST_CASE("z22 heightmap derives through the full 7-level chain") {
+  const auto dir = fresh_temp_dir();
+  auto opts = make_options(dir);
+  constexpr int size = 16;
+
+  // ancestor (1, 1) at z15; target z22 tile (137, 141) — quadrants per level:
+  // 16:(0,0) 17:(0,0) 18:(0,0) 19:(1,1) 20:(0,1) 21:(0,0) 22:(1,1)
+  write_file(cache_path(opts, "heightmap", 15, 1, 1), terrarium_png_bytes(size));
+  write_file(cache_path(opts, "texture", 22, 137, 141), png_bytes());
+
+  harness h(std::move(opts));
+  h.src.request(tile_request{tile_key{22, 137, 141}, 137, 141});
+
+  REQUIRE(h.pump_until([&] { return !h.payloads.empty(); }));
+  CHECK(h.drops.empty());
+  const auto expected = expected_derived_pixels(size, {{0, 0}, {0, 0}, {0, 0}, {1, 1}, {0, 1}, {0, 0}, {1, 1}});
+  CHECK(std::memcmp(h.payloads.front().height->data, expected.data(), expected.size()) == 0);
+
+  // lineage backfill reaches the deepest level (siblings of the target under
+  // its z21 lineage node (68, 70))
+  const auto opts2 = make_options(dir);
+  CHECK(h.pump_until([&] { return fs::exists(cache_path(opts2, "heightmap", 22, 136, 140)); }));
   fs::remove_all(dir);
 }
 

@@ -232,24 +232,31 @@ void tile_source::deliver_drop(const tile_key& key, const bool cancelled, std::s
   dropped.push_back(drop{key, cancelled, std::move(reason)});
 }
 
-void tile_source::enqueue_derive(const int parent_x, const int parent_z, const int target_zoom) {
+void tile_source::enqueue_derive(const int zoom, const int x, const int z) {
   std::lock_guard lock(mtx);
-  const tile_key token{target_zoom, parent_x, parent_z};
+  const tile_key token{zoom, x, z};
   if (background_done.contains(token)) return;
   background_done.insert(token);
-  background.push(derive_task{parent_x, parent_z, target_zoom});
+  background.push(derive_task{zoom, x, z});
   cv.notify_one();
 }
 
 void tile_source::run_derive(const derive_task& task, const std::stop_token& st) {
-  // best-effort: generate every missing derived heightmap under one native
-  // parent down to target_zoom. the parent was cached by the synchronous
-  // path that enqueued us; if anything is off (pruned cache, corrupt file),
-  // skip silently — a direct request will retry synchronously.
+  // best-effort: walk the target's ancestry from the native parent down,
+  // generating the 4 children of each lineage node (missing ones only) and
+  // descending into the lineage child. the native parent was cached by the
+  // synchronous path that enqueued us; if anything is off (pruned cache,
+  // corrupt file), skip silently — a direct request will retry
+  // synchronously.
+  const int dz = task.zoom - options.native_terrain_zoom;
+  if (dz <= 0) return;
+
   std::vector<float> floats;
   int w = 0, h = 0;
   try {
-    const auto parent_path = std::vformat(options.heightmap_cache_path, std::make_format_args(options.native_terrain_zoom, task.parent_x, task.parent_z));
+    const int px = task.x >> dz;
+    const int pz = task.z >> dz;
+    const auto parent_path = std::vformat(options.heightmap_cache_path, std::make_format_args(options.native_terrain_zoom, px, pz));
     Image parent = decode_png(read_file(parent_path));
     w = parent.width;
     h = parent.height;
@@ -259,16 +266,19 @@ void tile_source::run_derive(const derive_task& task, const std::stop_token& st)
     return;
   }
 
-  const auto gen = [&](auto&& self, const std::vector<float>& level_floats, const int level, const int x, const int z) -> void {
-    if (level >= task.target_zoom || st.stop_requested()) return;
+  for (int level = options.native_terrain_zoom + 1; level <= task.zoom; ++level) {
+    const int shift = task.zoom - level;
+    const int lx = task.x >> shift;  // lineage child at this level
+    const int lz = task.z >> shift;
+    std::vector<float> lineage_child;
+
     for (int qz = 0; qz < 2; ++qz) {
       for (int qx = 0; qx < 2; ++qx) {
         if (st.stop_requested()) return;
-        auto child = synth::upsample_quadrant(level_floats, w, h, qx, qz);
-        const int child_level = level + 1;
-        const int cx = x * 2 + qx;
-        const int cz = z * 2 + qz;
-        const auto path = std::vformat(options.heightmap_cache_path, std::make_format_args(child_level, cx, cz));
+        auto child = synth::upsample_quadrant(floats, w, h, qx, qz);
+        const int cx = (lx & ~1) + qx;
+        const int cz = (lz & ~1) + qz;
+        const auto path = std::vformat(options.heightmap_cache_path, std::make_format_args(level, cx, cz));
         if (!std::filesystem::exists(path)) {
           try {
             Image img = synth::encode_terrarium(child, w, h);
@@ -278,11 +288,11 @@ void tile_source::run_derive(const derive_task& task, const std::stop_token& st)
             // best-effort; the child stays derivable on demand
           }
         }
-        self(self, child, child_level, cx, cz);
+        if (cx == lx && cz == lz) lineage_child = std::move(child);
       }
     }
-  };
-  gen(gen, floats, options.native_terrain_zoom, task.parent_x, task.parent_z);
+    floats = std::move(lineage_child);
+  }
 }
 
 void tile_source::worker_loop(const std::stop_token& st) {
@@ -345,7 +355,7 @@ void tile_source::worker_loop(const std::stop_token& st) {
       free_partial(out);
       throw;
     }
-    enqueue_derive(ax, az, req.key.zoom);
+    enqueue_derive(req.key.zoom, req.x, req.z);
     return out;
   };
 

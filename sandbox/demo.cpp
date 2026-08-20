@@ -24,14 +24,14 @@ int main() {
 
   raytiles::config conf;
 
-  // conf.network.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
+  conf.network.texture_url = "https://api.mapbox.com/v4/mapbox.satellite/:zoom:/:x:/:y:.pngraw?access_token=" + token;
   conf.network.threads = 8;
-  // conf.rendering.skirt_drop = 1000.0f;
-  conf.world.skirt_overlap = {1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f};
+  conf.rendering.skirt_drop = 1000.0f;
+  conf.world.skirt_overlap = {1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f, 1.01f};
 
   // opt into greater zoom: z16-17 imagery is fetched natively, heightmaps
   // are synthesized from the z15 ancestors, normals default to flat
-  conf.world.max_zoom = 17;
+  conf.world.max_zoom = 22;
 
   // The Dolomites
   // constexpr double lat = 46.206889;
@@ -48,12 +48,12 @@ int main() {
   // constexpr double lon = -113.76892;
 
   // negev
-  constexpr double lat = 30.82691969172123;
-  constexpr double lon = 34.91386235622426;
+  // constexpr double lat = 30.82691969172123;
+  // constexpr double lon = 34.91386235622426;
 
   // My home
-  // constexpr double lat = 32.11572;
-  // constexpr double lon = 34.79118;
+  constexpr double lat = 32.11572;
+  constexpr double lon = 34.79118;
 
   // constexpr double lat = 32.73076;
   // constexpr double lon = 34.95166;

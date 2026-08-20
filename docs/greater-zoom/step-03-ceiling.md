@@ -28,3 +28,8 @@
   Pre-existing policy quirk (now noted in the test); the probe moved to a base-tile center at
   y=500, which does reach z16+.
 - `native_terrain_zoom` validated in `tile_source::resolve` (throws outside [9, 18]).
+
+## Addendum (ceiling 22)
+
+Raised again 18 → 22 at the author's request (`zoom_levels` 14, `RAYTILES_ZOOM_LEVELS` 14,
+thresholds extended `…156, 78, 39, 20`, demo opts into `max_zoom = 22` with 14 skirt slots).

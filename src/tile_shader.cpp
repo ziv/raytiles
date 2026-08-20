@@ -1,5 +1,7 @@
 #include "detail/tile_shader.h"
 
+#include <stdexcept>
+
 #include "raytiles/raytiles.h"
 
 #define GLSL_VERSION_HEADER "#version 330\n"

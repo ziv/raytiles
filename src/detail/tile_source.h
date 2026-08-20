@@ -96,15 +96,18 @@ class tile_source {
     std::shared_ptr<std::atomic_bool> cancelled;
   };
 
-  /// Low-priority synthesis work: generate every missing derived heightmap
-  /// under one native-zoom parent down to `target_zoom`. Enqueued after a
-  /// synchronous derivation served its requested tile; processed only when
-  /// no real job is pending. Best-effort (no cancellation, dropped at
-  /// shutdown).
+  /// Low-priority synthesis work: along the ancestry of one derived tile,
+  /// generate the missing sibling heightmaps at every level (4 children per
+  /// lineage node — 28 PNGs at z22, never the full subtree, which would be
+  /// ~21k tiles per native parent at deep zooms). Cousins outside the
+  /// lineage derive on demand (~ms) and enqueue their own backfill.
+  /// Enqueued after a synchronous derivation served its requested tile;
+  /// processed only when no real job is pending. Best-effort (no
+  /// cancellation, dropped at shutdown).
   struct derive_task {
-    int parent_x;  // absolute provider coords at the native zoom
-    int parent_z;
-    int target_zoom;
+    int zoom;  // the requested tile, absolute provider coords
+    int x;
+    int z;
   };
 
   /// network_config resolved for fetching: URLs split into host + path,
@@ -138,7 +141,7 @@ class tile_source {
   void deliver_drop(const tile_key& key, bool cancelled, std::string reason);
 
   /// Enqueue a derive task unless an identical one already ran (dedup).
-  void enqueue_derive(int parent_x, int parent_z, int target_zoom);
+  void enqueue_derive(int zoom, int x, int z);
 
   /// Execute one derive task (worker thread, no lock held).
   void run_derive(const derive_task& task, const std::stop_token& st);
@@ -151,8 +154,8 @@ class tile_source {
   std::vector<tile_payload> ready;
   std::vector<drop> dropped;
 
-  // low-priority synthesis work (see derive_task); background_done keys are
-  // tile_key{target_zoom, parent_x, parent_z} — a dedup token, not a tile
+  // low-priority synthesis work (see derive_task); background_done holds the
+  // requested tiles whose lineage backfill already ran (dedup)
   std::queue<derive_task> background;
   std::unordered_set<tile_key> background_done;
 

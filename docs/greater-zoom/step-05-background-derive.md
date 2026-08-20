@@ -30,3 +30,10 @@ a z17 request eventually materializes the full 4 + 16 descendant set.
 - `run_derive` recomputes child floats even when the child PNG exists (needed to recurse deeper);
   writes are skip-existing; every failure path is silent by design (a direct request retries
   synchronously).
+
+## Addendum (ceiling 22)
+
+Full-subtree backfill would generate ~21 800 PNGs (~1 GB) per native parent at z22, so the task
+was reworked to lineage-siblings: 4 children per ancestry level (28 PNGs at z22), cousins derived
+on demand with their own backfill. Tests updated to pin the new policy, including a z22
+7-level-chain case (byte-identical) and an explicit cousin-not-pre-generated check.
