@@ -24,6 +24,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Purge images from camo.githubusercontent.com
+        shell: bash
+        run: |
+          urls=$(curl -sLk "https://github.com/ziv/raytiles" | grep -Eo "(http|https)://camo.githubusercontent.com[a-zA-Z0-9./?=_%:-]*")
+          while IFS= read -r url; do curl -X PURGE "$url"; done <<< "$urls"
+        
+      - uses: kevincobain2000/action-camo-purge@v1
+      
+
       - name: Install Dependencies
         run: |
           sudo apt-get update
