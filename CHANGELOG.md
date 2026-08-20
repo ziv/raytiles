@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.18.0](https://github.com/ziv/raytiles/compare/v0.17.0...v0.18.0) (2026-08-20)
+
+
+### Features
+
+* large refactor, add support for zoom larger then native ([#128](https://github.com/ziv/raytiles/issues/128)) ([94093bd](https://github.com/ziv/raytiles/commit/94093bd57cc1e9a813904d1a6954cb1b2c170a9d))
+* remove emscripten support ([#125](https://github.com/ziv/raytiles/issues/125)) ([141da96](https://github.com/ziv/raytiles/commit/141da96b5a33876709dd2097e0a8725d8a24304e))
+
+
+### Bug Fixes
+
+* replace shield io links ([5f98bb5](https://github.com/ziv/raytiles/commit/5f98bb5ae5370e05737266c839ae775f9f4e06b0))
+
 ## [0.17.0](https://github.com/ziv/raytiles/compare/v0.16.1...v0.17.0) (2026-06-06)
 
 
