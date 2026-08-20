@@ -123,19 +123,19 @@ void streamer::update(const Camera3D& camera, const Vector3 world_offset) const 
   m.store.cull(m.last_frustum, world_offset);
 }
 
-void streamer::draw() { impl_->rendered = impl_->renderer.draw(impl_->cached_camera.position, impl_->store.render_items()); }
+void streamer::draw() const { impl_->rendered = impl_->renderer.draw(impl_->cached_camera.position, impl_->store.render_items()); }
 
-void streamer::draw_debug_3d() { terrain_renderer::debug_3d(impl_->store.render_items()); }
+void streamer::draw_debug_3d() const { terrain_renderer::debug_3d(impl_->store.render_items()); }
 
-void streamer::draw_debug_labels() { terrain_renderer::debug(impl_->cached_camera, impl_->store.render_items()); }
+void streamer::draw_debug_labels() const { terrain_renderer::debug(impl_->cached_camera, impl_->store.render_items()); }
 
-void streamer::set_rendering(const rendering_config& conf) { impl_->renderer.shader().apply(conf); }
-void streamer::set_fog_color(const Color color) { impl_->renderer.shader().set_fog_color(color); }
-void streamer::set_fog_start(const float distance) { impl_->renderer.shader().set_fog_start(distance); }
-void streamer::set_fog_end(const float distance) { impl_->renderer.shader().set_fog_end(distance); }
-void streamer::set_ambient_light(const Color color) { impl_->renderer.shader().set_ambient_light(color); }
-void streamer::set_sun_direction(const Vector3 direction) { impl_->renderer.shader().set_sun_direction(direction); }
-void streamer::set_sun_scale(const float scale) { impl_->renderer.shader().set_sun_scale(scale); }
-void streamer::set_height_scale(const float scale) { impl_->renderer.shader().set_height_scale(scale); }
-void streamer::set_normals_scale(const float scale) { impl_->renderer.shader().set_normals_scale(scale); }
+void streamer::set_rendering(const rendering_config& conf) const { impl_->renderer.shader().apply(conf); }
+void streamer::set_fog_color(const Color color) const { impl_->renderer.shader().set_fog_color(color); }
+void streamer::set_fog_start(const float distance) const { impl_->renderer.shader().set_fog_start(distance); }
+void streamer::set_fog_end(const float distance) const { impl_->renderer.shader().set_fog_end(distance); }
+void streamer::set_ambient_light(const Color color) const { impl_->renderer.shader().set_ambient_light(color); }
+void streamer::set_sun_direction(const Vector3 direction) const { impl_->renderer.shader().set_sun_direction(direction); }
+void streamer::set_sun_scale(const float scale) const { impl_->renderer.shader().set_sun_scale(scale); }
+void streamer::set_height_scale(const float scale) const { impl_->renderer.shader().set_height_scale(scale); }
+void streamer::set_normals_scale(const float scale) const { impl_->renderer.shader().set_normals_scale(scale); }
 }  // namespace raytiles

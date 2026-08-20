@@ -296,15 +296,15 @@ class streamer {
 
   /// Renders all currently loaded tiles in view. Must be called between
   /// `BeginMode3D` / `EndMode3D` after `update()` in the same frame.
-  void draw();
+  void draw() const;
 
   /// Draws 3D tile bounds. Call inside the same `BeginMode3D` block as
   /// `draw()`.
-  void draw_debug_3d();
+  void draw_debug_3d() const;
 
   /// Draws 2D zoom labels above the tiles (green = desired, red =
   /// resident but no longer desired). Call after `EndMode3D`.
-  void draw_debug_labels();
+  void draw_debug_labels() const;
 
   /// Return true for initial loading only.
   [[nodiscard]] bool is_loading() const;
@@ -336,34 +336,34 @@ class streamer {
   /// @{
 
   /// Pushes a whole rendering configuration to the shader in one call.
-  void set_rendering(const rendering_config& conf);
+  void set_rendering(const rendering_config& conf) const;
 
   /// Sets the fog color for distance attenuation. Match this to your sky
   /// color for a seamless horizon.
-  void set_fog_color(Color color);
+  void set_fog_color(Color color) const;
 
   /// Sets the distance at which colors begin to blend with the fog.
-  void set_fog_start(float distance);
+  void set_fog_start(float distance) const;
 
   /// Sets the distance at which colors are fully blended with the fog.
-  void set_fog_end(float distance);
+  void set_fog_end(float distance) const;
 
   /// Sets the ambient light color. Use this to drive day / night /
   /// weather lighting changes.
-  void set_ambient_light(Color color);
+  void set_ambient_light(Color color) const;
 
   /// Sets the sun direction vector used by the lighting calculations.
-  void set_sun_direction(Vector3 direction);
+  void set_sun_direction(Vector3 direction) const;
 
   /// Sets the sun lighting intensity (contrast between lit and shaded
   /// areas).
-  void set_sun_scale(float scale);
+  void set_sun_scale(float scale) const;
 
   /// Sets the heightmap scale factor (drama factor).
-  void set_height_scale(float scale);
+  void set_height_scale(float scale) const;
 
   /// Sets the normals scale factor (lighting contrast).
-  void set_normals_scale(float scale);
+  void set_normals_scale(float scale) const;
 
   /// @}
 
