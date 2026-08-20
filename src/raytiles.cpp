@@ -4,185 +4,138 @@
 #define NOGDI
 #define NOUSER
 #endif
-#include "raylib.h"
-#include "raymath.h"
 #include <cmath>
 #include <memory>
 #include <optional>
 #include <utility>
 
-#include "detail/tiles_renderer.h"
-#include "detail/tiles_manager.h"
+#include "detail/terrain_renderer.h"
+#include "detail/tile_store.h"
 #include "detail/utils.hpp"
+#include "raylib.h"
+#include "raymath.h"
 
 namespace raytiles {
-    namespace {
-        world_config &update_world_config(world_config &conf, const double latitude, const double longitude) {
-            // calculate tiles
-            const double lat = latitude * DEG2RAD;
-            const double n = std::pow(2.0, min_supported_zoom);
-            const double x = (longitude + 180.0) / 360.0 * n;
-            const double y = (1.0 - std::log(std::tan(lat) + 1.0 / std::cos(lat)) / PI) / 2.0 * n;
-            conf.anchor_x_tile = static_cast<int>(std::floor(x));
-            conf.anchor_z_tile = static_cast<int>(std::floor(y));
+namespace {
+/// Derive anchor tile, tile size, and origin offset for a geographic
+/// coordinate, overriding those fields of `conf.world`.
+config with_geo_anchor(config conf, const double latitude, const double longitude) {
+  // calculate tiles
+  const double lat = latitude * DEG2RAD;
+  const double n = std::pow(2.0, min_supported_zoom);
+  const double x = (longitude + 180.0) / 360.0 * n;
+  const double y = (1.0 - std::log(std::tan(lat) + 1.0 / std::cos(lat)) / PI) / 2.0 * n;
+  conf.world.anchor_x_tile = static_cast<int>(std::floor(x));
+  conf.world.anchor_z_tile = static_cast<int>(std::floor(y));
 
-            // calculate tile size
-            constexpr double equator_circumference_m = 40075016.686;
-            const double tile_size = equator_circumference_m * std::cos(lat) / n;
-            conf.base_zoom_tile_size = static_cast<float>(tile_size);
+  // calculate tile size
+  constexpr double equator_circumference_m = 40075016.686;
+  const double tile_size = equator_circumference_m * std::cos(lat) / n;
+  conf.world.tile_size = static_cast<float>(tile_size);
 
-            // calculate the offset
-            const auto offset_x = static_cast<float>((x - conf.anchor_x_tile) * tile_size);
-            const auto offset_z = static_cast<float>((y - conf.anchor_z_tile) * tile_size);
-            conf.offset = {offset_x, 0.0f, offset_z};
+  // calculate the offset
+  const auto offset_x = static_cast<float>((x - conf.world.anchor_x_tile) * tile_size);
+  const auto offset_z = static_cast<float>((y - conf.world.anchor_z_tile) * tile_size);
+  conf.world.origin_offset = {offset_x, 0.0f, offset_z};
 
-            TraceLog(LOG_WARNING, "tiles anchore %d %d", conf.anchor_x_tile, conf.anchor_z_tile);
-            return conf;
-        }
+  TraceLog(LOG_INFO, "raytiles anchor tile %d %d", conf.world.anchor_x_tile, conf.world.anchor_z_tile);
+  return conf;
+}
+}  // namespace
 
-        std::pair<std::string, std::string> split_url(const std::string &url) {
-            const auto scheme = url.find("://");
-            if (scheme == std::string::npos) throw std::runtime_error("invalid url (no scheme): " + url);
+struct streamer::impl {
+  float near_plane;
+  float far_plane;
+  float update_distance_sq;
+  Vector3 init_position;
 
-            const auto path_pos = url.find('/', scheme + 3);
-            if (path_pos == std::string::npos) return {url, "/"};
+  terrain_renderer renderer;
+  tile_store store;
 
-            return {url.substr(0, path_pos), url.substr(path_pos)};
-        }
+  int rendered = 0;
 
-        // Translates the streamer's public config triplet into the
-        // tiles_manager's own option struct. Mirrors `make_shader_options`
-        // in renderer.cpp.
-        tiles_manager_options make_tiles_manager_options(const world_config &world, const streaming_config &streaming) {
-            return tiles_manager_options{
-                .base_zoom = world.base_zoom,
-                .max_zoom = world.max_zoom,
-                .base_zoom_tile_size = world.base_zoom_tile_size,
-                .anchor_x_tile = world.anchor_x_tile,
-                .anchor_z_tile = world.anchor_z_tile,
-                .rendering_radius = streaming.rendering_radius,
-                .near_plane = streaming.near_plane,
-                .far_plane = streaming.far_plane,
-                .use_mipmap = world.use_mipmap,
-                .upload_budget_sec = streaming.upload_budget_sec,
-                .max_uploads_per_frame = streaming.max_uploads_per_frame,
-                .thresholds = streaming.thresholds,
-                .skirt_overlap = world.skirt_overlap,
-            };
-        }
+  // update every frame
+  Vector3 last_position = {-9999.9f, -9999.9f, -9999.9f};
+  Frustum last_frustum{};
 
-        pool_options make_pool_options(const pool_config &pool_conf) {
-            auto [texture_host, texture_url_path] = split_url(pool_conf.texture_url);
-            auto [heightmap_host, heightmap_url_path] = split_url(pool_conf.heightmap_url);
-            auto [normals_host, normals_url_path] = split_url(pool_conf.normals_url);
-            return pool_options{
-                .download_threads = pool_conf.download_threads,
-                .allow_insecure_tls = pool_conf.allow_insecure_tls,
-                .texture_cache_path = pool_conf.texture_cache_path,
-                .heightmap_cache_path = pool_conf.heightmap_cache_path,
-                .normals_cache_path = pool_conf.normals_cache_path,
-                .texture_host = std::move(texture_host),
-                .texture_url_path = std::move(texture_url_path),
-                .heightmap_host = std::move(heightmap_host),
-                .heightmap_url_path = std::move(heightmap_url_path),
-                .normals_host = std::move(normals_host),
-                .normals_url_path = std::move(normals_url_path),
-            };
-        }
-    } // namespace
+  // Cached current-frame inputs from update(); read by draw() and
+  // ground_height(). Convention: cached_camera.position is in user
+  // space, cached_world_offset maps user → absolute via
+  // absolute = user - offset.
+  Camera3D cached_camera{};
+  Vector3 cached_world_offset = {0.0f, 0.0f, 0.0f};
 
-    streamer::streamer(const world_config &world_conf,
-                       const streaming_config &streaming_conf,
-                       const rendering_config &rendering_conf,
-                       const pool_config &pool_conf)
-        : near_plane(static_cast<float>(streaming_conf.near_plane)),
-          far_plane(static_cast<float>(streaming_conf.far_plane)),
-          update_distance_sq(streaming_conf.update_distance_sq),
-          init_position(world_conf.offset),
-          tile_renderer(std::make_unique<tiles_renderer>(rendering_conf)),
-          tile_manager(std::make_unique<tiles_manager>(make_tiles_manager_options(world_conf, streaming_conf), make_pool_options(pool_conf))) {
-    }
+  explicit impl(const config& conf)
+      : near_plane(static_cast<float>(conf.streaming.near_plane)),
+        far_plane(static_cast<float>(conf.streaming.far_plane)),
+        update_distance_sq(conf.streaming.update_distance * conf.streaming.update_distance),
+        init_position(conf.world.origin_offset),
+        renderer(conf.rendering),
+        store(conf) {}
+};
 
-    streamer::streamer(const double latitude,
-                       const double longitude,
-                       world_config world_conf,
-                       const streaming_config &streaming_conf,
-                       const rendering_config &rendering_conf,
-                       const pool_config &pool_conf)
-        : streamer(update_world_config(world_conf, latitude, longitude), streaming_conf, rendering_conf, pool_conf) {
-    }
+streamer::streamer(config conf) : impl_(std::make_unique<impl>(conf)) {}
 
-    streamer::~streamer() = default;
+streamer::streamer(const double latitude, const double longitude, config conf) : streamer(with_geo_anchor(std::move(conf), latitude, longitude)) {}
 
-    streamer::streamer(streamer &&) noexcept = default;
+streamer::~streamer() = default;
 
-    streamer &streamer::operator=(streamer &&) noexcept = default;
+streamer::streamer(streamer&&) noexcept = default;
 
-    bool streamer::is_loading() const {
-        return tile_manager->is_loading();
-    }
+streamer& streamer::operator=(streamer&&) noexcept = default;
 
-    float streamer::get_loading() const {
-        return tile_manager->get_loading();
-    }
+bool streamer::is_loading() const { return impl_->store.is_loading(); }
 
-    Vector3 streamer::get_initial_position(const float y) const {
-        return init_position + Vector3{0.0f, y, 0.0f};
-    }
+float streamer::loading_progress() const { return impl_->store.get_loading(); }
 
-    std::optional<float> streamer::ground_height(const Vector3 position) const {
-        return tile_manager->ground_height(Vector3Subtract(position, cached_world_offset_));
-    }
+Vector3 streamer::initial_position(const float altitude) const { return impl_->init_position + Vector3{0.0f, altitude, 0.0f}; }
 
-    void streamer::update(const Camera3D &camera, const Vector3 world_offset) {
-        // Cache for draw() and ground_height(); they are forbidden to take
-        // these as args (single source of truth = update()).
-        cached_camera_ = camera;
-        cached_world_offset_ = world_offset;
+std::optional<float> streamer::ground_height(const Vector3 position) const {
+  return impl_->store.ground_height(Vector3Subtract(position, impl_->cached_world_offset));
+}
 
-        // Convert camera position from user space to absolute world space.
-        // Internal pipeline (tile_manager) operates in absolute space because
-        // tile coordinates (tile.tx, tile.tz) are stored absolute.
-        const Vector3 abs_position = Vector3Subtract(camera.position, world_offset);
+void streamer::update(const Camera3D& camera, const Vector3 world_offset) const {
+  auto& m = *impl_;
 
-        tile_manager->pre_process(abs_position);
+  // Cache for draw() and ground_height(); they are forbidden to take
+  // these as args (single source of truth = update()).
+  m.cached_camera = camera;
+  m.cached_world_offset = world_offset;
 
-        if (Vector3DistanceSqr(abs_position, last_position) > update_distance_sq) {
-            last_position = abs_position;
-            tile_manager->process(abs_position);
-        }
+  // Convert camera position from user space to absolute world space.
+  // Internal pipeline (tile_store) operates in absolute space because
+  // tile coordinates are stored absolute.
+  const Vector3 abs_position = Vector3Subtract(camera.position, world_offset);
 
-        // Frustum is built from the user-space camera (small floats) and is
-        // therefore in user space. post_process shifts each tile to user space
-        // (tile.tx + offset.x) before the in-frustum test.
-        last_frustum = utils::extract_frustum(camera, near_plane, far_plane);
+  m.store.reconcile(abs_position);
+  m.store.promote(abs_position, world_offset);
 
-        tile_manager->post_process(last_frustum, world_offset);
-    }
+  if (Vector3DistanceSqr(abs_position, m.last_position) > m.update_distance_sq) {
+    m.last_position = abs_position;
+    m.store.update_desired(abs_position);
+  }
 
-    void streamer::draw() {
-        rendered = tile_renderer->draw(cached_camera_.position, cached_world_offset_,
-                                       tile_manager->make_debug_view(last_frustum));
-    }
+  // Frustum is built from the user-space camera (small floats) and is
+  // therefore in user space. cull shifts each tile to user space
+  // (abs + offset, baked into the item transform) before the test.
+  m.last_frustum = utils::extract_frustum(camera, m.near_plane, m.far_plane);
 
-    void streamer::draw_debug_3d() {
-        tiles_renderer::debug_3d(cached_world_offset_, tile_manager->make_debug_view(last_frustum));
-    }
+  m.store.cull(m.last_frustum, world_offset);
+}
 
-    void streamer::draw_debug_labels() {
-        tiles_renderer::debug(cached_camera_, cached_world_offset_, tile_manager->make_debug_view(last_frustum));
-    }
+void streamer::draw() const { impl_->rendered = impl_->renderer.draw(impl_->cached_camera.position, impl_->store.render_items()); }
 
-    void streamer::set_ambient_light(const Color color) const { tile_renderer->set_ambient_light(color); }
-    void streamer::set_ambient_light(const Vector4 color) const { tile_renderer->set_ambient_light(color); }
-    void streamer::set_ambient_light(const float r, const float g, const float b, const float a) const { tile_renderer->set_ambient_light(r, g, b, a); }
-    void streamer::set_fog_color(const Color color) const { tile_renderer->set_fog_color(color); }
-    void streamer::set_fog_color(const Vector4 color) const { tile_renderer->set_fog_color(color); }
-    void streamer::set_fog_color(const float r, const float g, const float b, const float a) const { tile_renderer->set_fog_color(r, g, b, a); }
-    void streamer::set_fog_start(const float distance) const { tile_renderer->set_fog_start(distance); }
-    void streamer::set_fog_end(const float distance) const { tile_renderer->set_fog_end(distance); }
-    void streamer::set_height_scale(const float scale) const { tile_renderer->set_height_scale(scale); }
-    void streamer::set_normals_scale(const float scale) const { tile_renderer->set_normals_scale(scale); }
-    void streamer::set_sun_direction(const Vector3 direction) const { tile_renderer->set_sun_direction(direction); }
-    void streamer::set_sun_scale(const float scale) const { tile_renderer->set_sun_scale(scale); }
-} // namespace raytiles
+void streamer::draw_debug_3d() const { terrain_renderer::debug_3d(impl_->store.render_items()); }
+
+void streamer::draw_debug_labels() const { terrain_renderer::debug(impl_->cached_camera, impl_->store.render_items()); }
+
+void streamer::set_rendering(const rendering_config& conf) const { impl_->renderer.shader().apply(conf); }
+void streamer::set_fog_color(const Color color) const { impl_->renderer.shader().set_fog_color(color); }
+void streamer::set_fog_start(const float distance) const { impl_->renderer.shader().set_fog_start(distance); }
+void streamer::set_fog_end(const float distance) const { impl_->renderer.shader().set_fog_end(distance); }
+void streamer::set_ambient_light(const Color color) const { impl_->renderer.shader().set_ambient_light(color); }
+void streamer::set_sun_direction(const Vector3 direction) const { impl_->renderer.shader().set_sun_direction(direction); }
+void streamer::set_sun_scale(const float scale) const { impl_->renderer.shader().set_sun_scale(scale); }
+void streamer::set_height_scale(const float scale) const { impl_->renderer.shader().set_height_scale(scale); }
+void streamer::set_normals_scale(const float scale) const { impl_->renderer.shader().set_normals_scale(scale); }
+}  // namespace raytiles
