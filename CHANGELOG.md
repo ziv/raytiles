@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/ziv/raytiles/compare/v0.18.0...v0.18.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* add suppport to new llvm version ([#129](https://github.com/ziv/raytiles/issues/129)) ([f26b362](https://github.com/ziv/raytiles/commit/f26b362f97b601cffb86a78e51011c6902c74814))
+
 ## [0.18.0](https://github.com/ziv/raytiles/compare/v0.17.0...v0.18.0) (2026-08-20)
 
 
