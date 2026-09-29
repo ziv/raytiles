@@ -35,7 +35,7 @@ int terrain_renderer::draw(const Vector3& camera_position, const std::span<const
 void terrain_renderer::debug_3d(const std::span<const render_item> items) {
   for (const auto& item : items) {
     if (item.visible) {
-      DrawCubeWires({item.transform.m12, 0.0f, item.transform.m14}, item.size, 1000.0f, item.size, GREEN);
+      DrawCubeWires({item.transform.m12, 0.0f, item.transform.m14}, item.size, 200.0f, item.size, GREEN);
     }
   }
 }
@@ -48,7 +48,7 @@ void terrain_renderer::debug(const Camera3D& camera, const std::span<const rende
       const auto [x, y] = GetWorldToScreen({item.transform.m12, 0.0f, item.transform.m14}, camera);
       if (x < 0 || x > width || y < 0 || y > height) continue;
 
-      DrawText(TextFormat("%d", item.key.zoom), static_cast<int>(x), static_cast<int>(y), 15, item.desired ? GREEN : RED);
+      DrawText(TextFormat("%d", item.key.zoom), static_cast<int>(x), static_cast<int>(y), 20, item.desired ? GREEN : RED);
     }
   }
 }

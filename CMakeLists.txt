@@ -13,6 +13,12 @@ endif ()
 
 include(FetchContent)
 
+# GLFW's Cocoa backend is Objective-C; enable it here (before raylib is fetched) so the stub
+# workaround below can probe the OBJC compiler.
+if (APPLE)
+    enable_language(OBJC)
+endif ()
+
 if (NOT TARGET raylib)
     if (PROJECT_IS_TOP_LEVEL)
         # set(SUPPORT_FILEFORMAT_JPG ON CACHE BOOL "" FORCE)
@@ -26,6 +32,18 @@ if (NOT TARGET raylib)
         FetchContent_MakeAvailable(raylib)
         if (TARGET raylib)
             set_target_properties(raylib PROPERTIES SYSTEM TRUE)
+        endif ()
+        # LLVM clang >= 23 emits `objc_msgSendClass$...` stubs for Objective-C class messages, which the
+        # linker shipped with Apple's Command Line Tools cannot resolve yet (undefined symbols when linking
+        # GLFW's Cocoa backend). Disable the stubs for those sources when the compiler knows the flag.
+        if (APPLE AND TARGET glfw)
+            include(CheckOBJCCompilerFlag)
+            check_objc_compiler_flag(-fno-objc-msgsend-class-selector-stubs HAVE_NO_OBJC_MSGSEND_CLASS_STUBS)
+            if (HAVE_NO_OBJC_MSGSEND_CLASS_STUBS)
+                file(GLOB glfw_objc_sources ${raylib_SOURCE_DIR}/src/external/glfw/src/*.m)
+                set_source_files_properties(${glfw_objc_sources} TARGET_DIRECTORY glfw
+                        PROPERTIES COMPILE_OPTIONS -fno-objc-msgsend-class-selector-stubs)
+            endif ()
         endif ()
     else ()
         find_package(raylib 6.0 REQUIRED)
